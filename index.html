@@ -1,0 +1,1303 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResInvest Commodities - Magazyn v8</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+:root { --green:#10b981; --blue:#3b82f6; --bg:#f9fafb; --red:#ef4444; }
+* { box-sizing:border-box; font-family:-apple-system,system-ui,sans-serif; }
+body { background:var(--bg); padding:10px; margin:0; color:#111; }
+
+.header {
+  text-align:center; background:white; padding:15px;
+  border-bottom:3px solid var(--green); border-radius:0 0 15px 15px;
+  margin-bottom:15px;
+}
+.company { font-size:20px; font-weight:bold; color:#111; }
+
+.stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px; }
+.stat-box { background:white; padding:12px; border-radius:12px; text-align:center; border:1px solid #ddd; }
+.stat-main { grid-column:span 2; border-left:5px solid var(--green); }
+.stat-val { font-size:22px; font-weight:bold; display:block; }
+.stat-label { font-size:11px; color:#666; text-transform:uppercase; }
+
+.card { background:white; padding:15px; border-radius:12px; border:1px solid #ddd; margin-bottom:15px; }
+label { display:block; font-size:13px; font-weight:bold; margin-bottom:5px; color:#444; }
+input, select {
+  width:100%; padding:12px; margin-bottom:12px; border:1px solid #ccc;
+  border-radius:8px; font-size:16px; background:white;
+}
+
+button {
+  width:100%; padding:14px; border-radius:8px; border:none;
+  font-weight:bold; font-size:15px; cursor:pointer; transition:0.2s;
+}
+.btn-green { background:var(--green); color:white; }
+.btn-blue { background:var(--blue); color:white; }
+.btn-gray { background:#e5e7eb; color:#374151; }
+.btn-edit { background:#fef08a; color:#854d0e; width:auto; padding:6px 12px; font-size:12px; }
+.btn-danger { background:none; color:var(--red); width:auto; padding:0 5px; font-size:12px; }
+
+.modal {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.8); z-index:1000; padding:15px;
+}
+.modal-content {
+  background:white; padding:20px; border-radius:15px;
+  max-height:90vh; overflow-y:auto;
+}
+
+table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; vertical-align:top; }
+th { background:#f3f4f6; }
+
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.muted { color:#666; font-size:12px; }
+.sheet-wrap {
+  background:#f2f2f2;
+  border:1px solid #ddd;
+  border-radius:12px;
+  padding:12px;
+  overflow:auto;
+}
+.sheet {
+  background:white;
+  color:#111;
+  width:210mm;
+  min-height:297mm;
+  margin:0 auto;
+  padding:12mm;
+  box-shadow:0 2px 20px rgba(0,0,0,.08);
+}
+.doc-top {
+  display:grid;
+  grid-template-columns:1.4fr .9fr;
+  gap:10px;
+  margin-bottom:10px;
+}
+.doc-box {
+  border:1px solid #bdbdbd;
+  padding:8px;
+  font-size:12px;
+  min-height:42px;
+}
+.doc-box strong { display:block; font-size:11px; margin-bottom:4px; text-transform:uppercase; }
+.doc-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid #bdbdbd;
+  padding:10px 12px;
+  margin-bottom:10px;
+}
+.doc-title {
+  font-size:28px;
+  font-weight:800;
+  letter-spacing:1px;
+}
+.doc-number {
+  font-size:13px;
+  text-align:right;
+  line-height:1.5;
+}
+.doc-band {
+  height:12px;
+  margin-bottom:10px;
+}
+.doc-section {
+  border:1px solid #bdbdbd;
+  margin-bottom:10px;
+}
+.doc-section .row {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:0;
+}
+.doc-section .cell {
+  border-right:1px solid #bdbdbd;
+  padding:8px;
+  min-height:44px;
+  font-size:12px;
+}
+.doc-section .cell:last-child { border-right:none; }
+.doc-section .cell strong { display:block; font-size:11px; margin-bottom:4px; text-transform:uppercase; }
+.doc-table {
+  width:100%;
+  border-collapse:collapse;
+  margin:0;
+  font-size:12px;
+}
+.doc-table th, .doc-table td {
+  border:1px solid #bdbdbd;
+  padding:8px;
+}
+.doc-table th { background:#f7f7f7; }
+.sign-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:10px;
+}
+.sign-box {
+  border:1px solid #bdbdbd;
+  padding:18px 10px 10px;
+  min-height:72px;
+  font-size:12px;
+  position:relative;
+}
+.sign-box .line {
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:30px;
+  border-top:1px solid #111;
+}
+.sign-box .label {
+  position:absolute;
+  left:10px;
+  bottom:8px;
+  font-size:11px;
+  color:#444;
+  font-weight:600;
+}
+.extra-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+  margin-top:10px;
+}
+.extra-box {
+  border:1px solid #bdbdbd;
+  padding:8px;
+  min-height:48px;
+  font-size:12px;
+}
+.extra-box strong { display:block; font-size:11px; margin-bottom:4px; text-transform:uppercase; }
+.preview-toolbar {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:10px 0;
+}
+.preview-toolbar button { width:auto; padding:10px 14px; }
+@media print {
+  body * { visibility:hidden !important; }
+  #printFrame, #printFrame * { visibility:visible !important; }
+  #printFrame { position:fixed; left:0; top:0; width:100%; height:auto; }
+  .sheet { box-shadow:none; width:auto; min-height:auto; padding:12mm; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="company">ResInvest Commodities</div>
+  <div style="font-size:12px; color:#666;">Magazyn Pyskowice</div>
+</div>
+
+<div class="stats">
+  <div class="stat-box stat-main">
+    <span class="stat-label">Aktualny Stan</span>
+    <span id="stockVal" class="stat-val">0.00 mp</span>
+  </div>
+  <div class="stat-box">
+    <span class="stat-label">PZ (Miesiąc)</span>
+    <span id="pzM" style="color:green; font-weight:bold;">0 mp</span>
+  </div>
+  <div class="stat-box">
+    <span class="stat-label">WZ (Miesiąc)</span>
+    <span id="wzM" style="color:blue; font-weight:bold;">0 mp</span>
+  </div>
+</div>
+
+<div class="card">
+  <label>Data operacji</label>
+  <input type="date" id="fDate">
+
+  <label>Typ operacji</label>
+  <select id="fType">
+    <option value="PZ">PZ - Przyjęcie</option>
+    <option value="WZ">WZ - Wydanie</option>
+  </select>
+
+  <label>Numer rejestracyjny</label>
+  <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <select id="fVehicle" style="margin-bottom:0;"></select>
+    <button onclick="openVehicles()" class="btn-gray" style="width:auto;">ZARZĄDZAJ</button>
+  </div>
+
+  <label>Dostawca</label>
+  <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <select id="fSupplier" style="margin-bottom:0;"></select>
+    <button onclick="openSuppliers()" class="btn-gray" style="width:auto;">ZARZĄDZAJ</button>
+  </div>
+
+  <label>Objętość (mp)</label>
+  <input type="number" id="fVolume" step="0.01" placeholder="Wpisz mp">
+
+  <button id="saveOpBtn" class="btn-green" onclick="saveOperation()">ZAPISZ I DODAJ DO STANU</button>
+</div>
+
+<div class="grid3" style="margin-bottom:30px;">
+  <button class="btn-blue" onclick="openCalc()">PRZELICZNIK KWITÓW LEŚNYCH</button>
+  <button class="btn-blue" onclick="openReport()">RAPORT</button>
+  <button class="btn-blue" onclick="openDoc()">GENEROWANIE WZ/PZ</button>
+</div>
+
+<div id="modalVeh" class="modal">
+  <div class="modal-content">
+    <h2 id="vehTitle">Dodaj Pojazd</h2>
+    <input type="hidden" id="editIdx" value="-1">
+    <input type="text" id="vehInput" placeholder="Numer rejestracyjny" style="text-transform:uppercase;">
+    <div class="grid2" style="margin-bottom:20px;">
+      <button class="btn-green" id="vehSaveBtn" onclick="saveVehicle()">ZAPISZ</button>
+      <button class="btn-gray" onclick="closeModals()">ANULUJ</button>
+    </div>
+    <label>Wyszukaj</label>
+    <input type="text" id="vehSearch" placeholder="Wpisz część numeru" oninput="renderVehiclesInModal()">
+    <div id="vehList" style="border-top:1px solid #ddd; padding-top:15px;"></div>
+  </div>
+</div>
+
+<div id="modalSup" class="modal">
+  <div class="modal-content">
+    <h2 id="supTitle">Dodaj Dostawcę</h2>
+    <input type="hidden" id="supEditIdx" value="-1">
+    <input type="text" id="supInput" placeholder="Nazwa dostawcy">
+    <div class="grid2" style="margin-bottom:20px;">
+      <button class="btn-green" id="supSaveBtn" onclick="saveSupplier()">ZAPISZ</button>
+      <button class="btn-gray" onclick="closeModals()">ANULUJ</button>
+    </div>
+    <label>Wyszukaj</label>
+    <input type="text" id="supSearch" placeholder="Wpisz część nazwy" oninput="renderSuppliersInModal()">
+    <div id="supList" style="border-top:1px solid #ddd; padding-top:15px;"></div>
+  </div>
+</div>
+
+<div id="modalCalc" class="modal">
+  <div class="modal-content">
+    <h2>Przelicznik kwitów leśnych</h2>
+    <label>Ilość z kwitu (m³)</label>
+    <input type="number" id="qM3" step="0.01" placeholder="Wpisz m³">
+    <div id="qRes" style="font-size:24px; font-weight:bold; text-align:center; padding:15px; color:var(--blue);">0.00 MP</div>
+    <div class="preview-toolbar">
+      <button class="btn-green" onclick="calculateForest()">OBLICZ</button>
+      <button class="btn-blue" onclick="applyForest()">WSTAW WYNIK</button>
+      <button class="btn-gray" onclick="closeModals()">WYJŚCIE</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalRep" class="modal">
+  <div class="modal-content">
+    <h2>Raport Miesięczny</h2>
+    <label>Wybierz miesiąc</label>
+    <input type="month" id="repMonth" value="">
+
+    <label>Pojazd</label>
+    <select id="repVehicle"></select>
+
+    <label>Dostawca</label>
+    <select id="repSupplier"></select>
+
+    <button class="btn-blue" onclick="generateReport()">ODŚWIEŻ</button>
+    <div id="reportArea"></div>
+
+    <div class="preview-toolbar" style="margin-top:20px;">
+      <button class="btn-gray" onclick="closeModals()">ZAMKNIJ RAPORT</button>
+      <button class="btn-blue" onclick="exportToExcel()">POBIERZ EXCEL</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalDoc" class="modal">
+  <div class="modal-content">
+    <h2>Generowanie WZ / PZ</h2>
+
+    <div class="grid2">
+      <div>
+        <label>Typ dokumentu</label>
+        <select id="docType">
+          <option value="WZ">WZ</option>
+          <option value="PZ">PZ</option>
+        </select>
+
+        <label>Data wystawienia</label>
+        <input type="date" id="docIssueDate">
+
+        <label>Data wysyłki / przyjęcia</label>
+        <input type="date" id="docSendDate">
+
+        <label>Dostawca</label>
+        <input type="text" id="docSupplier" placeholder="Dostawca">
+
+        <label>Nr rejestracyjny pojazdu</label>
+        <input type="text" id="docVehicle" placeholder="Nr rejestracyjny">
+
+        <label>Odbiorca</label>
+        <input type="text" id="docRecipient" placeholder="Odbiorca">
+
+        <label>Ilość (mp)</label>
+        <input type="number" id="docVolume" step="0.01" placeholder="Ilość mp">
+
+        <label>Wystawił</label>
+        <input type="text" id="docIssuedBy" placeholder="Wystawił">
+
+        <label>Zatwierdził</label>
+        <input type="text" id="docApprovedBy" placeholder="Zatwierdził">
+
+        <div id="docExtraInputs"></div>
+      </div>
+
+      <div>
+        <label>Podgląd wydruku</label>
+        <div class="sheet-wrap">
+          <div id="docPreview"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-toolbar" style="margin-top:15px;">
+      <button class="btn-green" onclick="saveDocument()">ZAPISZ DOKUMENT</button>
+      <button class="btn-blue" onclick="printDocument()">DRUKUJ</button>
+      <button class="btn-blue" onclick="savePDF()">PDF</button>
+      <button class="btn-gray" onclick="closeModals()">WYJŚCIE</button>
+    </div>
+
+    <hr style="margin:18px 0;">
+
+    <h3>Historia dokumentów</h3>
+
+    <div class="grid2">
+      <div>
+        <label>Miesiąc</label>
+        <input type="month" id="docMonth">
+      </div>
+      <div>
+        <label>Typ</label>
+        <select id="docFilterType">
+          <option value="">Wszystkie</option>
+          <option value="WZ">WZ</option>
+          <option value="PZ">PZ</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-blue" onclick="renderDocHistory()">ODŚWIEŻ HISTORIĘ</button>
+    <div id="docHistoryArea"></div>
+  </div>
+</div>
+
+<div id="printFrame" style="display:none;"></div>
+
+<script>
+const STORAGE_KEY = 'resDB_v8';
+const LEGACY_KEYS = ['resDB_v7', 'resDB_v6'];
+const $ = (id) => document.getElementById(id);
+
+let editingOpId = null;
+let editingDocId = null;
+let db = loadDB();
+
+function makeId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function localDateISO(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function localMonthISO(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function uniqVehicles(list) {
+  const out = [];
+  const seen = new Set();
+  for (const item of Array.isArray(list) ? list : []) {
+    const v = String(item).trim().toUpperCase();
+    if (!v) continue;
+    if (!seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+    }
+  }
+  return out;
+}
+
+function uniqSuppliers(list) {
+  const out = [];
+  const seen = new Set();
+  for (const item of Array.isArray(list) ? list : []) {
+    const v = String(item).trim();
+    if (!v) continue;
+    const key = v.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(v);
+    }
+  }
+  if (!out.some(x => x.toLowerCase() === 'brak')) out.unshift('Brak');
+  return out;
+}
+
+function normalizeDB(input) {
+  const safe = input && typeof input === 'object' ? input : {};
+
+  const ops = Array.isArray(safe.ops) ? safe.ops.map(o => ({
+    id: o && o.id ? String(o.id) : makeId(),
+    date: o && o.date ? String(o.date) : localDateISO(),
+    type: o && o.type === 'WZ' ? 'WZ' : 'PZ',
+    veh: String((o && (o.veh || o.vehicle)) || '').trim().toUpperCase(),
+    sup: String((o && (o.sup || o.supplier)) || 'Brak').trim() || 'Brak',
+    vol: Number(o && (o.vol ?? o.volume) ? (o.vol ?? o.volume) : 0)
+  })).filter(o => o.date && o.veh && !Number.isNaN(o.vol)) : [];
+
+  const docs = Array.isArray(safe.docs) ? safe.docs.map(d => ({
+    id: d && d.id ? String(d.id) : makeId(),
+    type: d && d.type === 'WZ' ? 'WZ' : 'PZ',
+    no: d && d.no ? String(d.no) : '',
+    issueDate: d && d.issueDate ? String(d.issueDate) : localDateISO(),
+    sendDate: d && d.sendDate ? String(d.sendDate) : '',
+    supplier: d && d.supplier ? String(d.supplier) : '',
+    vehicle: d && d.vehicle ? String(d.vehicle).toUpperCase() : '',
+    recipient: d && d.recipient ? String(d.recipient) : '',
+    volume: Number(d && (d.volume ?? d.vol) ? (d.volume ?? d.vol) : 0),
+    issuedBy: d && d.issuedBy ? String(d.issuedBy) : '',
+    approvedBy: d && d.approvedBy ? String(d.approvedBy) : '',
+    deliveredBy: d && d.deliveredBy ? String(d.deliveredBy) : '',
+    receivedBy: d && d.receivedBy ? String(d.receivedBy) : '',
+    issueHandedBy: d && d.issueHandedBy ? String(d.issueHandedBy) : '',
+    issueHandedDate: d && d.issueHandedDate ? String(d.issueHandedDate) : '',
+    issueCollectedBy: d && d.issueCollectedBy ? String(d.issueCollectedBy) : ''
+  })) : [];
+
+  const vehicles = uniqVehicles(safe.vehicles);
+  const suppliers = uniqSuppliers(safe.suppliers);
+
+  return {
+    ops,
+    docs,
+    vehicles: vehicles.length ? vehicles : ['SK7H433'],
+    suppliers
+  };
+}
+
+function loadDB() {
+  const current = localStorage.getItem(STORAGE_KEY);
+  if (current) return normalizeDB(JSON.parse(current));
+
+  for (const key of LEGACY_KEYS) {
+    const legacy = localStorage.getItem(key);
+    if (legacy) return normalizeDB(JSON.parse(legacy));
+  }
+
+  return normalizeDB({
+    ops: [],
+    docs: [],
+    vehicles: ['SK7H433'],
+    suppliers: ['Brak']
+  });
+}
+
+function saveDB() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+
+function updateMain() {
+  db = normalizeDB(db);
+  saveDB();
+
+  const month = localMonthISO();
+  let stock = 0, pz = 0, wz = 0;
+
+  db.ops.forEach(o => {
+    const vol = Number(o.vol) || 0;
+    if (o.type === 'PZ') {
+      stock += vol;
+      if (String(o.date).startsWith(month)) pz += vol;
+    } else {
+      stock -= vol;
+      if (String(o.date).startsWith(month)) wz += vol;
+    }
+  });
+
+  $('stockVal').innerText = stock.toFixed(2) + ' mp';
+  $('pzM').innerText = pz.toFixed(2) + ' mp';
+  $('wzM').innerText = wz.toFixed(2) + ' mp';
+
+  renderVehicleSelect();
+  renderSupplierSelect();
+}
+
+function renderVehicleSelect() {
+  const sel = $('fVehicle');
+  const current = sel.value;
+  const list = db.vehicles.length ? db.vehicles.slice().sort() : [''];
+
+  sel.innerHTML = list.filter(Boolean).map(v => `<option value="${v}">${v}</option>`).join('');
+
+  if (current && list.includes(current)) sel.value = current;
+}
+
+function renderSupplierSelect() {
+  const sel = $('fSupplier');
+  const current = sel.value;
+  const list = db.suppliers.length ? db.suppliers.slice() : ['Brak'];
+
+  sel.innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+  if (current && list.includes(current)) sel.value = current;
+  else sel.value = 'Brak';
+}
+
+function openVehicles() {
+  $('modalVeh').style.display = 'block';
+  resetVehForm();
+  renderVehiclesInModal();
+}
+
+function resetVehForm() {
+  $('vehTitle').innerText = 'Dodaj Pojazd';
+  $('vehSaveBtn').innerText = 'ZAPISZ';
+  $('vehInput').value = '';
+  $('editIdx').value = '-1';
+  $('vehSearch').value = '';
+}
+
+function saveVehicle() {
+  const input = $('vehInput');
+  const val = input.value.trim().toUpperCase();
+  const editIdx = parseInt($('editIdx').value, 10);
+
+  if (!val) {
+    alert('Wpisz numer rejestracyjny');
+    return;
+  }
+
+  const duplicate = db.vehicles.some((v, i) => v.toUpperCase() === val && i !== editIdx);
+  if (duplicate) {
+    alert('Ten pojazd już istnieje');
+    return;
+  }
+
+  if (editIdx === -1) db.vehicles.push(val);
+  else db.vehicles[editIdx] = val;
+
+  saveDB();
+  updateMain();
+  renderVehiclesInModal();
+
+  $('fVehicle').value = val;
+  input.value = '';
+  $('editIdx').value = '-1';
+}
+
+function renderVehiclesInModal() {
+  const search = $('vehSearch').value.trim().toUpperCase();
+  const list = $('vehList');
+  const filtered = db.vehicles.filter(v => v.includes(search)).sort();
+
+  list.innerHTML = filtered.length ? filtered.map(v => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #eee;">
+      <span>${v}</span>
+      <div>
+        <button class="btn-edit" onclick="startEditVeh('${v}')">Edytuj</button>
+        <button class="btn-danger" onclick="deleteVeh('${v}')">Usuń</button>
+      </div>
+    </div>
+  `).join('') : '<div style="padding:10px 0; color:#666;">Brak wyników.</div>';
+}
+
+function startEditVeh(v) {
+  const idx = db.vehicles.indexOf(v);
+  if (idx === -1) return;
+  $('vehTitle').innerText = 'Edytuj Pojazd';
+  $('vehSaveBtn').innerText = 'ZAPISZ ZMIANY';
+  $('vehInput').value = v;
+  $('editIdx').value = idx;
+  $('vehInput').focus();
+}
+
+function deleteVeh(v) {
+  const idx = db.vehicles.indexOf(v);
+  if (idx === -1) return;
+
+  if (confirm('Usunąć auto z listy?')) {
+    db.vehicles.splice(idx, 1);
+    if (!db.vehicles.length) db.vehicles = ['SK7H433'];
+    saveDB();
+    updateMain();
+    renderVehiclesInModal();
+  }
+}
+
+function openSuppliers() {
+  $('modalSup').style.display = 'block';
+  resetSupForm();
+  renderSuppliersInModal();
+}
+
+function resetSupForm() {
+  $('supTitle').innerText = 'Dodaj Dostawcę';
+  $('supSaveBtn').innerText = 'ZAPISZ';
+  $('supInput').value = '';
+  $('supEditIdx').value = '-1';
+  $('supSearch').value = '';
+}
+
+function saveSupplier() {
+  const input = $('supInput');
+  const val = input.value.trim();
+  const editIdx = parseInt($('supEditIdx').value, 10);
+
+  if (!val) {
+    alert('Wpisz nazwę dostawcy');
+    return;
+  }
+
+  const duplicate = db.suppliers.some((s, i) => s.toLowerCase() === val.toLowerCase() && i !== editIdx);
+  if (duplicate) {
+    alert('Taki dostawca już istnieje');
+    return;
+  }
+
+  if (editIdx === -1) db.suppliers.push(val);
+  else db.suppliers[editIdx] = val;
+
+  saveDB();
+  updateMain();
+  renderSuppliersInModal();
+
+  $('fSupplier').value = val;
+  input.value = '';
+  $('supEditIdx').value = '-1';
+}
+
+function renderSuppliersInModal() {
+  const search = $('supSearch').value.trim().toLowerCase();
+  const list = $('supList');
+  const filtered = db.suppliers.filter(s => s.toLowerCase().includes(search));
+
+  list.innerHTML = filtered.length ? filtered.map(s => {
+    const idx = db.suppliers.indexOf(s);
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #eee;">
+        <span>${s}</span>
+        <div>
+          <button class="btn-edit" onclick="startEditSup(${idx})">Edytuj</button>
+          <button class="btn-danger" onclick="deleteSup(${idx})">Usuń</button>
+        </div>
+      </div>
+    `;
+  }).join('') : '<div style="padding:10px 0; color:#666;">Brak wyników.</div>';
+}
+
+function startEditSup(idx) {
+  if (idx < 0 || idx >= db.suppliers.length) return;
+  $('supTitle').innerText = 'Edytuj Dostawcę';
+  $('supSaveBtn').innerText = 'ZAPISZ ZMIANY';
+  $('supInput').value = db.suppliers[idx];
+  $('supEditIdx').value = idx;
+  $('supInput').focus();
+}
+
+function deleteSup(idx) {
+  if (idx < 0 || idx >= db.suppliers.length) return;
+
+  const name = db.suppliers[idx];
+  if (name.toLowerCase() === 'brak') {
+    alert('Dostawca "Brak" zostaje jako domyślny.');
+    return;
+  }
+
+  if (confirm('Usunąć dostawcę?')) {
+    db.suppliers.splice(idx, 1);
+    if (!db.suppliers.some(s => s.toLowerCase() === 'brak')) db.suppliers.unshift('Brak');
+    saveDB();
+    updateMain();
+    renderSuppliersInModal();
+  }
+}
+
+function saveOperation() {
+  const date = $('fDate').value;
+  const type = $('fType').value;
+  const veh = $('fVehicle').value;
+  const sup = $('fSupplier').value || 'Brak';
+  const vol = parseFloat($('fVolume').value);
+
+  if (!date || !veh || Number.isNaN(vol) || vol <= 0) {
+    alert('Wypełnij wszystkie pola i wpisz poprawną objętość.');
+    return;
+  }
+
+  const op = {
+    id: editingOpId || makeId(),
+    date,
+    type,
+    veh,
+    sup,
+    vol
+  };
+
+  if (editingOpId) {
+    const idx = db.ops.findIndex(o => o.id === editingOpId);
+    if (idx !== -1) db.ops[idx] = op;
+    editingOpId = null;
+    $('saveOpBtn').innerText = 'ZAPISZ I DODAJ DO STANU';
+    alert('Operacja zaktualizowana!');
+  } else {
+    db.ops.push(op);
+    alert('Operacja zapisana!');
+  }
+
+  saveDB();
+  updateMain();
+  $('fVolume').value = '';
+}
+
+function openCalc() {
+  $('modalCalc').style.display = 'block';
+  $('qM3').value = '';
+  $('qRes').innerText = '0.00 MP';
+  $('qM3').focus();
+}
+
+function calculateForest() {
+  const m3 = parseFloat($('qM3').value);
+  const mp = Number.isNaN(m3) ? 0 : m3 * 4;
+  $('qRes').innerText = mp.toFixed(2) + ' MP';
+  return mp;
+}
+
+function applyForest() {
+  const mp = calculateForest();
+  $('fVolume').value = mp.toFixed(2);
+  closeModals();
+}
+
+function renderReportFilters() {
+  const vSel = $('repVehicle');
+  const sSel = $('repSupplier');
+
+  const vCurrent = vSel.value;
+  const sCurrent = sSel.value;
+
+  vSel.innerHTML = '<option value="">Wszystkie</option>' + db.vehicles.slice().sort().map(v => `<option value="${v}">${v}</option>`).join('');
+  sSel.innerHTML = '<option value="">Wszystkie</option>' + db.suppliers.slice().sort().map(s => `<option value="${s}">${s}</option>`).join('');
+
+  if (vCurrent) vSel.value = vCurrent;
+  if (sCurrent) sSel.value = sCurrent;
+}
+
+function openReport() {
+  $('modalRep').style.display = 'block';
+  if (!$('repMonth').value) $('repMonth').value = localMonthISO();
+  renderReportFilters();
+  generateReport();
+}
+
+function generateReport() {
+  const month = $('repMonth').value || localMonthISO();
+  const vehFilter = $('repVehicle').value;
+  const supFilter = $('repSupplier').value;
+
+  const filtered = db.ops
+    .filter(o =>
+      String(o.date).startsWith(month) &&
+      (!vehFilter || o.veh === vehFilter) &&
+      (!supFilter || o.sup === supFilter)
+    )
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  let html = `<table><tr><th>Data</th><th>Pojazd</th><th>Dostawca</th><th>Typ</th><th>Ilość</th><th>Akcje</th></tr>`;
+  let spz = 0, swz = 0;
+
+  filtered.forEach(o => {
+    const vol = Number(o.vol) || 0;
+    html += `<tr>
+      <td>${o.date}</td>
+      <td>${o.veh || '-'}</td>
+      <td>${o.sup || 'Brak'}</td>
+      <td>${o.type}</td>
+      <td>${vol.toFixed(2)} mp</td>
+      <td>
+        <button class="btn-edit" onclick="editOp('${o.id}')">Edytuj</button>
+        <button class="btn-danger" onclick="deleteOp('${o.id}')">Usuń</button>
+      </td>
+    </tr>`;
+    if (o.type === 'PZ') spz += vol;
+    else swz += vol;
+  });
+
+  html += `</table>`;
+  html += `<div style="margin-top:15px; padding:10px; background:#f0f9ff; border-radius:8px;">
+    <b>Liczba operacji:</b> ${filtered.length}<br>
+    <b>SUMA PZ:</b> ${spz.toFixed(2)} mp<br>
+    <b>SUMA WZ:</b> ${swz.toFixed(2)} mp<br>
+    <hr>
+    <b>BILANS MIESIĄCA:</b> ${(spz - swz).toFixed(2)} mp
+  </div>`;
+
+  $('reportArea').innerHTML = filtered.length ? html : 'Brak operacji w tym miesiącu.';
+}
+
+function editOp(id) {
+  const op = db.ops.find(o => o.id === id);
+  if (!op) return;
+
+  $('fDate').value = op.date || localDateISO();
+  $('fType').value = op.type || 'PZ';
+  $('fVehicle').value = op.veh || (db.vehicles[0] || '');
+  $('fSupplier').value = op.sup || 'Brak';
+  $('fVolume').value = Number(op.vol || 0).toFixed(2);
+
+  editingOpId = id;
+  $('saveOpBtn').innerText = 'ZAPISZ ZMIANY';
+  closeModals();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteOp(id) {
+  const op = db.ops.find(o => o.id === id);
+  if (!op) return;
+
+  if (confirm('Usunąć operację?')) {
+    db.ops = db.ops.filter(o => o.id !== id);
+    saveDB();
+    updateMain();
+    generateReport();
+  }
+}
+
+function closeModals() {
+  document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+}
+
+function exportToExcel() {
+  const rows = db.ops
+    .slice()
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map(o => ({
+      Data: o.date,
+      Pojazd: o.veh || '',
+      Dostawca: o.sup || 'Brak',
+      Typ: o.type,
+      'Ilość (mp)': Number(o.vol || 0)
+    }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Historia');
+  XLSX.writeFile(wb, 'Magazyn_ResInvest.xlsx');
+}
+
+function getNextDocNumber(type, issueDate, ignoreId = null) {
+  const ym = String(issueDate || localDateISO()).slice(0, 7);
+  const prefix = `${type}/${ym.replace('-', '/')}/`;
+  const nums = db.docs
+    .filter(d => d.type === type && String(d.issueDate).startsWith(ym) && d.id !== ignoreId && String(d.no || '').startsWith(prefix))
+    .map(d => {
+      const part = String(d.no).split('/').pop();
+      return parseInt(part, 10);
+    })
+    .filter(n => Number.isFinite(n));
+
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `${prefix}${String(next).padStart(3, '0')}`;
+}
+
+function openDoc() {
+  $('modalDoc').style.display = 'block';
+  if (!$('docIssueDate').value) $('docIssueDate').value = localDateISO();
+  if (!$('docSendDate').value) $('docSendDate').value = localDateISO();
+  if (!$('docMonth').value) $('docMonth').value = localMonthISO();
+  if (!$('docType').value) $('docType').value = 'WZ';
+  if (!$('docSupplier').value) $('docSupplier').value = '';
+  if (!$('docVehicle').value) $('docVehicle').value = '';
+  if (!$('docRecipient').value) $('docRecipient').value = '';
+  if (!$('docIssuedBy').value) $('docIssuedBy').value = '';
+  if (!$('docApprovedBy').value) $('docApprovedBy').value = '';
+  syncDocFields();
+  renderDocPreview();
+  renderDocHistory();
+}
+
+function syncDocFields() {
+  const type = $('docType').value;
+  const html = type === 'WZ' ? `
+    <label>Wydał</label>
+    <input type="text" id="docIssuedPerson" placeholder="Kto dokument wydał">
+    <label>Data wydania</label>
+    <input type="date" id="docIssueOutDate">
+    <label>Odebrał</label>
+    <input type="text" id="docReceivedPerson" placeholder="Kto dokument odebrał">
+  ` : `
+    <label>Przyjął</label>
+    <input type="text" id="docReceivedPerson" placeholder="Kto przyjął">
+    <label>Dostarczył</label>
+    <input type="text" id="docDeliveredPerson" placeholder="Kto dostarczył">
+  `;
+  $('docExtraInputs').innerHTML = html;
+  if ($('docType').value === 'WZ') {
+    $('docIssueOutDate').value = $('docSendDate').value || localDateISO();
+  }
+}
+
+$('docType').addEventListener('change', () => {
+  syncDocFields();
+  renderDocPreview();
+});
+
+$('docIssueDate').addEventListener('input', renderDocPreview);
+$('docSendDate').addEventListener('input', renderDocPreview);
+$('docSupplier').addEventListener('input', renderDocPreview);
+$('docVehicle').addEventListener('input', renderDocPreview);
+$('docRecipient').addEventListener('input', renderDocPreview);
+$('docVolume').addEventListener('input', renderDocPreview);
+$('docIssuedBy').addEventListener('input', renderDocPreview);
+$('docApprovedBy').addEventListener('input', renderDocPreview);
+
+function readDocForm() {
+  const type = $('docType').value;
+  const issueDate = $('docIssueDate').value || localDateISO();
+  const sendDate = $('docSendDate').value || '';
+  const doc = {
+    type,
+    issueDate,
+    sendDate,
+    supplier: $('docSupplier').value.trim(),
+    vehicle: $('docVehicle').value.trim().toUpperCase(),
+    recipient: $('docRecipient').value.trim(),
+    volume: parseFloat($('docVolume').value) || 0,
+    issuedBy: $('docIssuedBy').value.trim(),
+    approvedBy: $('docApprovedBy').value.trim(),
+    deliveredBy: type === 'PZ' && $('docDeliveredPerson') ? $('docDeliveredPerson').value.trim() : '',
+    receivedBy: $('docReceivedPerson') ? $('docReceivedPerson').value.trim() : '',
+    issueHandedBy: type === 'WZ' ? ($('docIssuedPerson') ? $('docIssuedPerson').value.trim() : '') : ($('docReceivedPerson') ? $('docReceivedPerson').value.trim() : ''),
+    issueHandedDate: type === 'WZ' ? ($('docIssueOutDate') ? $('docIssueOutDate').value : '') : '',
+    issueCollectedBy: type === 'WZ' ? ($('docReceivedPerson') ? $('docReceivedPerson').value.trim() : '') : ($('docDeliveredPerson') ? $('docDeliveredPerson').value.trim() : '')
+  };
+
+  if (!doc.supplier) doc.supplier = 'Brak';
+  if (!doc.vehicle) doc.vehicle = '';
+  return doc;
+}
+
+function renderDocPreview() {
+  const draft = readDocForm();
+  const type = draft.type;
+  const accent = type === 'WZ' ? '#2563eb' : '#16a34a';
+  const no = editingDocId
+    ? (db.docs.find(d => d.id === editingDocId)?.no || '')
+    : getNextDocNumber(type, draft.issueDate, editingDocId);
+
+  const title = type;
+  const subtitle = type === 'WZ' ? 'Wydanie zewnętrzne materiałów' : 'Przyjęcie zewnętrzne materiałów';
+
+  const extraRow = type === 'WZ' ? `
+    <div class="extra-grid">
+      <div class="extra-box"><strong>Wydał</strong>${draft.issueHandedBy || '&nbsp;'}</div>
+      <div class="extra-box"><strong>Data wydania</strong>${draft.issueHandedDate || '&nbsp;'}</div>
+      <div class="extra-box"><strong>Odebrał</strong>${draft.issueCollectedBy || '&nbsp;'}</div>
+    </div>
+  ` : `
+    <div class="extra-grid">
+      <div class="extra-box"><strong>Przyjął</strong>${draft.receivedBy || '&nbsp;'}</div>
+      <div class="extra-box"><strong>Dostarczył</strong>${draft.deliveredBy || '&nbsp;'}</div>
+      <div class="extra-box"><strong>&nbsp;</strong>&nbsp;</div>
+    </div>
+  `;
+
+  $('docPreview').innerHTML = `
+    <div class="sheet" id="docSheet">
+      <div class="doc-head" style="border-bottom:5px solid ${accent};">
+        <div>
+          <div class="doc-title" style="color:${accent};">${title}</div>
+          <div class="muted">${subtitle}</div>
+        </div>
+        <div class="doc-number">
+          <div><strong>Nr dokumentu:</strong> ${no || '-'}</div>
+          <div><strong>Data wystawienia:</strong> ${draft.issueDate || '-'}</div>
+          <div><strong>Data wysyłki / przyjęcia:</strong> ${draft.sendDate || '-'}</div>
+        </div>
+      </div>
+
+      <div class="doc-top">
+        <div class="doc-box">
+          <strong>Dane podstawowe</strong>
+          Dostawca: ${draft.supplier || '-'}<br>
+          Pojazd: ${draft.vehicle || '-'}<br>
+          Odbiorca: ${draft.recipient || '-'}
+        </div>
+        <div class="doc-box">
+          <strong>Wydruk / obieg</strong>
+          Produkt: Zrębka drzewna<br>
+          Ilość: ${Number(draft.volume || 0).toFixed(2)} mp<br>
+          Typ: ${type}
+        </div>
+      </div>
+
+      <div class="doc-section">
+        <div style="padding:8px 10px; border-bottom:1px solid #bdbdbd; font-size:12px; font-weight:700;">Pozycja dokumentu</div>
+        <table class="doc-table">
+          <thead>
+            <tr>
+              <th style="width:8%;">Lp</th>
+              <th>Nazwa materiału</th>
+              <th style="width:12%;">Jm</th>
+              <th style="width:15%;">Ilość</th>
+              <th style="width:20%;">Uwagi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Zrębka drzewna</td>
+              <td>mp</td>
+              <td>${Number(draft.volume || 0).toFixed(2)}</td>
+              <td>${type === 'WZ' ? 'Wydanie z magazynu' : 'Przyjęcie na magazyn'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      ${extraRow}
+
+      <div class="doc-section" style="padding:10px;">
+        <div class="muted" style="margin-bottom:8px;">Podpisy końcowe</div>
+        <div class="sign-grid">
+          <div class="sign-box">
+            <div class="line"></div>
+            <div class="label">Wystawił: ${draft.issuedBy || '&nbsp;'}</div>
+          </div>
+          <div class="sign-box">
+            <div class="line"></div>
+            <div class="label">Zatwierdził: ${draft.approvedBy || '&nbsp;'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function saveDocument() {
+  const draft = readDocForm();
+  const id = editingDocId || makeId();
+  const existing = editingDocId ? db.docs.find(d => d.id === editingDocId) : null;
+  const no = existing ? existing.no : getNextDocNumber(draft.type, draft.issueDate, editingDocId);
+
+  if (!draft.issueDate || !draft.volume || !draft.vehicle || !draft.supplier || !draft.recipient) {
+    alert('Wypełnij pola dokumentu.');
+    return;
+  }
+
+  const doc = {
+    id,
+    type: draft.type,
+    no,
+    issueDate: draft.issueDate,
+    sendDate: draft.sendDate,
+    supplier: draft.supplier,
+    vehicle: draft.vehicle,
+    recipient: draft.recipient,
+    volume: draft.volume,
+    issuedBy: draft.issuedBy,
+    approvedBy: draft.approvedBy,
+    deliveredBy: draft.deliveredBy,
+    receivedBy: draft.receivedBy,
+    issueHandedBy: draft.issueHandedBy,
+    issueHandedDate: draft.issueHandedDate,
+    issueCollectedBy: draft.issueCollectedBy
+  };
+
+  if (editingDocId) {
+    const idx = db.docs.findIndex(d => d.id === editingDocId);
+    if (idx !== -1) db.docs[idx] = doc;
+  } else {
+    db.docs.unshift(doc);
+  }
+
+  saveDB();
+  editingDocId = null;
+  renderDocPreview();
+  renderDocHistory();
+  alert('Dokument zapisany.');
+}
+
+function renderDocHistory() {
+  const month = $('docMonth').value || localMonthISO();
+  const typeFilter = $('docFilterType').value;
+
+  const filtered = db.docs
+    .filter(d => String(d.issueDate).startsWith(month))
+    .filter(d => !typeFilter || d.type === typeFilter)
+    .sort((a, b) => String(b.issueDate).localeCompare(String(a.issueDate)));
+
+  let html = `<table><tr><th>Nr</th><th>Typ</th><th>Data</th><th>Pojazd</th><th>Dostawca</th><th>Ilość</th><th>Akcje</th></tr>`;
+  filtered.forEach(d => {
+    html += `<tr>
+      <td>${d.no || '-'}</td>
+      <td>${d.type}</td>
+      <td>${d.issueDate}</td>
+      <td>${d.vehicle || '-'}</td>
+      <td>${d.supplier || '-'}</td>
+      <td>${Number(d.volume || 0).toFixed(2)} mp</td>
+      <td>
+        <button class="btn-edit" onclick="editDoc('${d.id}')">Edytuj</button>
+        <button class="btn-danger" onclick="deleteDoc('${d.id}')">Usuń</button>
+      </td>
+    </tr>`;
+  });
+  html += `</table>`;
+  $('docHistoryArea').innerHTML = filtered.length ? html : 'Brak dokumentów w tym miesiącu.';
+}
+
+function editDoc(id) {
+  const d = db.docs.find(x => x.id === id);
+  if (!d) return;
+
+  editingDocId = id;
+  $('docType').value = d.type;
+  $('docIssueDate').value = d.issueDate;
+  $('docSendDate').value = d.sendDate;
+  $('docSupplier').value = d.supplier;
+  $('docVehicle').value = d.vehicle;
+  $('docRecipient').value = d.recipient;
+  $('docVolume').value = d.volume;
+  $('docIssuedBy').value = d.issuedBy || '';
+  $('docApprovedBy').value = d.approvedBy || '';
+
+  syncDocFields();
+
+  if (d.type === 'WZ') {
+    if ($('docIssuedPerson')) $('docIssuedPerson').value = d.issueHandedBy || '';
+    if ($('docIssueOutDate')) $('docIssueOutDate').value = d.issueHandedDate || d.sendDate || '';
+    if ($('docReceivedPerson')) $('docReceivedPerson').value = d.issueCollectedBy || '';
+  } else {
+    if ($('docReceivedPerson')) $('docReceivedPerson').value = d.receivedBy || '';
+    if ($('docDeliveredPerson')) $('docDeliveredPerson').value = d.deliveredBy || '';
+  }
+
+  renderDocPreview();
+  $('modalDoc').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteDoc(id) {
+  const d = db.docs.find(x => x.id === id);
+  if (!d) return;
+
+  if (confirm('Usunąć dokument?')) {
+    db.docs = db.docs.filter(x => x.id !== id);
+    saveDB();
+    renderDocHistory();
+    renderDocPreview();
+  }
+}
+
+function printDocument() {
+  const preview = $('docPreview').innerHTML;
+  if (!preview.trim()) {
+    alert('Najpierw wygeneruj dokument.');
+    return;
+  }
+
+  const w = window.open('', '_blank', 'width=1100,height=900');
+  w.document.write(`
+    <html lang="pl">
+    <head>
+      <meta charset="UTF-8">
+      <title>Podgląd wydruku</title>
+      <style>
+        body { margin:0; background:#e5e7eb; font-family:Arial, sans-serif; }
+        .sheet { width:210mm; min-height:297mm; margin:0 auto; background:white; box-sizing:border-box; }
+        .doc-head { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid #bdbdbd; padding:10px 12px; margin-bottom:10px; }
+        .doc-title { font-size:28px; font-weight:800; letter-spacing:1px; }
+        .doc-number { font-size:13px; text-align:right; line-height:1.5; }
+        .doc-top { display:grid; grid-template-columns:1.4fr .9fr; gap:10px; margin-bottom:10px; }
+        .doc-box { border:1px solid #bdbdbd; padding:8px; font-size:12px; min-height:42px; }
+        .doc-box strong { display:block; font-size:11px; margin-bottom:4px; text-transform:uppercase; }
+        .doc-section { border:1px solid #bdbdbd; margin-bottom:10px; }
+        .doc-table { width:100%; border-collapse:collapse; margin:0; font-size:12px; }
+        .doc-table th, .doc-table td { border:1px solid #bdbdbd; padding:8px; }
+        .doc-table th { background:#f7f7f7; }
+        .sign-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+        .sign-box { border:1px solid #bdbdbd; padding:18px 10px 10px; min-height:72px; font-size:12px; position:relative; }
+        .sign-box .line { position:absolute; left:10px; right:10px; bottom:30px; border-top:1px solid #111; }
+        .sign-box .label { position:absolute; left:10px; bottom:8px; font-size:11px; color:#444; font-weight:600; }
+        .extra-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:10px; }
+        .extra-box { border:1px solid #bdbdbd; padding:8px; min-height:48px; font-size:12px; }
+        .extra-box strong { display:block; font-size:11px; margin-bottom:4px; text-transform:uppercase; }
+        .muted { color:#666; font-size:12px; }
+        @media print { body { background:white; } }
+      </style>
+    </head>
+    <body>
+      ${$('docPreview').innerHTML}
+      <script>window.onload = () => window.print();<\/script>
+    </body>
+    </html>
+  `);
+  w.document.close();
+}
+
+async function savePDF() {
+  const node = $('docPreview');
+  if (!node.innerHTML.trim()) {
+    alert('Najpierw wygeneruj dokument.');
+    return;
+  }
+
+  const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+  const imgData = canvas.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+
+  const pageWidth = 210;
+  const margin = 10;
+  const imgWidth = pageWidth - margin * 2;
+  const imgHeight = canvas.height * imgWidth / canvas.width;
+
+  pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+  pdf.save(`${$('docType').value}_${($('docMonth').value || localMonthISO())}.pdf`);
+}
+
+$('docType').addEventListener('change', () => {
+  syncDocFields();
+  renderDocPreview();
+});
+
+['docIssueDate','docSendDate','docSupplier','docVehicle','docRecipient','docVolume','docIssuedBy','docApprovedBy'].forEach(id => {
+  $(id).addEventListener('input', renderDocPreview);
+});
+
+$('docMonth').addEventListener('input', renderDocHistory);
+$('docFilterType').addEventListener('change', renderDocHistory);
+
+function init() {
+  $('fDate').value = localDateISO();
+  $('repMonth').value = localMonthISO();
+  $('docIssueDate').value = localDateISO();
+  $('docSendDate').value = localDateISO();
+  $('docMonth').value = localMonthISO();
+  updateMain();
+}
+
+init();
+</script>
+</body>
+</html>
