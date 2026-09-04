@@ -9,14 +9,9 @@ import { listCorrections, getCorrection } from '../corrections/corrections.servi
 import { restoreCorrection } from '../operations/operations.service.js';
 
 /** Odpowiedź CSV z nagłówkiem pobierania. */
-function sendCsv(ctx, filename, columns, rows) {
-  const csv = toCsv(columns, rows);
-  ctx.send(200, {
-    'Content-Type': 'text/csv; charset=utf-8',
-    'Content-Disposition': `attachment; filename="${filename}"`,
-    'Content-Length': Buffer.byteLength(csv),
-  }, csv);
-}
+const sendCsv = (ctx, filename, columns, rows) => ctx.sendFile({
+  filename, mime: 'text/csv; charset=utf-8', body: toCsv(columns, rows),
+});
 
 export function reportRoutes(prefix) {
   const r = new Router(prefix);

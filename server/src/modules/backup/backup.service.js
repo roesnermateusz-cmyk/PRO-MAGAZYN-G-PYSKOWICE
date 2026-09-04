@@ -21,6 +21,7 @@ import { audit } from '../../middleware/audit.js';
 import { listOperations } from '../operations/operations.service.js';
 import { bumpDocCounter, parseDocNo } from '../../domain/documents.js';
 import { deriveMoves } from '../../domain/stock.js';
+import { CONTENT_COLUMNS, DOCUMENT_COLUMNS } from '../../domain/operation-fields.js';
 import { uuid } from '../../lib/crypto.js';
 
 export const EXPORT_FORMAT_VERSION = 1;
@@ -190,9 +191,7 @@ function insertRows(table, rows, conflict = 'IGNORE') {
  * Zachowuje oryginalny numer i przeliczniki — kopia ma odtworzyć stan 1:1.
  */
 function insertOperationRaw(row, ctx) {
-  const columns = db.all('PRAGMA table_info(operations)')
-    .map((c) => c.name)
-    .filter((c) => c !== 'operation_month' && c in row);
+  const columns = IMPORTABLE_COLUMNS.filter((c) => c in row);
   const payload = Object.fromEntries(columns.map((c) => [c, row[c]]));
   payload.created_by = db.get('SELECT id FROM users WHERE id = :id', { id: row.created_by })
     ? row.created_by
@@ -273,14 +272,23 @@ const CSV_COLUMNS = [
   { key: 'createdAt', label: 'Data wprowadzenia' },
 ];
 
+/* Kolumny dokumentu przyjmowane z kopii — bez kolumn generowanych przez bazę. */
+const IMPORTABLE_COLUMNS = Object.freeze([
+  ...DOCUMENT_COLUMNS, ...CONTENT_COLUMNS,
+  'status', 'revision', 'created_at', 'created_by', 'updated_at', 'updated_by',
+  'cancelled_at', 'cancelled_by', 'cancel_reason',
+]);
+
 const CSV_PAGE = 500;
 const CSV_MAX_ROWS = 200_000;
 
 /** Rejestr operacji w CSV, z uwzględnieniem filtrów z listy (stronicowanie do końca wyniku). */
 export function exportOperationsCsv(query, ctx) {
   const rows = [];
+  // `withTotals: false` — suma i podsumowania liczone byłyby od nowa dla każdej
+  // strony eksportu, a wynik i tak nie jest tu do niczego potrzebny.
   for (let offset = 0; rows.length < CSV_MAX_ROWS; offset += CSV_PAGE) {
-    const page = listOperations({ ...query, limit: CSV_PAGE, offset });
+    const page = listOperations({ ...query, limit: CSV_PAGE, offset }, { withTotals: false });
     rows.push(...page.items);
     if (page.items.length < CSV_PAGE) break;
   }

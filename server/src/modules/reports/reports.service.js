@@ -171,14 +171,20 @@ export function monthlyReport(query) {
   const to = endOfMonth(f.month);
   const params = { from, to, month: f.month, warehouseId: f.warehouseId ?? null };
 
-  const warehouseFilter = f.warehouseId ? 'AND m.warehouse_id = :warehouseId' : '';
+  // Filtr magazynu musi obowiązywać we WSZYSTKICH członach raportu. Wcześniej
+  // zawężał tylko bilans otwarcia i zamknięcia (liczone z ruchów), a obroty
+  // i koszty szły po całej firmie — bilans produktu wtedy się nie domykał.
+  const moveFilter = f.warehouseId ? 'AND m.warehouse_id = :warehouseId' : '';
+  const docFilter = f.warehouseId
+    ? 'AND (o.warehouse_from_id = :warehouseId OR o.warehouse_to_id = :warehouseId)'
+    : '';
 
   /* Bilans otwarcia i zamknięcia — z ruchów magazynowych. */
   const opening = db.all(
     `SELECT m.product_id, p.name AS product_name, p.category,
             SUM(m.qty_mp) AS qty_mp, SUM(m.qty_tonne) AS qty_tonne, SUM(m.qty_m3) AS qty_m3
        FROM stock_moves m JOIN products p ON p.id = m.product_id
-      WHERE m.move_date < :from ${warehouseFilter}
+      WHERE m.move_date < :from ${moveFilter}
       GROUP BY m.product_id`,
     params,
   );
@@ -186,7 +192,7 @@ export function monthlyReport(query) {
     `SELECT m.product_id, p.name AS product_name, p.category,
             SUM(m.qty_mp) AS qty_mp, SUM(m.qty_tonne) AS qty_tonne, SUM(m.qty_m3) AS qty_m3
        FROM stock_moves m JOIN products p ON p.id = m.product_id
-      WHERE m.move_date <= :to ${warehouseFilter}
+      WHERE m.move_date <= :to ${moveFilter}
       GROUP BY m.product_id`,
     params,
   );
@@ -200,7 +206,7 @@ export function monthlyReport(query) {
             SUM(o.value_purchase) AS value_purchase, SUM(o.value_sale) AS value_sale,
             SUM(o.chipping_cost) AS chipping_cost, SUM(o.transport_cost) AS transport_cost
        FROM operations o JOIN products p ON p.id = o.product_id
-      WHERE o.status = 'POSTED' AND o.operation_month = :month
+      WHERE o.status = 'POSTED' AND o.operation_month = :month ${docFilter}
       GROUP BY o.type, o.product_id
       ORDER BY o.type, o.product_name`,
     params,
@@ -246,41 +252,45 @@ export function monthlyReport(query) {
   }
 
   const costs = db.get(
-    `SELECT COALESCE(SUM(value_purchase), 0)  AS purchase,
-            COALESCE(SUM(value_sale), 0)      AS sale,
-            COALESCE(SUM(chipping_cost), 0)   AS chipping,
-            COALESCE(SUM(transport_cost), 0)  AS transport,
-            COALESCE(SUM(distance_km), 0)     AS km,
+    `SELECT COALESCE(SUM(o.value_purchase), 0)  AS purchase,
+            COALESCE(SUM(o.value_sale), 0)      AS sale,
+            COALESCE(SUM(o.chipping_cost), 0)   AS chipping,
+            COALESCE(SUM(o.transport_cost), 0)  AS transport,
+            COALESCE(SUM(o.distance_km), 0)     AS km,
             COUNT(*)                          AS documents
-       FROM operations WHERE status = 'POSTED' AND operation_month = :month`,
+       FROM operations o
+      WHERE o.status = 'POSTED' AND o.operation_month = :month ${docFilter}`,
     params,
   );
 
   const suppliers = db.all(
-    `SELECT COALESCE(supplier_name, '—') AS name, COUNT(*) AS documents,
-            SUM(qty_mp) AS qty_mp, SUM(value_purchase) AS value
-       FROM operations
-      WHERE status = 'POSTED' AND operation_month = :month AND type IN ('ZAKUP','BO')
-      GROUP BY supplier_name ORDER BY value DESC LIMIT 20`,
+    `SELECT COALESCE(o.supplier_name, '—') AS name, COUNT(*) AS documents,
+            SUM(o.qty_mp) AS qty_mp, SUM(o.value_purchase) AS value
+       FROM operations o
+      WHERE o.status = 'POSTED' AND o.operation_month = :month
+        AND o.type IN ('ZAKUP','BO') ${docFilter}
+      GROUP BY o.supplier_name ORDER BY value DESC LIMIT 20`,
     params,
   ).map(mapPartnerRow);
 
   const recipients = db.all(
-    `SELECT COALESCE(recipient_name, '—') AS name, COUNT(*) AS documents,
-            SUM(qty_mp) AS qty_mp, SUM(value_sale) AS value
-       FROM operations
-      WHERE status = 'POSTED' AND operation_month = :month AND type = 'SPRZEDAZ'
-      GROUP BY recipient_name ORDER BY value DESC LIMIT 20`,
+    `SELECT COALESCE(o.recipient_name, '—') AS name, COUNT(*) AS documents,
+            SUM(o.qty_mp) AS qty_mp, SUM(o.value_sale) AS value
+       FROM operations o
+      WHERE o.status = 'POSTED' AND o.operation_month = :month
+        AND o.type = 'SPRZEDAZ' ${docFilter}
+      GROUP BY o.recipient_name ORDER BY value DESC LIMIT 20`,
     params,
   ).map(mapPartnerRow);
 
   const corrections = db.value(
     `SELECT COUNT(*) FROM corrections c JOIN operations o ON o.id = c.operation_id
-      WHERE o.operation_month = :month`,
+      WHERE o.operation_month = :month ${docFilter}`,
     params,
   );
   const cancelled = db.value(
-    "SELECT COUNT(*) FROM operations WHERE status = 'CANCELLED' AND operation_month = :month",
+    `SELECT COUNT(*) FROM operations o
+      WHERE o.status = 'CANCELLED' AND o.operation_month = :month ${docFilter}`,
     params,
   );
 

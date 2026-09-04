@@ -5,6 +5,7 @@ import { qty, qty2, int, date, today } from '../core/format.js';
 import { pageHead, empty, loading, toast, toastError, docStamp, typeTag, alertBox, pileGauge } from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
 import { loadCatalog } from '../core/store.js';
+import { downloadHandler } from './_shared.js';
 
 const state = { warehouseId: '', date: '', productId: '' };
 
@@ -90,12 +91,10 @@ async function refresh(view, catalog) {
   view.querySelector('#fdate').addEventListener('change', (e) => { state.date = e.target.value; reload(); });
   view.querySelector('[data-act="now"]').addEventListener('click', () => { state.date = ''; reload(); });
   view.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
-  view.querySelector('[data-act="csv"]').addEventListener('click', async () => {
-    try {
-      await api.download('/stock/export.csv', { warehouseId: state.warehouseId, date: state.date }, 'stany.csv');
-      toast('Plik CSV został pobrany');
-    } catch (err) { toastError(err); }
-  });
+  view.querySelector('[data-act="csv"]').addEventListener('click', downloadHandler(
+    '/stock/export.csv', () => ({ warehouseId: state.warehouseId, date: state.date }),
+    'stany.csv', 'Plik CSV został pobrany',
+  ));
 
   on(view, 'click', '[data-prod]', (el) => showLedger(view, el.dataset.prod, catalog));
   if (state.productId) showLedger(view, state.productId, catalog);

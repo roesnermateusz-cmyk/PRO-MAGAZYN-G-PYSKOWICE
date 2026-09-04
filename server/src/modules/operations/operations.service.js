@@ -11,243 +11,187 @@
  *
  * Każdy zapis wykonuje się w jednej transakcji: dokument, ruchy, korekta i wpis
  * audytowy powstają razem albo wcale.
+ *
+ * Opis pól dokumentu (nazwy, kolumny, walidacja, etykiety) mieszka w jednym
+ * miejscu — `domain/operation-fields.js`. Ten moduł zajmuje się wyłącznie
+ * regułami biznesowymi.
  */
 import db from '../../db/index.js';
 import { uuid } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from '../../lib/errors.js';
 import { computeQuantities, computeValues, resolveFactors, roundMoney, roundQty } from '../../domain/units.js';
-import { allocateDocNumber, seriesForType, OPERATION_TYPES, TYPE_DIRECTION } from '../../domain/documents.js';
-import { deriveMoves, validateWarehouses, stockAt } from '../../domain/stock.js';
+import { allocateDocNumber, seriesForType, TYPE_DIRECTION } from '../../domain/documents.js';
+import { deriveMoves, validateWarehouses } from '../../domain/stock.js';
+import {
+  OPERATION_SCHEMA, FIELD_LABELS, CONTENT_COLUMNS, DOCUMENT_COLUMNS, MONEY_FIELDS, FIELD_BY_API,
+  rowToApi, rowToInput, carry,
+} from '../../domain/operation-fields.js';
 import { getUnitFactors, getSetting } from '../settings/settings.service.js';
-import { products, partners, warehouses, vehicles, forest, loadingPlaces } from '../catalog/catalog.service.js';
+import { products, warehouses, resolvePartners, ensureDictionaries } from '../catalog/catalog.service.js';
 import { assertPeriodOpen } from '../periods/periods.service.js';
 import { audit } from '../../middleware/audit.js';
 
-/* ------------------------------ Schemat ------------------------------- */
+export { OPERATION_SCHEMA, FIELD_LABELS };
 
-const OPERATION_SCHEMA = {
-  type: { type: 'enum', values: OPERATION_TYPES, required: true, label: 'Typ operacji' },
-  operationDate: { type: 'date', required: true, label: 'Data operacji' },
-  loadingDate: { type: 'date', label: 'Data załadunku' },
-
-  productId: { type: 'string', max: 40, label: 'Produkt (kartoteka)' },
-  productName: { type: 'string', max: 120, label: 'Produkt' },
-  grade: { type: 'string', max: 10, upper: true, label: 'Rodzaj (A/B)' },
-
-  quantity: { type: 'number', required: true, min: 0.001, max: 1_000_000, label: 'Wolumen' },
-  unit: { type: 'enum', values: ['M3', 'MP', 'TONA'], required: true, label: 'Jednostka' },
-  m3Mode: { type: 'enum', values: ['AUTO', 'RECZNIE'], default: 'AUTO', label: 'Tryb m³' },
-  m3Manual: { type: 'number', min: 0, max: 1_000_000, label: 'Rzeczywiste m³' },
-  mpMode: { type: 'enum', values: ['AUTO', 'RECZNIE'], default: 'AUTO', label: 'Tryb MP' },
-  mpManual: { type: 'number', min: 0, max: 1_000_000, label: 'Rzeczywiste MP' },
-  tonneMode: { type: 'enum', values: ['AUTO', 'RECZNIE'], default: 'AUTO', label: 'Tryb ton' },
-  tonneManual: { type: 'number', min: 0, max: 1_000_000, label: 'Masa rzeczywista' },
-
-  warehouseFrom: { type: 'string', max: 120, label: 'Magazyn źródłowy' },
-  warehouseTo: { type: 'string', max: 120, label: 'Magazyn docelowy' },
-  supplierName: { type: 'string', max: 160, label: 'Dostawca / źródło' },
-  recipientName: { type: 'string', max: 160, label: 'Odbiorca / cel' },
-
-  loadingPlace: { type: 'string', max: 160, label: 'Miejsce załadunku' },
-  originPlace: { type: 'string', max: 160, label: 'Miejsce pochodzenia' },
-  forestDistrict: { type: 'string', max: 120, label: 'Nadleśnictwo' },
-  forestRange: { type: 'string', max: 120, label: 'Leśnictwo' },
-  haulageNoteNo: { type: 'string', max: 60, label: 'Nr kwitu wywozowego' },
-
-  pricePurchase: { type: 'number', min: 0, max: 1_000_000, default: 0, label: 'Cena zakupu / produkcji' },
-  priceSale: { type: 'number', min: 0, max: 1_000_000, default: 0, label: 'Cena sprzedaży' },
-  chippingMode: { type: 'string', max: 40, label: 'Rąbanie' },
-  chippingPrice: { type: 'number', min: 0, max: 1_000_000, default: 0, label: 'Koszt rąbania' },
-
-  carrierName: { type: 'string', max: 160, label: 'Firma transportowa / kierowca' },
-  vehiclePlate: { type: 'string', max: 20, upper: true, label: 'Nr rejestracyjny' },
-  distanceKm: { type: 'number', min: 0, max: 100_000, default: 0, label: 'Odległość (km)' },
-  transportCost: { type: 'number', min: 0, max: 10_000_000, default: 0, label: 'Koszt transportu' },
-
-  certificate: { type: 'string', max: 20, upper: true, default: 'BRAK', label: 'Certyfikat' },
-  isStored: { type: 'bool', default: true, label: 'Magazynowane' },
-
-  notes: { type: 'string', max: 2000, label: 'Uwagi' },
-  signature: { type: 'string', max: 120, label: 'Podpis zatwierdzającego' },
-  chainRef: { type: 'string', max: 40, label: 'Powiązanie łańcucha' },
-  parentId: { type: 'string', max: 40, label: 'Dokument nadrzędny' },
-};
-
-/** Etykiety pól używane w rejestrze korekt (czytelne dla kontrolera). */
-export const FIELD_LABELS = Object.freeze({
-  type: 'Typ operacji', operation_date: 'Data operacji', loading_date: 'Data załadunku',
-  product_name: 'Produkt', grade: 'Rodzaj', quantity: 'Wolumen', unit: 'Jednostka',
-  qty_m3: 'Ilość m³', qty_mp: 'Ilość MP', qty_tonne: 'Masa (t)', energy_gj: 'Energia (GJ)',
-  supplier_name: 'Dostawca / źródło', recipient_name: 'Odbiorca / cel',
-  warehouse_from_id: 'Magazyn źródłowy', warehouse_to_id: 'Magazyn docelowy',
-  loading_place: 'Miejsce załadunku', origin_place: 'Miejsce pochodzenia',
-  forest_district: 'Nadleśnictwo', forest_range: 'Leśnictwo', haulage_note_no: 'Nr kwitu wywozowego',
-  price_purchase: 'Cena zakupu / produkcji', price_sale: 'Cena sprzedaży',
-  value_purchase: 'Wartość zakupu', value_sale: 'Wartość sprzedaży',
-  chipping_mode: 'Rąbanie', chipping_price: 'Stawka rąbania', chipping_cost: 'Koszt rąbania',
-  carrier_name: 'Firma transportowa', vehicle_plate: 'Nr rejestracyjny',
-  distance_km: 'Odległość (km)', transport_cost: 'Koszt transportu',
-  certificate: 'Certyfikat', is_stored: 'Magazynowane', notes: 'Uwagi', signature: 'Podpis',
-});
-
-/* --------------------------- Przygotowanie ---------------------------- */
+/* ======================================================================
+   Przygotowanie dokumentu
+   ====================================================================== */
 
 /**
- * Zamienia dane z formularza na wiersz tabeli `operations` (bez numeru i metryki).
- * Rozwiązuje nazwy na identyfikatory kartotek, zakładając brakujące pozycje.
+ * Zamienia dane z formularza na wiersz tabeli `operations`.
+ *
+ * Podzielone na nazwane kroki, żeby każdy dało się czytać i zmieniać osobno:
+ * produkt → ilości → magazyny → słowniki → złożenie wiersza → kontrola.
+ *
+ * @param {object} input dane żądania
+ * @param {{existing?:object}} [options] edytowany dokument (wiersz bazy)
+ * @returns {object} wiersz gotowy do zapisu (klucze = kolumny bazy)
  */
 function prepareRow(input, { existing = null } = {}) {
   const d = validate(input, OPERATION_SCHEMA, existing ? { partial: true } : {});
-  const type = d.type ?? existing?.type;
   const errors = [];
 
-  /* --- Produkt --- */
-  let productRow;
-  if (d.productId) {
-    productRow = products.getRaw(d.productId);
-  } else if (d.productName) {
-    const found = products.findByName(d.productName)
-      || products.create({ name: d.productName, category: guessCategory(d.productName) });
-    productRow = products.getRaw(found.id);
-  } else if (existing) {
-    productRow = products.getRaw(existing.product_id);
-  } else {
-    errors.push({ field: 'productName', message: 'Wskaż produkt z kartoteki lub podaj jego nazwę.' });
-  }
+  const type = carry(d, existing, 'type');
+  const product = resolveProduct(d, existing, errors);
+  const quantities = computeAmounts(d, existing, product);
+  const places = resolveWarehouses(d, existing, type);
+  const signature = String(carry(d, existing, 'signature') ?? '').trim();
 
-  /* --- Ilości --- */
-  const quantity = d.quantity ?? existing?.quantity;
-  const unit = d.unit ?? existing?.unit;
-  const factors = resolveFactors(productRow, getUnitFactors());
-  const qty = computeQuantities({
-    quantity,
-    unit,
-    factors,
-    m3Mode: d.m3Mode ?? existing?.m3_mode ?? 'AUTO',
-    m3Manual: d.m3Manual ?? existing?.m3_manual,
-    mpMode: d.mpMode ?? existing?.mp_mode ?? 'AUTO',
-    mpManual: d.mpManual ?? existing?.mp_manual,
-    tonneMode: d.tonneMode ?? existing?.tonne_mode ?? 'AUTO',
-    tonneManual: d.tonneManual ?? existing?.tonne_manual,
-  });
-
-  /* --- Wartości --- */
-  const pricePurchase = d.pricePurchase ?? existing?.price_purchase ?? 0;
-  const priceSale = d.priceSale ?? existing?.price_sale ?? 0;
-  const chippingPrice = d.chippingPrice ?? existing?.chipping_price ?? 0;
-  const values = computeValues({ quantity, pricePurchase, priceSale, chippingPrice });
-
-  /* --- Magazyny i kontrahenci --- */
-  const direction = TYPE_DIRECTION[type];
-  const defaultWarehouse = warehouses.getDefault();
-
-  const resolveWarehouse = (name, fallbackId) => {
-    if (name === undefined) return fallbackId ?? null;
-    if (!name) return null;
-    return warehouses.ensure(name).id;
-  };
-
-  let warehouseFromId = resolveWarehouse(d.warehouseFrom, existing?.warehouse_from_id);
-  let warehouseToId = resolveWarehouse(d.warehouseTo, existing?.warehouse_to_id);
-
-  // Domyślny magazyn podstawia się tam, gdzie typ dokumentu go wymaga.
-  if ((direction === 'IN' || direction === 'TRANSFER') && !warehouseToId) warehouseToId = defaultWarehouse.id;
-  if ((direction === 'OUT' || direction === 'TRANSFER') && !warehouseFromId) warehouseFromId = defaultWarehouse.id;
-  if (direction === 'IN') warehouseFromId = null;
-  if (direction === 'OUT') warehouseToId = null;
-
-  const supplierName = d.supplierName ?? existing?.supplier_name ?? null;
-  const recipientName = d.recipientName ?? existing?.recipient_name ?? null;
-  const partnerFrom = supplierName ? partners.ensure(supplierName, 'DOSTAWCA') : null;
-  const partnerTo = recipientName ? partners.ensure(recipientName, 'ODBIORCA') : null;
-
-  /* --- Słowniki pomocnicze --- */
-  const carrierName = d.carrierName ?? existing?.carrier_name ?? null;
-  const vehiclePlate = d.vehiclePlate ?? existing?.vehicle_plate ?? null;
-  if (carrierName) partners.ensure(carrierName, 'PRZEWOZNIK');
-  if (vehiclePlate) vehicles.ensure(vehiclePlate, carrierName);
-  const forestDistrict = d.forestDistrict ?? existing?.forest_district ?? null;
-  const forestRange = d.forestRange ?? existing?.forest_range ?? null;
-  if (forestDistrict) forest.ensure(forestDistrict, forestRange);
-  const loadingPlace = d.loadingPlace ?? existing?.loading_place ?? null;
-  if (loadingPlace) loadingPlaces.ensure(loadingPlace);
-
-  /* --- Podpis --- */
-  const signature = (d.signature ?? existing?.signature ?? '').trim();
   if (getSetting('rules.require_signature') && signature.split(/\s+/).filter(Boolean).length < 2) {
     errors.push({
       field: 'signature',
       message: 'Podpisz dokument pełnym imieniem i nazwiskiem — wymóg kontroli KZR/SURE.',
     });
   }
-
   if (errors.length) throw new ValidationError('Dokument zawiera błędy — popraw zaznaczone pola.', errors);
 
-  const row = {
-    type,
-    operation_date: d.operationDate ?? existing?.operation_date,
-    loading_date: d.loadingDate ?? existing?.loading_date ?? null,
+  const row = assembleRow({ d, existing, type, product, quantities, places, signature });
 
-    product_id: productRow.id,
-    product_name: productRow.name,
-    grade: d.grade ?? existing?.grade ?? null,
+  // Uzupełnienie kartotek pomocniczych na podstawie gotowego wiersza —
+  // wyłącznie dla wartości, które faktycznie się zmieniły.
+  const partners = ensureDictionaries(row, existing);
+  row.partner_from_id = partners.supplierId;
+  row.partner_to_id = partners.recipientId;
 
-    quantity: roundQty(quantity),
+  const problems = validateWarehouses(row);
+  if (problems.length) {
+    throw new ValidationError(problems[0], problems.map((m) => ({ field: 'warehouse', message: m })));
+  }
+  return row;
+}
+
+/** Krok 1 — produkt: z kartoteki po kluczu, po nazwie, albo zakładany w locie. */
+function resolveProduct(d, existing, errors) {
+  if (d.productId) return products.getRaw(d.productId);
+  if (d.productName) {
+    return products.findRowByName(d.productName)
+      ?? products.getRaw(products.create({ name: d.productName, category: guessCategory(d.productName) }).id);
+  }
+  if (existing) return products.getRaw(existing.product_id);
+  errors.push({ field: 'productName', message: 'Wskaż produkt z kartoteki lub podaj jego nazwę.' });
+  return null;
+}
+
+/** Krok 2 — przeliczenie ilości i wartości przy użyciu przeliczników produktu. */
+function computeAmounts(d, existing, product) {
+  const quantity = carry(d, existing, 'quantity');
+  const unit = carry(d, existing, 'unit');
+  const factors = resolveFactors(product, getUnitFactors());
+
+  const amounts = computeQuantities({
+    quantity,
     unit,
-    qty_m3: qty.qtyM3,
-    qty_mp: qty.qtyMp,
-    qty_tonne: qty.qtyTonne,
-    energy_gj: qty.energyGj,
-    m3_mode: d.m3Mode ?? existing?.m3_mode ?? 'AUTO',
-    m3_manual: d.m3Manual ?? existing?.m3_manual ?? null,
-    mp_mode: d.mpMode ?? existing?.mp_mode ?? 'AUTO',
-    mp_manual: d.mpManual ?? existing?.mp_manual ?? null,
-    tonne_mode: d.tonneMode ?? existing?.tonne_mode ?? 'AUTO',
-    tonne_manual: d.tonneManual ?? existing?.tonne_manual ?? null,
+    factors,
+    m3Mode: carry(d, existing, 'm3Mode'),
+    m3Manual: carry(d, existing, 'm3Manual'),
+    mpMode: carry(d, existing, 'mpMode'),
+    mpManual: carry(d, existing, 'mpManual'),
+    tonneMode: carry(d, existing, 'tonneMode'),
+    tonneManual: carry(d, existing, 'tonneManual'),
+  });
+
+  const values = computeValues({
+    quantity,
+    pricePurchase: carry(d, existing, 'pricePurchase'),
+    priceSale: carry(d, existing, 'priceSale'),
+    chippingPrice: carry(d, existing, 'chippingPrice'),
+  });
+
+  return { quantity, unit, factors, amounts, values };
+}
+
+/**
+ * Krok 3 — magazyny. Klucz z żądania ma pierwszeństwo przed nazwą, nazwa przed
+ * wartością z edytowanego dokumentu. Brakujący magazyn wymagany przez typ
+ * dokumentu uzupełnia się magazynem domyślnym.
+ */
+function resolveWarehouses(d, existing, type) {
+  const pick = (idKey, nameKey, existingCol) => {
+    if (d[idKey]) return d[idKey];
+    if (d[nameKey] !== undefined) return d[nameKey] ? warehouses.ensure(d[nameKey]).id : null;
+    return existing?.[existingCol] ?? null;
+  };
+
+  let from = pick('warehouseFromId', 'warehouseFrom', 'warehouse_from_id');
+  let to = pick('warehouseToId', 'warehouseTo', 'warehouse_to_id');
+
+  // Magazyn domyślny odczytujemy dopiero, gdy któraś strona dokumentu go potrzebuje.
+  let fallbackId = null;
+  const fallback = () => (fallbackId ??= warehouses.getDefault().id);
+
+  const direction = TYPE_DIRECTION[type];
+  if ((direction === 'IN' || direction === 'TRANSFER') && !to) to = fallback();
+  if ((direction === 'OUT' || direction === 'TRANSFER') && !from) from = fallback();
+  if (direction === 'IN') from = null;
+  if (direction === 'OUT') to = null;
+
+  return { from, to };
+}
+
+/** Krok 4 — złożenie wiersza: pola proste z rejestru, wyliczane wprost. */
+function assembleRow({ d, existing, type, product, quantities, places, signature }) {
+  const { amounts, values, factors } = quantities;
+  const row = {};
+
+  // Pola przenoszone z żądania lub z edytowanego dokumentu.
+  for (const column of CONTENT_COLUMNS) row[column] = undefined;
+  for (const api of Object.keys(OPERATION_SCHEMA)) {
+    const field = FIELD_BY_API[api];
+    if (!field || field.derived) continue;
+    row[field.col] = carry(d, existing, api);
+  }
+
+  // Kwoty jednostkowe zaokrąglane do groszy.
+  for (const api of MONEY_FIELDS) {
+    const field = FIELD_BY_API[api];
+    if (field && !field.derived) row[field.col] = roundMoney(row[field.col]);
+  }
+
+  // Pola wyliczane i rozstrzygnięte w krokach wcześniejszych.
+  Object.assign(row, {
+    type,
+    product_id: product.id,
+    product_name: product.name,
+    quantity: roundQty(quantities.quantity),
+    unit: quantities.unit,
+    qty_m3: amounts.qtyM3,
+    qty_mp: amounts.qtyMp,
+    qty_tonne: amounts.qtyTonne,
+    energy_gj: amounts.energyGj,
     factor_m3_mp: factors.m3ToMp,
     factor_mp_tonne: factors.mpToTonne,
     factor_tonne_gj: factors.tonneToGj,
-
-    warehouse_from_id: warehouseFromId,
-    warehouse_to_id: warehouseToId,
-    partner_from_id: partnerFrom?.id ?? null,
-    partner_to_id: partnerTo?.id ?? null,
-    supplier_name: supplierName,
-    recipient_name: recipientName,
-
-    loading_place: loadingPlace,
-    origin_place: d.originPlace ?? existing?.origin_place ?? null,
-    forest_district: forestDistrict,
-    forest_range: forestRange,
-    haulage_note_no: d.haulageNoteNo ?? existing?.haulage_note_no ?? null,
-
-    price_purchase: roundMoney(pricePurchase),
-    price_sale: roundMoney(priceSale),
     value_purchase: values.valuePurchase,
     value_sale: values.valueSale,
-    chipping_mode: d.chippingMode ?? existing?.chipping_mode ?? null,
-    chipping_price: roundMoney(chippingPrice),
     chipping_cost: values.chippingCost,
-
-    carrier_name: carrierName,
-    vehicle_plate: vehiclePlate,
-    distance_km: d.distanceKm ?? existing?.distance_km ?? 0,
-    transport_cost: roundMoney(d.transportCost ?? existing?.transport_cost ?? 0),
-
-    certificate: d.certificate ?? existing?.certificate ?? 'BRAK',
-    is_stored: d.isStored ?? (existing ? !!existing.is_stored : true),
-
-    chain_ref: d.chainRef ?? existing?.chain_ref ?? null,
-    parent_id: d.parentId ?? existing?.parent_id ?? null,
-    notes: d.notes ?? existing?.notes ?? null,
+    warehouse_from_id: places.from,
+    warehouse_to_id: places.to,
     signature,
-  };
+  });
 
-  const warehouseProblems = validateWarehouses(row);
-  if (warehouseProblems.length) {
-    throw new ValidationError(warehouseProblems[0], warehouseProblems.map((m) => ({ field: 'warehouse', message: m })));
-  }
+  // Kolumny nieobjęte żadnym z powyższych kroków muszą mieć jawną wartość.
+  for (const column of CONTENT_COLUMNS) row[column] ??= null;
   return row;
 }
 
@@ -260,22 +204,23 @@ function guessCategory(name) {
   return 'INNE';
 }
 
-/* ------------------------ Kontrole biznesowe -------------------------- */
+/* ======================================================================
+   Kontrole biznesowe
+   ====================================================================== */
 
 /** Blokuje księgowanie zbyt daleko wstecz (poza korektą przez kierownika). */
 function assertDateAllowed(date, user) {
   const limitDays = Number(getSetting('rules.backdate_days')) || 0;
   if (!limitDays) return;
   if (user.role === 'ADMIN' || user.role === 'KIEROWNIK') return;
+
   const diffDays = Math.floor((Date.now() - new Date(`${date}T12:00:00Z`).getTime()) / 86_400_000);
   if (diffDays > limitDays) {
     throw new ForbiddenError(
       `Data ${date} wykracza poza dozwolone ${limitDays} dni wstecz. Poproś kierownika o zaksięgowanie dokumentu.`,
     );
   }
-  if (diffDays < -1) {
-    throw new ValidationError('Data operacji nie może być z przyszłości.');
-  }
+  if (diffDays < -1) throw new ValidationError('Data operacji nie może być z przyszłości.');
 }
 
 /** Kontrola stanów ujemnych — ostrzeżenie lub twarda blokada zależnie od ustawień. */
@@ -303,7 +248,9 @@ function checkStock(row, { excludeOperationId = null } = {}) {
   return [message];
 }
 
-/* ------------------------------ Zapis --------------------------------- */
+/* ======================================================================
+   Zapis
+   ====================================================================== */
 
 /**
  * Księguje nowy dokument.
@@ -316,19 +263,20 @@ export function createOperation(input, ctx) {
   return db.tx(() => {
     const row = prepareRow(input);
     assertDateAllowed(row.operation_date, user);
-    assertPeriodOpen(row.operation_date.slice(0, 7), user);
+    assertPeriodOpen(row.operation_date.slice(0, 7));
     const warnings = checkStock(row);
 
-    const series = seriesForType(row.type);
-    const year = Number(row.operation_date.slice(0, 4));
-    const doc = allocateDocNumber(db, series, year);
+    const doc = allocateDocNumber(db, seriesForType(row.type), Number(row.operation_date.slice(0, 4)));
     const id = uuid();
+    const stored = {
+      ...row, id, doc_no: doc.docNo, doc_series: doc.series, doc_year: doc.year, doc_number: doc.number,
+    };
 
-    insertOperation({ ...row, id, doc_no: doc.docNo, doc_series: doc.series, doc_year: doc.year, doc_number: doc.number }, user.id);
-    writeMoves(id, { ...row, id });
+    insertOperation(stored, user.id);
+    writeMoves(id, stored);
 
     audit(ctx, 'CREATE', 'operations', id, { docNo: doc.docNo, type: row.type, qtyMp: row.qty_mp });
-    return { operation: getOperation(id), warnings };
+    return { operation: readOperation(id), warnings };
   });
 }
 
@@ -350,32 +298,14 @@ export function updateOperation(id, input, ctx) {
 
     const row = prepareRow(input, { existing });
     assertDateAllowed(row.operation_date, user);
-    assertPeriodOpen(existing.operation_date.slice(0, 7), user);
-    assertPeriodOpen(row.operation_date.slice(0, 7), user);
+    assertPeriodOpen(existing.operation_date.slice(0, 7));
+    assertPeriodOpen(row.operation_date.slice(0, 7));
     const warnings = checkStock(row, { excludeOperationId: id });
 
     const changes = diffRows(existing, row);
-    if (!changes.length) return { operation: mapOperation(existing), warnings, changes: [] };
+    if (!changes.length) return { operation: readOperation(id), warnings, changes: [] };
 
-    const reason = String(input.correctionReason || '').trim().slice(0, 500);
-    db.run(
-      `INSERT INTO corrections(id, operation_id, doc_no, operation_type, product_name,
-                               changed_by, changed_by_name, reason, changes_json, snapshot_before)
-            VALUES (:id, :operationId, :docNo, :type, :productName,
-                    :changedBy, :changedByName, :reason, :changes, :snapshot)`,
-      {
-        id: uuid(),
-        operationId: id,
-        docNo: existing.doc_no,
-        type: existing.type,
-        productName: existing.product_name,
-        changedBy: user.id,
-        changedByName: user.fullName,
-        reason: reason || null,
-        changes: JSON.stringify(changes),
-        snapshot: JSON.stringify(existing),
-      },
-    );
+    recordCorrection(existing, changes, input.correctionReason, user);
 
     const sets = Object.keys(row).map((col) => `${col} = :${col}`).join(', ');
     db.run(
@@ -387,7 +317,7 @@ export function updateOperation(id, input, ctx) {
 
     writeMoves(id, { ...row, id });
     audit(ctx, 'UPDATE', 'operations', id, { docNo: existing.doc_no, fields: changes.map((c) => c.field) });
-    return { operation: getOperation(id), warnings, changes };
+    return { operation: readOperation(id), warnings, changes };
   });
 }
 
@@ -405,12 +335,12 @@ export function cancelOperation(id, { reason }, ctx) {
     const clean = validate({ reason }, {
       reason: { type: 'string', required: true, min: 5, max: 500, label: 'Przyczyna storna' },
     });
-    assertPeriodOpen(existing.operation_date.slice(0, 7), user);
+    assertPeriodOpen(existing.operation_date.slice(0, 7));
 
     // Dokument będący ogniwem łańcucha nie może zniknąć bez pozostałych ogniw.
     if (existing.chain_ref) {
       const siblings = db.all(
-        "SELECT id, doc_no FROM operations WHERE chain_ref = :ref AND id <> :id AND status = 'POSTED'",
+        "SELECT doc_no FROM operations WHERE chain_ref = :ref AND id <> :id AND status = 'POSTED'",
         { ref: existing.chain_ref, id },
       );
       if (siblings.length) {
@@ -430,7 +360,7 @@ export function cancelOperation(id, { reason }, ctx) {
       { id, userId: user.id, reason: clean.reason },
     );
     audit(ctx, 'CANCEL', 'operations', id, { docNo: existing.doc_no, reason: clean.reason });
-    return getOperation(id);
+    return readOperation(id);
   });
 }
 
@@ -439,14 +369,38 @@ export function restoreCorrection(correctionId, ctx) {
   return db.tx(() => {
     const corr = db.get('SELECT * FROM corrections WHERE id = :id', { id: correctionId });
     if (!corr) throw new NotFoundError('Nie znaleziono wpisu korekty.');
-    const snapshot = JSON.parse(corr.snapshot_before);
-    const input = toInput(snapshot);
+
+    const input = rowToInput(JSON.parse(corr.snapshot_before));
     input.correctionReason = `Przywrócenie stanu sprzed korekty z ${corr.changed_at}`;
     return updateOperation(corr.operation_id, input, ctx);
   });
 }
 
-/* ---------------------------- Odczyt ---------------------------------- */
+/** Zapisuje wpis w rejestrze korekt wraz z pełną migawką stanu sprzed zmiany. */
+function recordCorrection(existing, changes, reason, user) {
+  db.run(
+    `INSERT INTO corrections(id, operation_id, doc_no, operation_type, product_name,
+                             changed_by, changed_by_name, reason, changes_json, snapshot_before)
+          VALUES (:id, :operationId, :docNo, :type, :productName,
+                  :changedBy, :changedByName, :reason, :changes, :snapshot)`,
+    {
+      id: uuid(),
+      operationId: existing.id,
+      docNo: existing.doc_no,
+      type: existing.type,
+      productName: existing.product_name,
+      changedBy: user.id,
+      changedByName: user.fullName,
+      reason: String(reason || '').trim().slice(0, 500) || null,
+      changes: JSON.stringify(changes),
+      snapshot: JSON.stringify(existing),
+    },
+  );
+}
+
+/* ======================================================================
+   Odczyt
+   ====================================================================== */
 
 const LIST_SCHEMA = {
   q: { type: 'string', max: 120 },
@@ -465,9 +419,9 @@ const LIST_SCHEMA = {
   offset: { type: 'int', min: 0, default: 0 },
 };
 
-/** Lista dokumentów z filtrowaniem, sortowaniem i stronicowaniem. */
-export function listOperations(query) {
-  const f = validate(query, LIST_SCHEMA, { partial: false });
+/** Buduje warunek WHERE i parametry na podstawie filtrów listy. */
+function buildListFilter(query) {
+  const f = validate(query, LIST_SCHEMA);
   const where = [];
   const params = { limit: f.limit, offset: f.offset };
 
@@ -494,13 +448,32 @@ export function listOperations(query) {
     params.q = `%${f.q}%`;
   }
 
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const orderCol = { date: 'o.operation_date', doc: 'o.doc_no', value: '(o.value_sale + o.value_purchase)' }[f.sort];
-  const orderSql = `ORDER BY ${orderCol} ${f.order === 'asc' ? 'ASC' : 'DESC'}, o.created_at DESC`;
+  const orderColumn = { date: 'o.operation_date', doc: 'o.doc_no', value: '(o.value_sale + o.value_purchase)' }[f.sort];
+  return {
+    filters: f,
+    params,
+    whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '',
+    orderSql: `ORDER BY ${orderColumn} ${f.order === 'asc' ? 'ASC' : 'DESC'}, o.created_at DESC`,
+  };
+}
 
-  const rows = db.all(
-    `${SELECT_OPERATION} ${whereSql} ${orderSql} LIMIT :limit OFFSET :offset`, params,
-  );
+/**
+ * Lista dokumentów z filtrowaniem, sortowaniem i stronicowaniem.
+ *
+ * @param {object} query filtry
+ * @param {{withTotals?:boolean}} [options] `withTotals:false` pomija liczenie
+ *   sumy i podsumowań — używane przy stronicowanym eksporcie, gdzie te same
+ *   agregaty liczyłyby się od nowa dla każdej strony.
+ */
+export function listOperations(query, { withTotals = true } = {}) {
+  const { filters, params, whereSql, orderSql } = buildListFilter(query);
+  const rows = db.all(`${SELECT_OPERATION} ${whereSql} ${orderSql} LIMIT :limit OFFSET :offset`, params);
+  const items = rows.map(rowToApi);
+
+  if (!withTotals) {
+    return { items, page: { total: null, limit: filters.limit, offset: filters.offset }, totals: null };
+  }
+
   const total = db.value(`SELECT COUNT(*) FROM operations o ${whereSql}`, params);
   const totals = db.get(
     `SELECT COALESCE(SUM(o.qty_mp),0)         AS qty_mp,
@@ -513,8 +486,8 @@ export function listOperations(query) {
   );
 
   return {
-    items: rows.map(mapOperation),
-    page: { total, limit: f.limit, offset: f.offset },
+    items,
+    page: { total, limit: filters.limit, offset: filters.offset },
     totals: {
       qtyMp: roundQty(totals.qty_mp),
       qtyTonne: roundQty(totals.qty_tonne),
@@ -525,11 +498,14 @@ export function listOperations(query) {
   };
 }
 
+/**
+ * Dokument wraz z załącznikami, liczbą korekt i pozostałymi ogniwami łańcucha.
+ * Używane przez `GET /operations/:id`.
+ */
 export function getOperation(id) {
-  const row = db.get(`${SELECT_OPERATION} WHERE o.id = :id`, { id });
-  if (!row) throw new NotFoundError('Nie znaleziono dokumentu.');
-  const op = mapOperation(row);
-  op.attachments = db.all(
+  const operation = readOperation(id);
+
+  operation.attachments = db.all(
     `SELECT id, filename, mime_type, size_bytes, kind, created_at
        FROM attachments WHERE operation_id = :id ORDER BY created_at`,
     { id },
@@ -537,15 +513,31 @@ export function getOperation(id) {
     id: a.id, filename: a.filename, mimeType: a.mime_type,
     sizeBytes: a.size_bytes, kind: a.kind, createdAt: a.created_at,
   }));
-  op.corrections = db.value('SELECT COUNT(*) FROM corrections WHERE operation_id = :id', { id });
-  if (op.chainRef) {
-    op.chain = db.all(
+
+  operation.corrections = db.value('SELECT COUNT(*) FROM corrections WHERE operation_id = :id', { id });
+
+  if (operation.chainRef) {
+    operation.chain = db.all(
       `SELECT id, doc_no, type, product_name, qty_mp, status
          FROM operations WHERE chain_ref = :ref ORDER BY created_at`,
-      { ref: op.chainRef },
-    ).map((r) => ({ id: r.id, docNo: r.doc_no, type: r.type, productName: r.product_name, qtyMp: r.qty_mp, status: r.status }));
+      { ref: operation.chainRef },
+    ).map((r) => ({
+      id: r.id, docNo: r.doc_no, type: r.type,
+      productName: r.product_name, qtyMp: r.qty_mp, status: r.status,
+    }));
   }
-  return op;
+  return operation;
+}
+
+/**
+ * Sam dokument, bez zestawu powiązań — jedno zapytanie.
+ * Zwracany po zapisie: ścieżka zapisu nie potrzebuje załączników ani historii
+ * korekt, a ich doczytywanie kosztowało trzy dodatkowe zapytania na dokument.
+ */
+function readOperation(id) {
+  const row = db.get(`${SELECT_OPERATION} WHERE o.id = :id`, { id });
+  if (!row) throw new NotFoundError('Nie znaleziono dokumentu.');
+  return rowToApi(row);
 }
 
 const SELECT_OPERATION = `
@@ -558,128 +550,17 @@ const SELECT_OPERATION = `
     LEFT JOIN warehouses wt ON wt.id = o.warehouse_to_id
     LEFT JOIN users u       ON u.id  = o.created_by`;
 
-/** Wiersz bazy → obiekt API (camelCase, bez pól technicznych). */
-export function mapOperation(r) {
-  return {
-    id: r.id,
-    docNo: r.doc_no,
-    docSeries: r.doc_series,
-    type: r.type,
-    status: r.status,
-    operationDate: r.operation_date,
-    operationMonth: r.operation_month,
-    loadingDate: r.loading_date,
-    productId: r.product_id,
-    productName: r.product_name,
-    grade: r.grade,
-    quantity: r.quantity,
-    unit: r.unit,
-    qtyM3: r.qty_m3,
-    qtyMp: r.qty_mp,
-    qtyTonne: r.qty_tonne,
-    energyGj: r.energy_gj,
-    m3Mode: r.m3_mode,
-    m3Manual: r.m3_manual,
-    mpMode: r.mp_mode,
-    mpManual: r.mp_manual,
-    tonneMode: r.tonne_mode,
-    tonneManual: r.tonne_manual,
-    factors: { m3ToMp: r.factor_m3_mp, mpToTonne: r.factor_mp_tonne, tonneToGj: r.factor_tonne_gj },
-    warehouseFromId: r.warehouse_from_id,
-    warehouseFrom: r.warehouse_from_name ?? null,
-    warehouseToId: r.warehouse_to_id,
-    warehouseTo: r.warehouse_to_name ?? null,
-    supplierName: r.supplier_name,
-    recipientName: r.recipient_name,
-    loadingPlace: r.loading_place,
-    originPlace: r.origin_place,
-    forestDistrict: r.forest_district,
-    forestRange: r.forest_range,
-    haulageNoteNo: r.haulage_note_no,
-    pricePurchase: r.price_purchase,
-    priceSale: r.price_sale,
-    valuePurchase: r.value_purchase,
-    valueSale: r.value_sale,
-    chippingMode: r.chipping_mode,
-    chippingPrice: r.chipping_price,
-    chippingCost: r.chipping_cost,
-    carrierName: r.carrier_name,
-    vehiclePlate: r.vehicle_plate,
-    distanceKm: r.distance_km,
-    transportCost: r.transport_cost,
-    certificate: r.certificate,
-    isStored: !!r.is_stored,
-    chainRef: r.chain_ref,
-    parentId: r.parent_id,
-    notes: r.notes,
-    signature: r.signature,
-    revision: r.revision,
-    createdAt: r.created_at,
-    createdBy: r.created_by_name ?? r.created_by,
-    updatedAt: r.updated_at,
-    cancelledAt: r.cancelled_at,
-    cancelReason: r.cancel_reason,
-  };
-}
+/* ======================================================================
+   Operacje pomocnicze
+   ====================================================================== */
 
-/** Odwrotność `mapOperation` — pozwala odtworzyć dokument z migawki korekty. */
-export function toInput(row) {
-  return {
-    type: row.type,
-    operationDate: row.operation_date,
-    loadingDate: row.loading_date,
-    productId: row.product_id,
-    grade: row.grade,
-    quantity: row.quantity,
-    unit: row.unit,
-    m3Mode: row.m3_mode,
-    m3Manual: row.m3_manual,
-    mpMode: row.mp_mode,
-    mpManual: row.mp_manual,
-    tonneMode: row.tonne_mode,
-    tonneManual: row.tonne_manual,
-    supplierName: row.supplier_name,
-    recipientName: row.recipient_name,
-    loadingPlace: row.loading_place,
-    originPlace: row.origin_place,
-    forestDistrict: row.forest_district,
-    forestRange: row.forest_range,
-    haulageNoteNo: row.haulage_note_no,
-    pricePurchase: row.price_purchase,
-    priceSale: row.price_sale,
-    chippingMode: row.chipping_mode,
-    chippingPrice: row.chipping_price,
-    carrierName: row.carrier_name,
-    vehiclePlate: row.vehicle_plate,
-    distanceKm: row.distance_km,
-    transportCost: row.transport_cost,
-    certificate: row.certificate,
-    isStored: !!row.is_stored,
-    notes: row.notes,
-    signature: row.signature,
-  };
-}
-
-/* ------------------------ Operacje pomocnicze ------------------------- */
-
-const INSERT_COLUMNS = [
-  'id', 'doc_no', 'doc_series', 'doc_year', 'doc_number', 'type', 'operation_date', 'loading_date',
-  'product_id', 'product_name', 'grade', 'quantity', 'unit', 'qty_m3', 'qty_mp', 'qty_tonne', 'energy_gj',
-  'm3_mode', 'm3_manual', 'mp_mode', 'mp_manual', 'tonne_mode', 'tonne_manual',
-  'factor_m3_mp', 'factor_mp_tonne', 'factor_tonne_gj',
-  'warehouse_from_id', 'warehouse_to_id', 'partner_from_id', 'partner_to_id', 'supplier_name', 'recipient_name',
-  'loading_place', 'origin_place', 'forest_district', 'forest_range', 'haulage_note_no',
-  'price_purchase', 'price_sale', 'value_purchase', 'value_sale',
-  'chipping_mode', 'chipping_price', 'chipping_cost',
-  'carrier_name', 'vehicle_plate', 'distance_km', 'transport_cost',
-  'certificate', 'is_stored', 'chain_ref', 'parent_id', 'notes', 'signature',
-];
+const INSERT_COLUMNS = [...DOCUMENT_COLUMNS, ...CONTENT_COLUMNS, 'created_by'];
 
 function insertOperation(row, userId) {
-  const cols = [...INSERT_COLUMNS, 'created_by'];
   db.run(
-    `INSERT INTO operations(${cols.join(', ')}) VALUES (${cols.map((c) => `:${c}`).join(', ')})`,
-    { ...pick(row, INSERT_COLUMNS), created_by: userId },
+    `INSERT INTO operations(${INSERT_COLUMNS.join(', ')})
+          VALUES (${INSERT_COLUMNS.map((c) => `:${c}`).join(', ')})`,
+    { ...Object.fromEntries(INSERT_COLUMNS.map((c) => [c, row[c] ?? null])), created_by: userId },
   );
 }
 
@@ -715,28 +596,25 @@ function writeMoves(operationId, row) {
  * bez tego każda edycja zgłaszałaby pozorną zmianę pola `is_stored`.
  */
 function diffRows(before, after) {
-  const norm = (v) => {
-    if (typeof v === 'boolean') return v ? 1 : 0;
-    return v;
-  };
+  const norm = (v) => (typeof v === 'boolean' ? Number(v) : v);
   const changes = [];
+
   for (const [field, raw] of Object.entries(after)) {
     const value = norm(raw);
-    const prev = norm(before[field]);
-    const same = typeof value === 'number' && typeof prev === 'number'
-      ? Math.abs(value - prev) < 1e-9
-      : String(prev ?? '') === String(value ?? '');
+    const previous = norm(before[field]);
+    const same = typeof value === 'number' && typeof previous === 'number'
+      ? Math.abs(value - previous) < 1e-9
+      : String(previous ?? '') === String(value ?? '');
     if (same) continue;
+
     changes.push({
       field,
-      label: FIELD_LABELS[field] || field,
-      from: prev ?? null,
+      label: FIELD_LABELS[field] ?? field,
+      from: previous ?? null,
       to: value ?? null,
     });
   }
   return changes;
 }
 
-const pick = (obj, keys) => Object.fromEntries(keys.map((k) => [k, obj[k] ?? null]));
-
-export { prepareRow, checkStock, OPERATION_SCHEMA };
+export { prepareRow, checkStock };

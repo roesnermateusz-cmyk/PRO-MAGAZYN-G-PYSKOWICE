@@ -14,17 +14,9 @@ export function esc(value) {
   }[c]));
 }
 
-/** Ucieczka do atrybutu — skrót czytelniejszy w szablonach. */
-export const attr = esc;
-
 export const $ = (selector, root = document) => root.querySelector(selector);
 export const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-/** Ustawia zawartość kontenera. */
-export function render(container, html) {
-  container.innerHTML = html;
-  return container;
-}
 
 /**
  * Delegacja zdarzeń: `on(root, 'click', '[data-act="edit"]', (el, ev) => …)`.
@@ -77,12 +69,12 @@ export function options(items, selected, { valueKey = 'id', labelKey = 'name', p
   return head + items.map((item) => {
     const value = typeof item === 'string' ? item : item[valueKey];
     const label = typeof item === 'string' ? item : item[labelKey];
-    return `<option value="${attr(value)}"${String(selected ?? '') === String(value) ? ' selected' : ''}>${esc(label)}</option>`;
+    return `<option value="${esc(value)}"${String(selected ?? '') === String(value) ? ' selected' : ''}>${esc(label)}</option>`;
   }).join('');
 }
 
 /** Lista podpowiedzi `<datalist>` dla pól tekstowych. */
 export function datalist(id, values) {
   const unique = [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'pl'));
-  return `<datalist id="${attr(id)}">${unique.map((v) => `<option value="${attr(v)}"></option>`).join('')}</datalist>`;
+  return `<datalist id="${esc(id)}">${unique.map((v) => `<option value="${esc(v)}"></option>`).join('')}</datalist>`;
 }

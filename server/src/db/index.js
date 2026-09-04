@@ -85,12 +85,27 @@ export function closeDatabase() {
   statementCache = new Map();
 }
 
+/**
+ * Maksymalna liczba zapamiętanych instrukcji. Zapytania listy budowane są
+ * z kombinacji filtrów, więc zbiór różnych treści SQL jest skończony, ale
+ * rośnie wykładniczo z liczbą filtrów — limit trzyma pamięć w ryzach.
+ */
+const STATEMENT_CACHE_LIMIT = 256;
+
 function prepare(sql) {
-  let stmt = statementCache.get(sql);
-  if (!stmt) {
-    stmt = openDatabase().prepare(sql);
-    statementCache.set(sql, stmt);
+  const cached = statementCache.get(sql);
+  if (cached) {
+    // Odświeżenie pozycji: Map zachowuje kolejność wstawiania, więc ponowne
+    // wstawienie przesuwa wpis na koniec i chroni go przed usunięciem.
+    statementCache.delete(sql);
+    statementCache.set(sql, cached);
+    return cached;
   }
+  const stmt = openDatabase().prepare(sql);
+  if (statementCache.size >= STATEMENT_CACHE_LIMIT) {
+    statementCache.delete(statementCache.keys().next().value);
+  }
+  statementCache.set(sql, stmt);
   return stmt;
 }
 

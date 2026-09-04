@@ -229,6 +229,19 @@ export function createServer(options) {
         res.end(payload);
         ctx._handled = true;
       },
+      /**
+       * Plik do pobrania lub podglądu — komplet nagłówków w jednym miejscu.
+       * @param {{filename:string, mime:string, body:string|Buffer,
+       *          disposition?:'attachment'|'inline', headers?:object}} file
+       */
+      sendFile({ filename, mime, body, disposition = 'attachment', headers = {} }) {
+        ctx.send(200, {
+          'Content-Type': mime,
+          'Content-Length': Buffer.byteLength(body),
+          'Content-Disposition': `${disposition}; filename="${encodeURIComponent(filename)}"`,
+          ...headers,
+        }, body);
+      },
     };
 
     try {

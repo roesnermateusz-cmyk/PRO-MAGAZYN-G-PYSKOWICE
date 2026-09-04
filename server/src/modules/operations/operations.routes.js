@@ -13,15 +13,11 @@ export function operationRoutes(prefix) {
   r.get('', ...guard('operations:read'), (ctx) => ops.listOperations(ctx.query));
 
   // Eksport CSV rejestru — respektuje te same filtry co lista.
-  r.get('/export.csv', ...guard('operations:read'), (ctx) => {
-    const csv = exportOperationsCsv(ctx.query, ctx);
-    const name = `rejestr-operacji-${new Date().toISOString().slice(0, 10)}.csv`;
-    ctx.send(200, {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${name}"`,
-      'Content-Length': Buffer.byteLength(csv),
-    }, csv);
-  });
+  r.get('/export.csv', ...guard('operations:read'), (ctx) => ctx.sendFile({
+    filename: `rejestr-operacji-${new Date().toISOString().slice(0, 10)}.csv`,
+    mime: 'text/csv; charset=utf-8',
+    body: exportOperationsCsv(ctx.query, ctx),
+  }));
 
   r.post('', ...guard('operations:write'), (ctx) => {
     ctx.status(201);

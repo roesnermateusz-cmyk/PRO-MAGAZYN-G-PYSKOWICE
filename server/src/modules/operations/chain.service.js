@@ -110,7 +110,7 @@ export function createChain(input, ctx) {
     /* --- 3. PW — produkcja zrębki ----------------------------------- */
     const chipProduct = chain.chipProductId
       ? products.get(chain.chipProductId)
-      : products.ensure(chain.chipProductName, 'ZREBKA');
+      : products.ensure(chain.chipProductName, { category: 'ZREBKA' });
 
     // Domyślny uzysk: cały wolumen surowca przeliczony na MP przelicznikiem produktu wyjściowego.
     const chipQuantity = chain.chipQuantityMp > 0 ? chain.chipQuantityMp : p.qtyMp;

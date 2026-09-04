@@ -147,6 +147,11 @@ Limit: 10 prób logowania na 5 minut z jednego adresu IP.
 `warnings` zawiera ostrzeżenia niepowodujące odrzucenia zapisu — na przykład
 zejście stanu poniżej zera przy włączonej regule tolerancji.
 
+> **Zakres odpowiedzi zapisu.** `POST`/`PATCH /operations` oraz
+> `POST /operations/:id/cancel` zwracają sam dokument. Załączniki, liczba korekt
+> i pozostałe ogniwa łańcucha dostępne są w `GET /operations/:id` — tam, gdzie
+> stanowią właściwy przedmiot odczytu.
+
 **Typy i serie:** ZAKUP→PZ, SPRZEDAZ→WZ, PRODUKCJA→PW, ZUZYCIE→RW, MM→MM, BO→BO.
 Numer nadaje system; pole `docNo` w żądaniu jest ignorowane.
 

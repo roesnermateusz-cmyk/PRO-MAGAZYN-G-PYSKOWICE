@@ -357,3 +357,78 @@ test('magazynier nie może edytować cudzego dokumentu', () => {
     /wyłącznie własne dokumenty/i,
   );
 });
+
+/* ------------------------------------------------------------------ *
+ *  Regresje wykryte w przeglądzie kodu — patrz docs/REFACTORING.md
+ * ------------------------------------------------------------------ */
+
+test('regresja: raport miesięczny z filtrem magazynu domyka bilans', () => {
+  // Drugi magazyn i dokumenty w obu — filtr musi objąć obroty, nie tylko BO/BZ.
+  const second = db.get("SELECT id FROM warehouses WHERE name = 'Plac Zapasowy'")
+    ?? (() => {
+      const id = crypto.randomUUID();
+      db.run(`INSERT INTO warehouses(id, code, name, is_default, is_active)
+                   VALUES (:id, 'MAG-ZAP', 'Plac Zapasowy', 0, 1)`, { id });
+      return { id };
+    })();
+
+  const main = db.get('SELECT id FROM warehouses WHERE is_default = 1');
+  ops.createOperation(operationInput({
+    operationDate: '2026-06-10', quantity: 40, warehouseTo: 'Magazyn RiC Zabrze',
+  }), ctx);
+  ops.createOperation(operationInput({
+    operationDate: '2026-06-11', quantity: 25, warehouseTo: 'Plac Zapasowy',
+  }), ctx);
+
+  for (const warehouseId of [main.id, second.id]) {
+    const report = monthlyReport({ month: '2026-06', warehouseId });
+    for (const p of report.products) {
+      const expected = p.opening.qtyMp + p.purchase.qtyMp + p.production.qtyMp
+        - p.sale.qtyMp - p.consumption.qtyMp;
+      assert.ok(
+        Math.abs(expected - p.closing.qtyMp) < 0.01,
+        `bilans ${p.productName} w magazynie ${warehouseId}: ${expected} ≠ ${p.closing.qtyMp}`,
+      );
+    }
+  }
+
+  // Obroty jednego magazynu muszą być mniejsze niż obroty całej firmy.
+  const all = monthlyReport({ month: '2026-06' });
+  const one = monthlyReport({ month: '2026-06', warehouseId: second.id });
+  assert.ok(one.summary.documents < all.summary.documents,
+    'filtr magazynu zawęża też obroty, nie tylko bilans otwarcia i zamknięcia');
+});
+
+test('regresja: przywrócenie korekty cofa również zmianę magazynu', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-06-20', quantity: 12, warehouseTo: 'Magazyn RiC Zabrze',
+  }), ctx);
+  const originalWarehouse = operation.warehouseTo;
+
+  ops.updateOperation(operation.id, {
+    warehouseTo: 'Plac Zapasowy', correctionReason: 'Przesunięcie na plac zapasowy',
+  }, ctx);
+  assert.equal(ops.getOperation(operation.id).warehouseTo, 'Plac Zapasowy');
+
+  const correction = listCorrections({ operationId: operation.id }).items[0];
+  ops.restoreCorrection(correction.id, ctx);
+
+  assert.equal(ops.getOperation(operation.id).warehouseTo, originalWarehouse,
+    'migawka korekty niesie klucz magazynu, więc przywrócenie go odtwarza');
+});
+
+test('regresja: odpowiedź zapisu zawiera komplet pól dokumentu', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-06-21', quantity: 33, unit: 'M3', haulageNoteNo: 'KW-REG-1',
+    carrierName: 'Przewoźnik Regresja', vehiclePlate: 'SK REG1', transportCost: 480,
+  }), ctx);
+
+  // Zapis zwraca dokument bez doczytywania powiązań — ale wszystkie pola
+  // właściwe dokumentowi muszą być obecne.
+  for (const key of ['docNo', 'qtyMp', 'qtyTonne', 'energyGj', 'factors', 'warehouseTo',
+    'createdBy', 'createdAt', 'revision', 'haulageNoteNo', 'carrierName', 'transportCost']) {
+    assert.ok(operation[key] !== undefined, `brak pola ${key} w odpowiedzi zapisu`);
+  }
+  assert.equal(operation.warehouseTo, 'Magazyn RiC Zabrze', 'nazwa magazynu ze złączenia');
+  assert.equal(operation.factors.m3ToMp, 4);
+});

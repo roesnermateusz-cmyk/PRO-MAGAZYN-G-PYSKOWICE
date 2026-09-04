@@ -152,15 +152,3 @@ const mapAttachment = (r) => ({
   createdAt: r.created_at,
 });
 
-/** Liczba załączników na dokument — do oznaczeń w rejestrze operacji. */
-export function attachmentCounts(operationIds = []) {
-  if (!operationIds.length) return {};
-  const placeholders = operationIds.map((_, i) => `:id${i}`).join(', ');
-  const params = Object.fromEntries(operationIds.map((id, i) => [`id${i}`, id]));
-  const rows = db.all(
-    `SELECT operation_id, COUNT(*) AS n FROM attachments
-      WHERE operation_id IN (${placeholders}) GROUP BY operation_id`,
-    params,
-  );
-  return Object.fromEntries(rows.map((r) => [r.operation_id, r.n]));
-}

@@ -7,6 +7,7 @@ import { esc, on } from '../core/dom.js';
 import { qty, qty2, int, money, moneyShort, date, monthLabel, currentMonth, firstOfMonth, lastOfMonth } from '../core/format.js';
 import { pageHead, kpi, empty, loading, toast, toastError, alertBox } from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
+import { downloadHandler } from './_shared.js';
 
 const TABS = [
   { id: 'miesiac', label: 'Raport miesięczny' },
@@ -55,12 +56,10 @@ async function refresh(view) {
 function bind(view) {
   on(view, 'click', '[data-tab]', (el) => { state.tab = el.dataset.tab; refresh(view); });
   view.querySelector('[data-act="print"]')?.addEventListener('click', () => window.print());
-  view.querySelector('[data-act="csv"]')?.addEventListener('click', async () => {
-    try {
-      await api.download('/reports/monthly/export.csv', { month: state.month }, `raport-${state.month}.csv`);
-      toast('Plik CSV został pobrany');
-    } catch (err) { toastError(err); }
-  });
+  view.querySelector('[data-act="csv"]')?.addEventListener('click', downloadHandler(
+    '/reports/monthly/export.csv', () => ({ month: state.month }),
+    `raport-${state.month}.csv`, 'Plik CSV został pobrany',
+  ));
   view.querySelector('#rMonth')?.addEventListener('change', (e) => {
     state.month = e.target.value;
     state.from = firstOfMonth(state.month);

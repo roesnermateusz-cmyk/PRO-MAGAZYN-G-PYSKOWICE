@@ -44,16 +44,11 @@ export function adminRoutes(prefix) {
     rateLimit({ name: 'backup', max: 10, windowMs: 60 * 60_000 }),
     (ctx) => backup.createBackup(ctx, ctx.body?.label || 'reczna'));
 
-  r.get('/backup/export.json', ...guard('backup:export'), (ctx) => {
-    const payload = backup.exportJson(ctx, { includeAudit: ctx.query.includeAudit === 'true' });
-    const json = JSON.stringify(payload, null, 2);
-    const name = `resinvest-kopia-${new Date().toISOString().slice(0, 10)}.json`;
-    ctx.send(200, {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${name}"`,
-      'Content-Length': Buffer.byteLength(json),
-    }, json);
-  });
+  r.get('/backup/export.json', ...guard('backup:export'), (ctx) => ctx.sendFile({
+    filename: `resinvest-kopia-${new Date().toISOString().slice(0, 10)}.json`,
+    mime: 'application/json; charset=utf-8',
+    body: JSON.stringify(backup.exportJson(ctx, { includeAudit: ctx.query.includeAudit === 'true' }), null, 2),
+  }));
 
   r.post('/backup/import', ...guard('backup:import'), (ctx) => {
     // Kopia bezpieczeństwa przed importem — zawsze, bez wyjątku.
@@ -70,15 +65,17 @@ export function adminRoutes(prefix) {
 
   r.get('/attachments/:id/content', ...guard('attachments:read'), (ctx) => {
     const { meta, buffer } = attachments.readAttachment(ctx.params.id);
-    const disposition = ctx.query.download === 'true' ? 'attachment' : 'inline';
-    ctx.send(200, {
-      'Content-Type': meta.mimeType,
-      'Content-Length': buffer.length,
-      'Content-Disposition': `${disposition}; filename="${encodeURIComponent(meta.filename)}"`,
-      'Cache-Control': 'private, max-age=86400',
-      // Skany są danymi użytkownika — nigdy nie interpretujemy ich jako HTML.
-      'Content-Security-Policy': "default-src 'none'; img-src 'self' data:; object-src 'none'",
-    }, buffer);
+    ctx.sendFile({
+      filename: meta.filename,
+      mime: meta.mimeType,
+      body: buffer,
+      disposition: ctx.query.download === 'true' ? 'attachment' : 'inline',
+      headers: {
+        'Cache-Control': 'private, max-age=86400',
+        // Skany są danymi użytkownika — nigdy nie interpretujemy ich jako HTML.
+        'Content-Security-Policy': "default-src 'none'; img-src 'self' data:; object-src 'none'",
+      },
+    });
   });
 
   r.delete('/attachments/:id', ...guard('attachments:write'),

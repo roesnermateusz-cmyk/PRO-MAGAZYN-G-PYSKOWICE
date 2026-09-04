@@ -56,7 +56,7 @@ export function catalogRoutes(prefix) {
 
   /* --- Kontrahenci --- */
   r.get('/partners', ...guard('catalog:read'), (ctx) => ({
-    items: partners.list({
+    items: partners.search({
       includeInactive: asBool(ctx.query.includeInactive),
       kind: ctx.query.kind || '',
       q: ctx.query.q || '',
@@ -77,7 +77,7 @@ export function catalogRoutes(prefix) {
 
   /* --- Pojazdy --- */
   r.get('/vehicles', ...guard('catalog:read'),
-    (ctx) => ({ items: vehicles.list({ includeInactive: asBool(ctx.query.includeInactive) }) }));
+    (ctx) => ({ items: vehicles.listWithCarrier({ includeInactive: asBool(ctx.query.includeInactive) }) }));
   r.post('/vehicles', ...guard('catalog:write'), (ctx) => {
     ctx.status(201);
     return vehicles.create(ctx.body);

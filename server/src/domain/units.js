@@ -137,5 +137,3 @@ export function computeValues({ quantity, pricePurchase = 0, priceSale = 0, chip
   };
 }
 
-/** Etykieta jednostki do wydruków. */
-export const unitLabel = (unit) => ({ M3: 'm³', MP: 'MP', TONA: 't' }[unit] || unit);

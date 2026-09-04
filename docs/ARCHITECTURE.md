@@ -132,7 +132,21 @@ W poprzedniej wersji zakup, zużycie i produkcja dzieliły jeden numer PZ, przez
 dokumenty były nierozróżnialne w rejestrze. Tutaj każde ogniwo ma własny numer we
 właściwej serii (PZ / RW / PW / WZ), a powiązanie utrzymuje pole `chain_ref`.
 
-### 3.6 Dokumenty nieusuwalne
+### 3.6 Rejestr pól zamiast równoległych struktur
+
+Pola dokumentu opisane są raz, w `domain/operation-fields.js`. Schemat walidacji,
+etykiety rejestru korekt, lista kolumn zapisu oraz mapowania na API i z API są
+z tego opisu **wyprowadzane**, a nie pisane osobno.
+
+Dodanie pola do dokumentu = jeden wpis w rejestrze + jedna kolumna w migracji.
+Wcześniej wymagało to do dziesięciu spójnych zmian, a pominięcie którejkolwiek
+nie dawało błędu — pole po prostu cicho przestawało działać.
+
+Analogicznie kartoteki: `createCatalog(spec)` opisuje cykl życia raz, a magazyny,
+produkty, kontrahenci i pojazdy różnią się wyłącznie deklaracją tabeli, schematu
+i mapowania kolumn.
+
+### 3.7 Dokumenty nieusuwalne
 
 `DELETE` na dokumencie nie istnieje w API. Zamiast tego:
 
@@ -233,3 +247,6 @@ Wypisane w kolejności wynikającej z wartości dla firmy:
 5. **Rozliczenie kosztów per pryzma** — średnia ważona zamiast wartości dokumentu.
 6. **Eksport JPK / integracja z księgowością**.
 7. **Powiadomienia** — próg stanu, brakujące kwity, otwarty okres po terminie.
+
+Historia przeglądu kodu, zmierzone wąskie gardła i przyjęte strategie
+refaktoryzacji: [REFACTORING.md](REFACTORING.md).

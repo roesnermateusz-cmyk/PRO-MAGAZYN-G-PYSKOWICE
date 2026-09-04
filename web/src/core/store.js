@@ -14,17 +14,6 @@ export const store = {
   settings: null,
 };
 
-const subscribers = new Set();
-
-export function subscribe(fn) {
-  subscribers.add(fn);
-  return () => subscribers.delete(fn);
-}
-
-function emit() {
-  subscribers.forEach((fn) => fn(store));
-}
-
 /** Czy zalogowany użytkownik ma dane uprawnienie. */
 export function can(permission) {
   const perms = store.user?.permissions ?? [];
@@ -44,7 +33,6 @@ export async function restoreSession() {
     const res = await api.post('/auth/refresh', { refreshToken: getRefreshToken() });
     setTokens(res);
     store.user = res.user;
-    emit();
     return store.user;
   } catch {
     clearTokens();
@@ -57,7 +45,6 @@ export async function login(email, password) {
   setTokens(res);
   store.user = res.user;
   store.catalog = null;
-  emit();
   return store.user;
 }
 
@@ -71,7 +58,6 @@ export async function logout() {
   store.user = null;
   store.catalog = null;
   store.settings = null;
-  emit();
 }
 
 /** Kartoteki do formularzy; `force` wymusza ponowne pobranie po edycji słownika. */
@@ -89,9 +75,3 @@ export async function loadSettings(force = false) {
   return store.settings;
 }
 
-/** Aktualizuje dane zalogowanego użytkownika (np. po zmianie hasła). */
-export async function refreshUser() {
-  store.user = await api.get('/auth/me');
-  emit();
-  return store.user;
-}

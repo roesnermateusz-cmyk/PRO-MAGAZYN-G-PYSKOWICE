@@ -9,15 +9,21 @@ import {
 import { ICONS } from '../components/icons.js';
 import { can, loadCatalog } from '../core/store.js';
 import { navigate } from '../core/router.js';
+import { downloadHandler, unitLabel } from './_shared.js';
 
 /** Filtry są modułowe, żeby przetrwały powrót z podglądu dokumentu. */
 const filters = {
-  q: '', type: '', productId: '', warehouseId: '', month: '',
+  q: '', type: '', productId: '', warehouseId: '', month: '', chainRef: '',
   status: 'POSTED', limit: 50, offset: 0,
 };
 
 export async function renderOperations(view, params = {}) {
   if (params.id) return renderOperationDetail(view, params.id);
+
+  // Wejście z podglądu dokumentu: `#/operacje?chain=PZ/2026/000123`
+  // pokazuje komplet ogniw jednego łańcucha terenowego.
+  filters.chainRef = params.chain ?? '';
+  if (filters.chainRef) { filters.offset = 0; filters.status = 'ALL'; }
 
   view.innerHTML = loading('Wczytywanie rejestru…');
   const catalog = await loadCatalog();
@@ -33,6 +39,10 @@ async function refresh(view, catalog) {
     `<button class="btn" data-act="csv">${ICONS.download} Eksport CSV</button>
      ${can('operations:write') ? `<a href="#/nowa" class="btn btn-primary">${ICONS.plus} Dodaj</a>` : ''}`,
   )
+  + (filters.chainRef
+    ? alertBox('info', `Widok ograniczony do łańcucha ${filters.chainRef}. `
+      + 'Aby wrócić do pełnego rejestru, wybierz „Wszystkie" w filtrze typu.')
+    : '')
   + `<div class="chips">
       ${['', 'ZAKUP', 'SPRZEDAZ', 'PRODUKCJA', 'ZUZYCIE', 'MM', 'BO'].map((t) =>
         `<button data-type="${esc(t)}" class="${filters.type === t ? 'on' : ''}">${esc(t || 'Wszystkie')}</button>`).join('')}
@@ -92,7 +102,7 @@ function rowHtml(r) {
     <td>${docStamp(r.docNo)}</td>
     <td class="ellip">${esc(r.productName)}</td>
     <td class="ellip">${esc(counterparty(r))}</td>
-    <td class="num">${qty(r.quantity)} ${esc(r.unit === 'M3' ? 'm³' : r.unit === 'TONA' ? 't' : 'MP')}</td>
+    <td class="num">${qty(r.quantity)} ${esc(unitLabel(r.unit))}</td>
     <td class="num">${qty(r.qtyMp)}</td>
     <td class="num">${qty2(r.qtyTonne)}</td>
     <td class="num">${value ? moneyShort(value) : '—'}</td>
@@ -132,7 +142,7 @@ function bind(view, catalog) {
   const reload = () => refresh(view, catalog);
   const setFilter = (patch) => { Object.assign(filters, patch, { offset: 0 }); reload(); };
 
-  on(view, 'click', '[data-type]', (el) => setFilter({ type: el.dataset.type }));
+  on(view, 'click', '[data-type]', (el) => setFilter({ type: el.dataset.type, chainRef: '' }));
   view.querySelector('#fq').addEventListener('change', (e) => setFilter({ q: e.target.value.trim() }));
   view.querySelector('#fq').addEventListener('search', (e) => setFilter({ q: e.target.value.trim() }));
   view.querySelector('#fprod').addEventListener('change', (e) => setFilter({ productId: e.target.value }));
@@ -150,14 +160,8 @@ function bind(view, catalog) {
   on(view, 'click', '[data-dup]', (el) => navigate(`/nowa?copy=${el.dataset.dup}`));
   on(view, 'click', '[data-cancel]', (el) => cancelOperation(el.dataset.cancel, reload));
 
-  view.querySelector('[data-act="csv"]').addEventListener('click', async () => {
-    try {
-      await api.download('/operations/export.csv', filters, 'rejestr-operacji.csv');
-      toast('Plik CSV został pobrany');
-    } catch (err) {
-      toastError(err);
-    }
-  });
+  view.querySelector('[data-act="csv"]').addEventListener('click',
+    downloadHandler('/operations/export.csv', () => filters, 'rejestr-operacji.csv', 'Plik CSV został pobrany'));
 }
 
 /** Storno dokumentu — zawsze z uzasadnieniem trafiającym do audytu. */

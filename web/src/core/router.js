@@ -8,7 +8,6 @@
 const routes = new Map();
 let notFound = null;
 let beforeEach = null;
-let current = null;
 
 /**
  * Rejestruje widok.
@@ -44,11 +43,8 @@ export function navigate(path) {
 /** Wymusza ponowne wyrenderowanie bieżącego widoku. */
 export const reload = () => resolve();
 
-export const currentRoute = () => current;
-
 async function resolve() {
   const { id, params } = parseHash();
-  current = { id, params };
 
   if (beforeEach && (await beforeEach(id, params)) === false) return;
 

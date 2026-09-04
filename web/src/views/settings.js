@@ -5,6 +5,7 @@ import { dateTime, fileSize } from '../core/format.js';
 import { pageHead, loading, empty, toast, toastError, confirmDialog, alertBox } from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
 import { can, loadSettings, store, invalidateCatalog } from '../core/store.js';
+import { downloadHandler } from './_shared.js';
 
 export async function renderSettings(view) {
   view.innerHTML = loading('Wczytywanie ustawień…');
@@ -145,19 +146,12 @@ function bind(view) {
     } catch (err) { toastError(err); }
   });
 
-  view.querySelector('[data-act="export"]')?.addEventListener('click', async () => {
-    try {
-      await api.download('/backup/export.json', {}, 'kopia.json');
-      toast('Kopia JSON została pobrana');
-    } catch (err) { toastError(err); }
-  });
+  view.querySelector('[data-act="export"]')?.addEventListener('click',
+    downloadHandler('/backup/export.json', {}, 'kopia.json', 'Kopia JSON została pobrana'));
 
-  view.querySelector('[data-act="export-csv"]')?.addEventListener('click', async () => {
-    try {
-      await api.download('/operations/export.csv', { status: 'ALL', limit: 500 }, 'rejestr.csv');
-      toast('Rejestr CSV został pobrany');
-    } catch (err) { toastError(err); }
-  });
+  view.querySelector('[data-act="export-csv"]')?.addEventListener('click',
+    downloadHandler('/operations/export.csv', { status: 'ALL', limit: 500 },
+      'rejestr.csv', 'Rejestr CSV został pobrany'));
 
   const fileInput = view.querySelector('#importFile');
   view.querySelector('[data-act="import"]')?.addEventListener('click', () => fileInput.click());
@@ -195,12 +189,8 @@ function bind(view) {
 }
 
 async function save(view, values, message) {
-  const payload = {};
-  for (const [key, value] of Object.entries(values)) {
-    payload[key] = value;
-  }
   try {
-    await api.put('/settings', payload);
+    await api.put('/settings', values);
     await loadSettings(true);
     toast(message);
   } catch (err) {

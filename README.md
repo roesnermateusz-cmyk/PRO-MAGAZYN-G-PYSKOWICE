@@ -407,7 +407,7 @@ zatwierdzone transakcje.
 npm test
 ```
 
-74 testy w trzech warstwach:
+77 testów w trzech warstwach:
 
 | Plik | Zakres |
 |---|---|
@@ -422,7 +422,9 @@ Najważniejsze niezmienniki objęte testami:
 * zmiana przeliczników nie zmienia dokumentów już zaksięgowanych,
 * zamknięty okres blokuje zapisy, otwarcie je przywraca,
 * rola bez uprawnienia dostaje 403, a nie częściowy dostęp,
-* ogniwa łańcucha nie dają się anulować pojedynczo.
+* ogniwa łańcucha nie dają się anulować pojedynczo,
+* raport miesięczny domyka bilans również z filtrem magazynu,
+* przywrócenie korekty odtwarza także magazyn dokumentu.
 
 Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 
@@ -437,6 +439,7 @@ Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 | [docs/API.md](docs/API.md) | Punkty końcowe, przykłady żądań, macierz uprawnień |
 | [docs/UI.md](docs/UI.md) | Architektura interfejsu, system wizualny, responsywność |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Wdrożenie, systemd, HTTPS, aktualizacje, diagnostyka |
+| [docs/REFACTORING.md](docs/REFACTORING.md) | Przegląd kodu: wąskie gardła, strategie refaktoryzacji, pomiary |
 
 ---
 

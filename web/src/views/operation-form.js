@@ -16,8 +16,8 @@ import { pageHead, loading, toast, toastError, alertBox, showLightbox } from '..
 import { ICONS } from '../components/icons.js';
 import { loadCatalog, invalidateCatalog, store } from '../core/store.js';
 import { navigate } from '../core/router.js';
+import { UNIT_LABEL } from './_shared.js';
 
-const UNIT_LABEL = { M3: 'm³', MP: 'MP', TONA: 't' };
 const TYPES = ['ZAKUP', 'SPRZEDAZ', 'PRODUKCJA', 'ZUZYCIE', 'MM', 'BO'];
 
 /** Załączniki oczekujące na wysyłkę (dodane przed zapisem dokumentu). */

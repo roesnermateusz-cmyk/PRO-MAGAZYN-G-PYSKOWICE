@@ -98,27 +98,3 @@ export function validateWarehouses(op) {
   return problems;
 }
 
-/**
- * Stan magazynowy pozycji na wskazany dzień (włącznie).
- * Wydzielone jako funkcja, bo używa jej zarówno kontrola stanów ujemnych,
- * jak i raporty historyczne.
- */
-export function stockAt(db, { warehouseId, productId, date }) {
-  const row = db.get(
-    `SELECT COALESCE(SUM(qty_mp), 0)    AS qty_mp,
-            COALESCE(SUM(qty_m3), 0)    AS qty_m3,
-            COALESCE(SUM(qty_tonne), 0) AS qty_tonne,
-            COALESCE(SUM(energy_gj), 0) AS energy_gj
-       FROM stock_moves
-      WHERE warehouse_id = :warehouseId
-        AND product_id   = :productId
-        AND (:date IS NULL OR move_date <= :date)`,
-    { warehouseId, productId, date: date ?? null },
-  );
-  return {
-    qtyMp: roundQty(row.qty_mp),
-    qtyM3: roundQty(row.qty_m3),
-    qtyTonne: roundQty(row.qty_tonne),
-    energyGj: roundQty(row.energy_gj),
-  };
-}
