@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F5F8F6">
+<title>ResInvest ERP · Magazyn Biomasy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   ResInvest ERP — warstwa wizualna v3 · Minimal Light
+   Biel + jasne szarości + pastelowe akcenty · zieleń biomasy leśnej
+   Inter / IBM Plex Mono · nazwy klas i zmiennych zachowane 1:1 (silnik JS)
+   ===================================================================== */
+:root{
+  color-scheme:light;
+  /* — powierzchnie — */
+  --paper:#F5F8F6;          /* tło aplikacji: złamana biel z nutą zieleni */
+  --surface:#FFFFFF;        /* karty */
+  --surface-2:#F7FAF8;      /* panele wewnętrzne, nagłówki tabel */
+  --field:#FFFFFF;          /* pola formularzy */
+  --line:#E4EBE5;           /* obrysy */
+  --line-2:#D2DDD4;         /* obrysy mocniejsze */
+  /* — tekst — */
+  --ink:#1B2B21;
+  --ink-2:#66786C;
+  --ink-3:#93A399;
+  /* — kolor główny: zieleń biomasy — */
+  --spruce:#2E9E5B;
+  --moss:#238A4C;
+  --spruce-deep:#1C5E3A;    /* głęboka zieleń: pasek obliczeń, toast, teksty akcentowe */
+  --green-tint:#E7F4EB;     /* pastelowy podkład zielony */
+  /* — akcent wtórny: bursztyn (WZ / sprzedaż) — */
+  --amber:#C89A3C;
+  --gold:#8F7418;
+  --amber-soft:#FBF4E1;
+  /* — statusy — */
+  --neg:#C94F44;
+  --pos:#238A4C;
+  /* — geometria i typografia — */
+  --radius:14px;
+  --font-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-disp:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'Cascadia Mono',Consolas,monospace;
+  --shadow:0 1px 2px rgba(18,46,30,.05),0 10px 28px -14px rgba(18,46,30,.10);
+  --ring:0 0 0 3px rgba(46,158,91,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font-body);background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.5;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14.5px;color:var(--ink)}
+::selection{background:rgba(46,158,91,.22)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#CBD8CE;border-radius:8px;border:2px solid var(--paper)}
+::-webkit-scrollbar-thumb:hover{background:#B4C6B9}
+:focus-visible{outline:2px solid var(--spruce);outline-offset:2px}
+
+@keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.975) translateY(6px)}to{opacity:1;transform:none}}
+#view>*{animation:rise .22s ease both}
+
+/* ---------- Szkielet ---------- */
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.sidebar{background:#FFFFFF;border-right:1px solid var(--line);color:var(--ink);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:22px 20px 18px;border-bottom:1px solid var(--line)}
+.brand .logo{font-weight:800;font-size:17px;letter-spacing:-.02em;line-height:1.2;color:var(--ink);display:flex;align-items:center;gap:9px}
+.brand .logo::before{content:"";width:26px;height:26px;flex:none;border-radius:8px;
+  background:linear-gradient(135deg,#3FB36C,#1C5E3A);
+  clip-path:polygon(50% 0%, 92% 22%, 100% 62%, 74% 100%, 26% 100%, 0% 62%, 8% 22%);}
+.brand .logo em{font-style:normal;color:var(--spruce)}
+.brand .sub{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-top:6px;font-weight:600}
+nav.menu{padding:12px 10px;display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
+.menu a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:var(--ink-2);text-decoration:none;font-weight:500;font-size:13.5px;transition:background .15s,color .15s}
+.menu a svg{width:18px;height:18px;flex:none;opacity:.75;transition:opacity .15s}
+.menu a:hover{background:var(--surface-2);color:var(--ink)}
+.menu a:hover svg{opacity:1}
+.menu a.active{background:var(--green-tint);color:var(--spruce-deep);font-weight:600}
+.menu a.active svg{opacity:1}
+.side-foot{padding:14px 20px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-3);line-height:1.55}
+.side-foot b{color:var(--ink-2);font-weight:600}
+
+main{padding:26px 32px 90px;max-width:1220px;width:100%}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.page-head h1{font-weight:700;font-size:24px;letter-spacing:-.02em;color:var(--ink)}
+.page-head .crumb{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;font-weight:500}
+
+/* ---------- Ikony globalne i wybór języka ---------- */
+.app-tools{position:fixed;right:24px;top:18px;z-index:55;display:flex;align-items:center;gap:8px;padding:5px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:13px;box-shadow:var(--shadow);backdrop-filter:blur(10px)}
+.app-tool{width:34px;height:34px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--ink-2);display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s,border-color .15s}
+.app-tool:hover{background:var(--surface-2);color:var(--spruce-deep);border-color:var(--line)}
+.app-tool svg{width:17px;height:17px}
+.lang-box{display:flex;align-items:center;gap:6px;border-left:1px solid var(--line);padding-left:8px;color:var(--spruce-deep)}
+.lang-box svg{width:17px;height:17px;flex:none}
+.lang-box select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-family:var(--font-mono);font-size:11.5px;font-weight:700;letter-spacing:.04em;padding:8px 27px 8px 9px;min-width:62px;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--ink-2) 50%),linear-gradient(135deg,var(--ink-2) 50%,transparent 50%);background-position:calc(100% - 12px) 14px,calc(100% - 8px) 14px;background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+.lang-box select:focus{outline:none;border-color:var(--spruce);box-shadow:var(--ring)}
+
+/* ---------- Nawigacja mobilna ---------- */
+.mobile-top{display:none}
+.tabbar{display:none}
+
+/* ---------- Karty / KPI ---------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 17px;box-shadow:var(--shadow);transition:border-color .15s,transform .15s}
+.kpi:hover{border-color:var(--line-2)}
+.kpi .lab{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px;font-weight:600}
+.kpi .val{font-weight:700;font-size:24px;letter-spacing:-.02em;color:var(--ink);line-height:1;font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-left:3px}
+.kpi .delta{font-size:12px;margin-top:7px;color:var(--ink-2)}
+.kpi.accent{background:linear-gradient(150deg,#EAF6EE,#DFF0E5);border-color:#BFDFC9}
+.kpi.accent .lab{color:var(--moss)}
+.kpi.accent .val{color:var(--spruce-deep)}
+.kpi.accent .val small{color:var(--moss)}
+.kpi.accent .delta{color:var(--moss)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card-h h2{font-weight:600;font-size:14.5px;letter-spacing:-.01em;color:var(--ink)}
+.card-b{padding:16px 18px}
+
+/* ---------- Pryzmy — wskaźnik stanu ---------- */
+.piles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.pile{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:var(--surface-2);transition:border-color .15s}
+.pile:hover{border-color:var(--line-2)}
+.pile .p-name{font-size:12.5px;font-weight:600;color:var(--ink);min-height:34px;line-height:1.3}
+.pile .p-gauge{height:56px;margin:8px 0 6px;position:relative}
+.pile .p-gauge svg{width:100%;height:100%;display:block}
+.pile .p-mp{font-weight:700;font-size:18px;letter-spacing:-.01em;color:var(--spruce-deep);font-variant-numeric:tabular-nums}
+.pile .p-mp small{font-size:11px;font-weight:600;color:var(--ink-2)}
+.pile .p-t{font-size:12px;color:var(--ink-2)}
+.pile.neg .p-mp{color:var(--neg)}
+
+/* ---------- Kwit / stempel dokumentu ---------- */
+.stamp{display:inline-block;font-family:var(--font-mono);font-weight:600;font-size:11.5px;color:var(--spruce-deep);background:var(--green-tint);border:1px dashed #A9CFB6;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.stamp.wz{color:var(--gold);background:var(--amber-soft);border-color:#DFC482}
+.stamp.mm{color:#6A4FA3;background:#F1ECFA;border-color:#C9B8E8}
+
+/* ---------- Tagi typów operacji ---------- */
+.tag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.07em;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.tag.ZAKUP{background:#E7F4EB;color:#1F7A45}
+.tag.SPRZEDAŻ{background:#FBF4E1;color:#8F6E14}
+.tag.PRODUKCJA{background:#E8F0FB;color:#2F62AE}
+.tag.ZUŻYCIE{background:#FBEAE8;color:#B0473D}
+.tag.MM{background:#F1ECFA;color:#6A4FA3}
+.tag.BO{background:#EFF3E6;color:#5F7A2E}
+
+/* ---------- Tabele ---------- */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-2);white-space:nowrap;background:var(--surface-2);position:sticky;top:0;font-weight:600;z-index:1}
+.tbl td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tbody tr:nth-child(even) td{background:#FAFCFA}
+.tbl tr:hover td{background:#EFF7F1}
+.tbl td.num,.tbl th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl td.num{font-family:var(--font-mono);font-size:12px}
+.tbl .sum td{font-weight:700;background:var(--surface-2);border-top:2px solid var(--line-2)}
+.neg-v{color:var(--neg);font-weight:600}
+.pos-v{color:var(--pos)}
+
+/* ---------- Formularz ---------- */
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px 16px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.fld input,.fld select,.fld textarea{border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;background:var(--field);width:100%;transition:border-color .15s,box-shadow .15s}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--ink-3)}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--spruce);box-shadow:var(--ring)}
+.fld .hint{font-size:11.5px;color:var(--ink-3)}
+.fld.wide{grid-column:1/-1}
+.seg{display:flex;flex-wrap:wrap;gap:7px}
+.seg button{border:1px solid var(--line-2);background:#fff;border-radius:99px;padding:8px 15px;font-weight:600;font-size:12.5px;color:var(--ink-2);transition:all .15s}
+.seg button:hover{border-color:var(--spruce);color:var(--spruce-deep)}
+.seg button.on{background:var(--spruce);border-color:var(--spruce);color:#fff}
+.calc-strip{display:flex;flex-wrap:wrap;gap:10px;background:var(--spruce-deep);border:1px solid var(--spruce-deep);border-radius:12px;padding:13px 16px;margin-top:16px}
+.calc-strip .ci{flex:1;min-width:105px}
+.calc-strip .ci .l{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A9D3B8;font-weight:600}
+.calc-strip .ci .v{font-weight:700;font-size:18px;letter-spacing:-.01em;color:#FFFFFF;font-variant-numeric:tabular-nums}
+.calc-strip .ci .v small{font-size:11px;color:#C4E4CF;font-weight:600}
+
+/* ---------- Sekcje formularza ---------- */
+.fsec{border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:15px 16px;margin-bottom:13px}
+.fsec>h3{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--spruce-deep);margin-bottom:13px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+.fsec .form-grid{gap:12px 16px}
+
+/* ---------- Pulpit operacyjny ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px;margin-bottom:14px}
+.stat{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 15px;box-shadow:var(--shadow)}
+.stat .s-ic{width:36px;height:36px;border-radius:10px;background:var(--green-tint);color:var(--spruce-deep);display:flex;align-items:center;justify-content:center;flex:none}
+.stat .s-ic svg{width:18px;height:18px}
+.stat .s-l{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:3px;font-weight:600}
+.stat .s-v{font-weight:700;font-size:21px;letter-spacing:-.02em;color:var(--ink);line-height:1.05;font-variant-numeric:tabular-nums}
+.stat .s-v small{font-size:12px;font-weight:600;color:var(--ink-2)}
+.stat .s-d{font-size:12px;color:var(--ink-2);margin-top:3px}
+.stat.s-green{background:linear-gradient(150deg,#EAF6EE,#DFF0E5);border-color:#BFDFC9}
+.stat.s-green .s-l{color:var(--moss)}.stat.s-green .s-v{color:var(--spruce-deep)}.stat.s-green .s-v small{color:var(--moss)}.stat.s-green .s-d{color:var(--moss)}
+.stat.s-green .s-ic{background:#FFFFFF;color:var(--spruce-deep)}
+.stat.s-gold{background:linear-gradient(150deg,#FBF4E1,#F6ECD2);border-color:#E5D3A0}
+.stat.s-gold .s-l{color:#8F6E14}.stat.s-gold .s-v{color:#6E5510}.stat.s-gold .s-v small{color:#8F6E14}.stat.s-gold .s-d{color:#8F6E14}
+.stat.s-gold .s-ic{background:#FFFFFF;color:#8F6E14}
+.quick-bar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
+.qb{display:inline-flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:8px 15px 8px 8px;font-weight:600;font-size:13px;color:var(--ink);text-decoration:none;cursor:pointer;box-shadow:var(--shadow);transition:transform .1s,border-color .15s;font-family:inherit}
+.qb:hover{border-color:var(--spruce)}
+.qb:active{transform:scale(.97)}
+.qb-ic{width:30px;height:30px;border-radius:8px;background:var(--green-tint);color:var(--spruce-deep);display:inline-flex;align-items:center;justify-content:center}
+.qb-ic svg{width:16px;height:16px}
+.chips-filter{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px}
+.chips-filter button{border:1px solid var(--line-2);background:#fff;border-radius:99px;padding:6px 14px;font-weight:600;font-size:12px;color:var(--ink-2);cursor:pointer;transition:all .12s}
+.chips-filter button:hover{border-color:var(--spruce);color:var(--spruce-deep)}
+.chips-filter button.on{background:var(--spruce);border-color:var(--spruce);color:#fff}
+.fab-desk{position:fixed;right:26px;bottom:26px;width:54px;height:54px;border-radius:99px;background:var(--spruce);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(46,158,91,.35);z-index:45;transition:transform .12s,box-shadow .15s}
+.fab-desk:hover{transform:scale(1.06);box-shadow:0 12px 30px rgba(46,158,91,.45)}
+.fab-desk svg{width:24px;height:24px}
+@media (max-width:760px){.fab-desk{display:none}.stat .s-v{font-size:19px}}
+
+/* ---------- Szybkie akcje ---------- */
+.qa{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.qa button{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--spruce);border-radius:12px;padding:14px 16px;text-align:left;box-shadow:var(--shadow);transition:transform .12s,border-color .15s}
+.qa button:hover{border-color:var(--line-2);border-left-color:var(--spruce)}
+.qa button:active{transform:scale(.97)}
+.qa button .q-i{font-weight:800;font-size:20px;color:var(--spruce);width:30px;text-align:center;flex:none}
+.qa button .q-t{font-weight:700;font-size:14px;color:var(--ink)}
+.qa button .q-d{font-size:11.5px;color:var(--ink-2)}
+.qa button.q-wz{border-left-color:var(--amber)}
+.qa button.q-wz:hover{border-left-color:var(--amber)}
+.qa button.q-wz .q-i{color:var(--amber)}
+.qa button.q-pw{border-left-color:#4C7FD1}
+.qa button.q-pw:hover{border-left-color:#4C7FD1}
+.qa button.q-pw .q-i{color:#4C7FD1}
+@media (max-width:760px){.qa{grid-template-columns:1fr}}
+
+/* ---------- Załączniki (skany) ---------- */
+.zal-grid{display:flex;flex-wrap:wrap;gap:10px}
+.zal-th{position:relative;width:86px;height:86px;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;background:var(--surface-2);cursor:pointer}
+.zal-th img{width:100%;height:100%;object-fit:cover;display:block}
+.zal-th .z-pdf{display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--neg)}
+.zal-th .z-x{position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:99px;border:none;background:rgba(27,43,33,.72);color:#fff;font-size:12px;line-height:1;cursor:pointer}
+.zal-add{width:86px;height:86px;border:2px dashed var(--line-2);border-radius:10px;background:transparent;color:var(--ink-2);font-size:26px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:border-color .15s,color .15s}
+.zal-add:hover{border-color:var(--spruce);color:var(--spruce-deep)}
+.zal-add small{font-size:9.5px;letter-spacing:.06em;font-weight:600}
+.zbadge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--spruce-deep);background:var(--green-tint);border:1px solid #BFDFC9;border-radius:99px;padding:1px 8px;white-space:nowrap}
+#lb{position:fixed;inset:0;background:rgba(16,28,20,.9);display:none;align-items:center;justify-content:center;z-index:90;padding:20px;cursor:zoom-out}
+#lb.open{display:flex}
+#lb img{max-width:96%;max-height:92%;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+
+/* ---------- Skany dokumentów ---------- */
+.scan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:9px;margin-top:10px}
+.scan-th{position:relative;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;aspect-ratio:3/4;background:var(--surface-2);cursor:pointer}
+.scan-th img{width:100%;height:100%;object-fit:cover;display:block}
+.scan-th .lab{position:absolute;left:0;right:0;bottom:0;background:rgba(27,43,33,.78);color:#fff;font-size:9.5px;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scan-add{border:1.5px dashed var(--line-2);border-radius:10px;aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-2);font-size:11px;background:transparent;cursor:pointer;text-align:center;padding:6px;transition:border-color .15s,color .15s}
+.scan-add:hover{border-color:var(--spruce);color:var(--spruce-deep)}
+.scan-add svg{width:22px;height:22px}
+.clip{display:inline-flex;align-items:center;gap:2px;font-size:11px;color:var(--gold,#8F7418);background:var(--amber-soft);border-radius:99px;padding:1px 7px;margin-left:6px;font-weight:600;vertical-align:middle}
+#viewerBg{position:fixed;inset:0;background:rgba(16,28,20,.92);z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;padding:14px}
+#viewerBg.open{display:flex}
+#viewerBg img{max-width:96vw;max-height:80vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+#viewerBg .v-bar{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;justify-content:center}
+#viewerBg .v-lab{color:#fff;font-size:13.5px;font-weight:600}
+
+/* ---------- Przyciski ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:10px;padding:9px 17px;font-weight:600;font-size:13.5px;transition:transform .1s,filter .15s,background .15s,border-color .15s;text-decoration:none}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--spruce);color:#fff;box-shadow:0 4px 14px -4px rgba(46,158,91,.45)}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-green{background:var(--green-tint);border:1px solid #BFDFC9;color:var(--spruce-deep)}
+.btn-green:hover{background:#DDEFE3}
+.btn-ghost{background:#fff;border:1px solid var(--line-2);color:var(--ink)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-danger{background:#fff;border:1px solid #E4B5B0;color:var(--neg)}
+.btn-danger:hover{background:#FBEAE8}
+.btn-sm{padding:6px 11px;font-size:12.5px;border-radius:8px}
+.icon-btn{border:1px solid var(--line-2);background:#fff;border-radius:8px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);transition:color .15s,border-color .15s}
+.icon-btn:hover{color:var(--spruce-deep);border-color:var(--spruce)}
+.icon-btn svg{width:15px;height:15px}
+
+/* ---------- Filtry ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:14px;align-items:center}
+.toolbar input[type=search],.toolbar select,.toolbar input[type=month]{border:1px solid var(--line-2);border-radius:10px;padding:9px 12px;background:#fff}
+.toolbar input[type=search]:focus,.toolbar select:focus,.toolbar input[type=month]:focus{outline:none;border-color:var(--spruce);box-shadow:var(--ring)}
+.toolbar input[type=search]{flex:1;min-width:170px}
+.toolbar input::placeholder{color:var(--ink-3)}
+.count-pill{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-2);margin-left:auto;white-space:nowrap}
+
+/* ---------- Karty operacji (mobile) ---------- */
+.op-cards{display:none;flex-direction:column;gap:10px}
+.op-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px;box-shadow:var(--shadow)}
+.op-card .r1{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.op-card .r2{font-size:13.5px;font-weight:600;margin-bottom:2px;color:var(--ink)}
+.op-card .r3{font-size:12.5px;color:var(--ink-2)}
+.op-card .r4{display:flex;justify-content:space-between;align-items:center;margin-top:9px}
+.op-card .vol{font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--spruce-deep);font-variant-numeric:tabular-nums}
+.op-card .acts{display:flex;gap:6px}
+
+/* ---------- Wykres słupkowy ---------- */
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar-row{display:grid;grid-template-columns:130px 1fr 74px;align-items:center;gap:10px;font-size:12.5px}
+.bar-row .b-lab{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-row .b-track{background:#ECF1ED;border-radius:6px;height:18px;overflow:hidden}
+.bar-row .b-fill{height:100%;background:linear-gradient(90deg,#2E9E5B,#4EBB79);border-radius:6px;min-width:2px;transition:width .4s ease}
+.bar-row.amber .b-fill{background:linear-gradient(90deg,#C89A3C,#DDB45C)}
+.bar-row .b-val{font-family:var(--font-mono);font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+/* ---------- Modal ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(22,36,27,.42);display:none;align-items:center;justify-content:center;z-index:60;padding:16px;backdrop-filter:blur(3px)}
+.modal-bg.open{display:flex}
+.modal-bg.open .modal{animation:pop .18s ease both}
+.modal{background:#fff;border:1px solid var(--line);border-radius:16px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:22px;box-shadow:0 24px 70px rgba(18,46,30,.28)}
+.modal h3{font-weight:700;font-size:16px;letter-spacing:-.01em;margin-bottom:12px;color:var(--ink)}
+.modal .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:13px}
+.modal .kv dt{color:var(--ink-2)}
+.modal .kv dd{font-weight:500;word-break:break-word}
+.modal .m-acts{display:flex;gap:9px;margin-top:18px;flex-wrap:wrap}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;bottom:86px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--spruce-deep);border:1px solid var(--spruce-deep);color:#fff;padding:11px 20px;border-radius:99px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all .3s;z-index:80;box-shadow:0 12px 28px rgba(18,46,30,.3);max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Ustawienia ---------- */
+.set-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.set-row:last-child{border-bottom:none}
+.set-row .s-t{font-weight:600;font-size:14px;color:var(--ink)}
+.set-row .s-d{font-size:12.5px;color:var(--ink-2);max-width:430px}
+.cfg-inline{display:flex;gap:9px;flex-wrap:wrap}
+.cfg-inline .fld{width:118px}
+
+.author-card{background:linear-gradient(150deg,#1C5E3A,#154A2E);border:1px solid #154A2E;color:#fff;border-radius:var(--radius);padding:20px 22px;margin-top:16px}
+.author-card .a-t{font-weight:700;font-size:16px;letter-spacing:-.01em;color:#fff}
+.author-card .a-s{font-size:13px;color:#BFE0CB;margin-top:4px;line-height:1.55}
+.author-card .a-s b{color:#F2DFA8;font-weight:600}
+
+  .empty{padding:34px 16px;text-align:center;color:var(--ink-2);font-size:13.5px}
+  .empty b{display:block;font-size:14.5px;font-weight:600;color:var(--ink);margin-bottom:4px}
+
+  /* ---------- Korekty — rejestr zmian dokumentów ---------- */
+  .corr-change{display:grid;grid-template-columns:minmax(112px,.8fr) minmax(92px,1fr) 16px minmax(92px,1fr);gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid #EEF2ED;font-size:12px;line-height:1.35}
+  .corr-change:last-child{border-bottom:none}
+  .corr-label{font-weight:600;color:var(--ink-2)}
+  .corr-before{color:var(--neg);word-break:break-word}
+  .corr-after{color:var(--pos);font-weight:600;word-break:break-word}
+  .corr-arrow{color:var(--ink-3);text-align:center}
+  .corr-note{font-size:11.5px;color:var(--ink-2);margin-top:3px}
+  @media (max-width:760px){.corr-change{grid-template-columns:1fr 16px 1fr}.corr-label{grid-column:1/-1;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}.corr-before,.corr-after{font-size:11.5px}}
+
+/* ---------- Responsywność: tablet ---------- */
+@media (max-width:1100px){
+  main{padding:22px 22px 90px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:960px){
+  .grid-2{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .mobile-top{display:flex;position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);color:var(--ink);padding:13px 16px;align-items:center;justify-content:space-between}
+  .app-tools{top:8px;right:10px;gap:3px;padding:3px}.app-tool{width:31px;height:31px}.lang-box{padding-left:5px;gap:3px}.lang-box svg{display:none}.lang-box select{min-width:56px;padding:7px 23px 7px 7px;font-size:10.5px;background-position:calc(100% - 11px) 12px,calc(100% - 7px) 12px}.mobile-top #mobDate{display:none}
+  .mobile-top .logo{font-weight:800;font-size:15.5px;letter-spacing:-.02em}
+  .mobile-top .logo em{font-style:normal;color:var(--spruce)}
+  .mobile-top .m-sub{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  main{padding:18px 14px 96px}
+  .page-head h1{font-size:20px}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:50;padding-bottom:env(safe-area-inset-bottom)}
+  .tabbar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 7px;font-size:10px;font-weight:600;color:var(--ink-3);text-decoration:none;transition:color .15s}
+  .tabbar a svg{width:21px;height:21px}
+  .tabbar a.active{color:var(--spruce-deep)}
+  .tabbar a.tab-add{color:var(--spruce-deep)}
+  .tabbar a.tab-add .tab-plus{background:var(--spruce);color:#fff;border-radius:99px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;margin-top:-16px;box-shadow:0 6px 16px rgba(46,158,91,.4)}
+  .tabbar a.tab-add .tab-plus svg{width:19px;height:19px}
+  .form-grid{grid-template-columns:1fr}
+  .tbl-desktop{display:none}
+  .op-cards{display:flex}
+  .bar-row{grid-template-columns:92px 1fr 66px}
+  .kpi .val{font-size:20px}
+}
+@media (min-width:761px){
+  .op-cards{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+@media print{
+  .sidebar,.tabbar,.mobile-top,.toolbar,.page-head .btn,.no-print,.fab-desk,.app-tools{display:none!important}
+  body{background:#fff;color:#111}
+  main{padding:0;max-width:none}
+  .card,.kpi{border:1px solid #ddd;box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div class="app-tools" aria-label="Narzędzia aplikacji">
+  <button type="button" class="app-tool" id="homeTool" title="Panel główny" aria-label="Panel główny"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/></svg></button>
+  <button type="button" class="app-tool" id="printTool" title="Drukuj bieżący widok" aria-label="Drukuj bieżący widok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg></button>
+  <div class="lang-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><select id="languageSelect" aria-label="Wybór języka"><option value="pl">PL</option><option value="cs">CZ</option><option value="en">EN</option></select></div>
+</div>
+<div class="mobile-top">
+  <div>
+    <div class="logo">ResInvest <em>ERP</em></div>
+    <div class="m-sub">Magazyn biomasy</div>
+  </div>
+  <div style="font-family:var(--font-mono);font-size:11px;color:#D8EBDD" id="mobDate"></div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">ResInvest <em>Commodities</em></div>
+      <div class="sub">ERP · Magazyn biomasy</div>
+    </div>
+    <nav class="menu" id="menuDesk"></nav>
+    <div class="side-foot">
+      <b>ResInvest Commodities PL</b><br>
+      ul. Gwarecka 16, Zabrze<br>
+      Autor: <b>Mateusz Roesner</b>
+    </div>
+  </aside>
+
+  <main id="view"></main>
+</div>
+
+<nav class="tabbar" id="tabbar"></nav>
+<a href="#nowa" class="fab-desk" title="Nowa operacja (skrót)" aria-label="Nowa operacja"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></a>
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toast"></div>
+<div id="viewerBg"><img id="viewerImg" alt=""><div class="v-bar"><span class="v-lab" id="viewerLab"></span><a class="btn btn-ghost btn-sm" id="viewerDl" download style="color:#fff;border-color:rgba(255,255,255,.4)">Pobierz</a><button class="btn btn-danger btn-sm" id="viewerDel">Usuń skan</button><button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.4)" onclick="closeViewer()">Zamknij</button></div></div>
+<div id="lb" onclick="this.classList.remove('open')"><img id="lbImg" alt="skan"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   ResInvest Commodities PL — ERP Magazyn Biomasy
+   Autor: Mateusz Roesner · Zabrze
+   Aplikacja jednoplikowa: działa w przeglądarce na telefonie i laptopie.
+   Dane zapisywane lokalnie (localStorage) + eksport/import JSON i CSV,
+   dzięki czemu plik z danymi można trzymać na dysku firmowym.
+   ===================================================================== */
+
+/* ---------- Dane startowe (czysty program — rejestr pusty) ---------- */
+const SEED = [];
+
+const DICT_PRODUKTY = ["Trociny","Zrzyna","Zrębka Towar","Zrębka towar Drewtrans","Zrębka Produkcyjna Drzewna","Zrębka Produkcyjna Inwestycyjna","Zrębka Produkcyjna Leśna","Drewno przemysłowe z wycinek inwest.","Drewno opałowe z lasu","Pozostałość tartaczna","PKS","Łupiny nerkowca"];
+const TYPY = ["ZAKUP","SPRZEDAŻ","PRODUKCJA","ZUŻYCIE","MM","BO"];
+const MAGAZYNY_DEF = ["Magazyn RiC Zabrze"];
+
+/* ---------- Stan aplikacji ---------- */
+const LS_KEY = 'resinvest_erp_v1';
+const state = { records: [], corrections: [], cfg: { m3mp: 4, mpTona: 0.33, tonaGJ: 8.5, uzytkownik: 'Roesner Mateusz', lang: 'pl' } };
+
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      if(Array.isArray(d.records)){
+        state.records = d.records;
+        state.corrections = Array.isArray(d.corrections) ? d.corrections : [];
+        Object.assign(state.cfg, d.cfg||{});
+        return;
+      }
+    }
+  }catch(e){ console.warn('Odczyt pamięci nieudany', e); }
+  state.records = JSON.parse(JSON.stringify(SEED));
+  state.corrections = [];
+  save(false);
+}
+let saveWarned = false;
+function save(toastIt){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  catch(e){ if(!saveWarned){ toast('Uwaga: zapis lokalny niedostępny — użyj eksportu JSON'); saveWarned = true; } }
+  if(toastIt) toast(typeof toastIt==='string'?toastIt:'Zapisano');
+}
+
+/* ---------- Wielojęzyczny interfejs: polski / czeski / angielski ---------- */
+const I18N = {
+  en:{
+    'Pulpit':'Main panel','Operacje':'Operations','Nowa operacja':'New operation','Magazyn':'Warehouse','Produkcja dnia':'Daily production','Kontrahenci':'Business partners','Raporty':'Reports','Korekty':'Corrections','Ustawienia':'Settings',
+    'Magazyn biomasy':'Biomass warehouse','Panel główny':'Main panel','Drukuj bieżący widok':'Print current view','Wybór języka':'Language selection','Narzędzia aplikacji':'Application tools',
+    'Rejestr operacji':'Operations register','Dokumenty PZ · WZ · MM':'PZ · WZ · MM documents','Dodaj':'Add','Wszystkie':'All','Typ: wszystkie':'Type: all','Produkt: wszystkie':'Product: all','Miesiąc: wszystkie':'Month: all','Magazyn: wszystkie':'Warehouse: all','Szukaj: dokument, kontrahent, rejestracja…':'Search: document, partner, registration…',
+    'Data':'Date','Typ':'Type','Dokument':'Document','Produkt':'Product','Kontrahent':'Partner','Wolumen':'Volume','Jednostka':'Unit','Tony':'Tonnes','Wartość':'Value','Firma transp.':'Carrier','Nr rej.':'Registration no.','Km':'Km','Koszt tr.':'Transport cost','Podgląd':'Preview','Edytuj':'Edit','Duplikuj':'Duplicate','Usuń':'Delete',
+    'Edycja operacji':'Edit operation','Wpis do rejestru':'Register entry','Zapisz operację':'Save operation','Zapisz zmiany':'Save changes','Zapisz i dodaj kolejną':'Save and add another','Anuluj':'Cancel','Dokument':'Document','Nr dokumentu':'Document no.','Data operacji':'Operation date','Data załadunku':'Loading date','Certyfikat':'Certificate','Magazynowane':'Stored',
+    'Towar':'Goods','Rodzaj zrębki (A/B)':'Woodchip type (A/B)','Cena zakupu / produkcji':'Purchase / production price','Cena sprzedaży':'Sale price','Rąbanie (własne / wynajęte)':'Chipping (own / contracted)','Koszt rąbania':'Chipping cost','Las i strony operacji':'Forest and operation parties','Nadleśnictwo (NDL)':'Forest district','Leśnictwo':'Forestry unit','Nr kwitu wywozowego':'Haulage note no.','Miejsce załadunku (inne niż las)':'Loading place (other than forest)','Dostawca / źródło':'Supplier / source','Odbiorca / cel':'Recipient / destination','Miejsce pochodzenia':'Place of origin','Transport':'Transport','Firma transportowa / kierowca':'Carrier / driver','Odległość (km)':'Distance (km)','Koszt transportu / fracht (zł)':'Transport / freight cost (PLN)','Skany dokumentów — zdjęcia kwitów / PDF':'Document scans — note photos / PDF','Dodaj skan (aparat / plik)':'Add scan (camera / file)','Załączniki zapiszą się razem z operacją. Zdjęcia są kompresowane automatycznie.':'Attachments are saved with the operation. Images are compressed automatically.','Zatwierdzenie':'Approval','Uwagi':'Notes','Podpis zatwierdzającego — imię i nazwisko (wymagane)':'Approver signature — full name (required)',
+    'Metry przestrz.':'Stacked cubic metres','M³':'m³','Energia':'Energy','Wartość zakupu':'Purchase value','Wartość sprzedaży':'Sales value','Koszt rąbania':'Chipping cost','Automatycznie (przelicznik firmowy)':'Automatically (company conversion)','Ręcznie (waga rzeczywista)':'Manually (actual weight)','Ręcznie (wartość rzeczywista)':'Manually (actual value)','Historia edytowanych dokumentów i wpisów':'History of edited documents and entries','Wszystkie korekty':'All corrections','Edytowane dokumenty':'Edited documents','Korekty dzisiaj':'Corrections today','Rejestr korekt':'Correction register','Data i godzina':'Date and time','Dokument / wpis':'Document / entry','Zmodyfikowane pola':'Changed fields','Edytował':'Edited by','Każda pozycja zawiera stan przed i po zapisaniu zmian.':'Each row contains values before and after saving the changes.','Brak zarejestrowanych korekt':'No corrections recorded','Każda zmiana zapisana w formularzu operacji pojawi się tutaj automatycznie.':'Every change saved in the operation form will appear here automatically.','Pokaż aktualny wpis':'Show current entry','Przywróć stan sprzed tej korekty':'Restore the state before this correction',
+    'Stan magazynowy':'Warehouse stock','Bilans: zakup + produkcja − sprzedaż − zużycie ± MM':'Balance: purchase + production − sale − use ± MM','Drukuj':'Print','Raport miesięczny':'Monthly report','Zestawienie okresu':'Period summary','Zakupy surowca':'Raw material purchases','Sprzedaż':'Sales','Produkcja zrębki':'Woodchip production','Koszty transportu':'Transport costs','Ustawienia':'Settings','Dane, przeliczniki, kopie zapasowe':'Data, conversions, backups','Przeliczniki jednostek':'Unit conversions','Zapisz przeliczniki':'Save conversions','Dane — kopia i udostępnianie':'Data — backup and sharing','Eksport JSON (pełna kopia)':'JSON export (full backup)','Import JSON':'JSON import','Eksport CSV (Excel)':'CSV export (Excel)','Przywróć dane startowe':'Restore default data','Wyczyść wszystko':'Clear all',
+    'ZAKUP':'PURCHASE','SPRZEDAŻ':'SALE','PRODUKCJA':'PRODUCTION','ZUŻYCIE':'USE','Pokaż aktualny wpis':'Show current entry','Wolumen':'Volume','brak':'none','Brak danych':'No data','Brak operacji':'No operations','Nic nie znaleziono':'Nothing found','Zapisano':'Saved','Zmiany zapisane':'Changes saved','Usunięto':'Deleted',
+    'zapisanych zmian w rejestrze':'recorded changes in the register','unikalnych wpisów w historii':'unique entries in history','Autor':'Author','Drewno opałowe z lasu':'Firewood from forest','Drewno przemysłowe z wycinek inwest.':'Industrial wood from investment clearings','Zrębka Towar':'Merchant woodchips','Zrębka towar Drewtrans':'Drewtrans merchant woodchips','Zrębka Produkcyjna Drzewna':'Production woodchips — wood','Zrębka Produkcyjna Inwestycyjna':'Production woodchips — investment','Zrębka Produkcyjna Leśna':'Production woodchips — forest','Pozostałość tartaczna':'Sawmill residue','Trociny':'Sawdust','Zrzyna':'Offcuts','Łupiny nerkowca':'Cashew shells',
+    'Operacja':'Operation','operacja':'operation','zapisana':'saved','zapisany':'saved','Zapisano skany':'Scans saved','Nie udało się':'Failed to','Podaj produkt':'Enter a product','Podaj wolumen większy od zera':'Enter a volume greater than zero','Podaj datę operacji':'Enter the operation date','Uwaga':'Warning','Zapis lokalny niedostępny':'Local storage unavailable',
+    'Typ operacji':'Operation type','Operacje równoległe — łańcuch automatyczny':'Parallel operations — automatic chain','+ PRODUKCJA — drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis zużycia kupionego surowca i wpis produkcji.':'+ PRODUCTION — wood is chipped in the forest to produce woodchips. The system will add a consumption entry for the purchased raw material and a production entry automatically.','+ SPRZEDAŻ — zrębka jedzie prosto do elektrowni, nie magazynujemy (system doda wpis WZ i zablokuje magazynowanie).':'+ SALE — woodchips are delivered directly to the power plant without storage (the system will add a WZ entry and disable storage).','Kwit wywozowy i transport z formularza zapiszą się na wywozie zrębki: przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).':'The haulage note and transport from the form will be saved with the woodchip dispatch: at production (when sent to the warehouse) or on the WZ document (when sent directly to the recipient).','— drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis ':'— wood is chipped in the forest to produce woodchips. The system will automatically add a ','zużycia':'consumption',' kupionego surowca i wpis ':' entry for the purchased raw material and a ','produkcji':'production','— zrębka jedzie prosto do elektrowni, ':'— woodchips are delivered directly to the power plant, ','nie magazynujemy':'without storage','(system doda wpis WZ i zablokuje magazynowanie).':'(the system will add a WZ entry and disable storage).','Kwit wywozowy i transport z formularza zapiszą się na ':'The haulage note and transport from the form will be saved with the ','wywozie zrębki':'woodchip dispatch',': przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).':': at production (when sent to the warehouse) or on the WZ document (when sent directly to the recipient).','Pozostaw puste — nadam automatycznie:':'Leave empty — assigned automatically:','Deklaracja':'Declaration','TAK':'YES','NIE':'NO','Tony — sposób wyliczenia':'Tonnes — calculation method','M³ ↔ MP — sposób przeliczenia':'m³ ↔ MP — conversion method','(zł/jedn.)':'(PLN/unit)','Nr rejestracyjny':'Registration number','Nr kwitu wywozowego':'Haulage note number','Miejsce załadunku (inne niż las)':'Loading place (other than forest)','np.':'e.g.','Puste = tyle, ile wychodzi z zakupu (m3 × 4)':'Empty = quantity calculated from the purchase (m³ × 4)','Dodaj pierwszy':'Add first','Pobierz':'Download','Usuń skan':'Delete scan','Zamknij':'Close','Nowa operacja (skrót)':'New operation (shortcut)','drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis':'wood is chipped in the forest to produce woodchips. The system will automatically add a','kupionego surowca i wpis':' entry for the purchased raw material and a','produkcji.':'production entry.','zrębka jedzie prosto do elektrowni,':'woodchips are delivered directly to the power plant,','Kwit wywozowy i transport z formularza zapiszą się na':'The haulage note and transport from the form will be saved with the','przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).':'at production (when sent to the warehouse) or on the WZ document (when sent directly to the recipient).'
+  },
+  cs:{
+    'Pulpit':'Hlavní panel','Operacje':'Operace','Nowa operacja':'Nová operace','Magazyn':'Sklad','Produkcja dnia':'Denní výroba','Kontrahenci':'Obchodní partneři','Raporty':'Reporty','Korekty':'Opravy','Ustawienia':'Nastavení',
+    'Magazyn biomasy':'Sklad biomasy','Panel główny':'Hlavní panel','Drukuj bieżący widok':'Tisk aktuálního pohledu','Wybór języka':'Výběr jazyka','Narzędzia aplikacji':'Nástroje aplikace',
+    'Rejestr operacji':'Registr operací','Dokumenty PZ · WZ · MM':'Dokumenty PZ · WZ · MM','Dodaj':'Přidat','Wszystkie':'Všechny','Typ: wszystkie':'Typ: všechny','Produkt: wszystkie':'Produkt: všechny','Miesiąc: wszystkie':'Měsíc: všechny','Magazyn: wszystkie':'Sklad: všechny','Szukaj: dokument, kontrahent, rejestracja…':'Hledat: dokument, partner, SPZ…',
+    'Data':'Datum','Typ':'Typ','Dokument':'Dokument','Produkt':'Produkt','Kontrahent':'Partner','Wolumen':'Objem','Jednostka':'Jednotka','Tony':'Tuny','Wartość':'Hodnota','Firma transp.':'Dopravce','Nr rej.':'SPZ','Km':'Km','Koszt tr.':'Náklady na dopravu','Podgląd':'Náhled','Edytuj':'Upravit','Duplikuj':'Duplikovat','Usuń':'Smazat',
+    'Edycja operacji':'Úprava operace','Wpis do rejestru':'Zápis do registru','Zapisz operację':'Uložit operaci','Zapisz zmiany':'Uložit změny','Zapisz i dodaj kolejną':'Uložit a přidat další','Anuluj':'Zrušit','Nr dokumentu':'Číslo dokladu','Data operacji':'Datum operace','Data załadunku':'Datum nakládky','Certyfikat':'Certifikát','Magazynowane':'Skladováno',
+    'Towar':'Zboží','Rodzaj zrębki (A/B)':'Typ štěpky (A/B)','Cena zakupu / produkcji':'Nákupní / výrobní cena','Cena sprzedaży':'Prodejní cena','Rąbanie (własne / wynajęte)':'Štěpkování (vlastní / externí)','Koszt rąbania':'Náklady na štěpkování','Las i strony operacji':'Les a strany operace','Nadleśnictwo (NDL)':'Lesní správa','Leśnictwo':'Lesní úsek','Nr kwitu wywozowego':'Číslo vývozního lístku','Miejsce załadunku (inne niż las)':'Místo nakládky (mimo les)','Dostawca / źródło':'Dodavatel / zdroj','Odbiorca / cel':'Odběratel / cíl','Miejsce pochodzenia':'Místo původu','Transport':'Doprava','Firma transportowa / kierowca':'Dopravce / řidič','Odległość (km)':'Vzdálenost (km)','Koszt transportu / fracht (zł)':'Náklady na dopravu / přepravu (PLN)','Skany dokumentów — zdjęcia kwitów / PDF':'Skeny dokumentů — fotografie lístků / PDF','Dodaj skan (aparat / plik)':'Přidat sken (fotoaparát / soubor)','Załączniki zapiszą się razem z operacją. Zdjęcia są kompresowane automatycznie.':'Přílohy se uloží spolu s operací. Fotografie jsou automaticky komprimovány.','Zatwierdzenie':'Schválení','Uwagi':'Poznámky','Podpis zatwierdzającego — imię i nazwisko (wymagane)':'Podpis schvalujícího — celé jméno (povinné)',
+    'Metry przestrz.':'Prostorové metry','Energia':'Energie','Wartość zakupu':'Hodnota nákupu','Wartość sprzedaży':'Hodnota prodeje','Koszt rąbania':'Náklady na štěpkování','Automatycznie (przelicznik firmowy)':'Automaticky (firemní přepočet)','Ręcznie (waga rzeczywista)':'Ručně (skutečná hmotnost)','Ręcznie (wartość rzeczywista)':'Ručně (skutečná hodnota)','Historia edytowanych dokumentów i wpisów':'Historie upravených dokumentů a záznamů','Wszystkie korekty':'Všechny opravy','Edytowane dokumenty':'Upravené dokumenty','Korekty dzisiaj':'Dnešní opravy','Rejestr korekt':'Registr oprav','Data i godzina':'Datum a čas','Dokument / wpis':'Dokument / záznam','Zmodyfikowane pola':'Změněná pole','Edytował':'Upravil','Każda pozycja zawiera stan przed i po zapisaniu zmian.':'Každý řádek obsahuje hodnoty před a po uložení změn.','Brak zarejestrowanych korekt':'Žádné zaznamenané opravy','Każda zmiana zapisana w formularzu operacji pojawi się tutaj automatycznie.':'Každá změna uložená ve formuláři operace se zde zobrazí automaticky.','Pokaż aktualny wpis':'Zobrazit aktuální záznam','Przywróć stan sprzed tej korekty':'Obnovit stav před touto opravou',
+    'Stan magazynowy':'Stav skladu','Bilans: zakup + produkcja − sprzedaż − zużycie ± MM':'Bilance: nákup + výroba − prodej − spotřeba ± MM','Drukuj':'Tisk','Raport miesięczny':'Měsíční report','Zestawienie okresu':'Přehled období','Zakupy surowca':'Nákupy surovin','Sprzedaż':'Prodej','Produkcja zrębki':'Výroba štěpky','Koszty transportu':'Náklady na dopravu','Dane, przeliczniki, kopie zapasowe':'Data, přepočty, zálohy','Przeliczniki jednostek':'Přepočty jednotek','Zapisz przeliczniki':'Uložit přepočty','Dane — kopia i udostępnianie':'Data — záloha a sdílení','Eksport JSON (pełna kopia)':'Export JSON (úplná záloha)','Import JSON':'Import JSON','Eksport CSV (Excel)':'Export CSV (Excel)','Przywróć dane startowe':'Obnovit výchozí data','Wyczyść wszystko':'Vymazat vše',
+    'ZAKUP':'NÁKUP','SPRZEDAŻ':'PRODEJ','PRODUKCJA':'VÝROBA','ZUŻYCIE':'SPOTŘEBA','Wolumen':'Objem','brak':'žádné','Brak danych':'Žádná data','Brak operacji':'Žádné operace','Nic nie znaleziono':'Nic nenalezeno','Zapisano':'Uloženo','Zmiany zapisane':'Změny uloženy','Usunięto':'Smazáno',
+    'zapisanych zmian w rejestrze':'uložených změn v registru','unikalnych wpisów w historii':'jedinečných záznamů v historii','Autor':'Autor','Drewno opałowe z lasu':'Palivové dřevo z lesa','Drewno przemysłowe z wycinek inwest.':'Průmyslové dřevo z investičních mýcení','Zrębka Towar':'Obchodní štěpka','Zrębka towar Drewtrans':'Obchodní štěpka Drewtrans','Zrębka Produkcyjna Drzewna':'Výrobní štěpka — dřevní','Zrębka Produkcyjna Inwestycyjna':'Výrobní štěpka — investiční','Zrębka Produkcyjna Leśna':'Výrobní štěpka — lesní','Pozostałość tartaczna':'Pilířský zbytek','Trociny':'Piliny','Zrzyna':'Odřezky','Łupiny nerkowca':'Kešu skořápky',
+    'Operacja':'Operace','operacja':'operace','zapisana':'uložena','zapisany':'uložen','Zapisano skany':'Skeny uloženy','Nie udało się':'Nepodařilo se','Podaj produkt':'Zadejte produkt','Podaj wolumen większy od zera':'Zadejte objem větší než nula','Podaj datę operacji':'Zadejte datum operace','Uwaga':'Upozornění','Zapis lokalny niedostępny':'Místní úložiště není dostupné',
+    'Typ operacji':'Typ operace','Operacje równoległe — łańcuch automatyczny':'Paralelní operace — automatický řetězec','+ PRODUKCJA — drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis zużycia kupionego surowca i wpis produkcji.':'+ VÝROBA — dřevo se štěpkuje v lese, vzniká štěpka. Systém automaticky přidá záznam o spotřebě nakoupené suroviny a záznam o výrobě.','+ SPRZEDAŻ — zrębka jedzie prosto do elektrowni, nie magazynujemy (system doda wpis WZ i zablokuje magazynowanie).':'+ PRODEJ — štěpka jede přímo do elektrárny, neskladuje se (systém přidá záznam WZ a zakáže skladování).','Kwit wywozowy i transport z formularza zapiszą się na wywozie zrębki: przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).':'Vývozní lístek a doprava z formuláře se uloží k vývozu štěpky: u výroby (při dopravě do skladu) nebo na dokladu WZ (při dopravě přímo odběrateli).','— drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis ':'— dřevo se štěpkuje v lese, vzniká štěpka. Systém automaticky přidá záznam o ','zużycia':'spotřebě',' kupionego surowca i wpis ':' nakoupené suroviny a záznam o ','produkcji':'výrobě','— zrębka jedzie prosto do elektrowni, ':'— štěpka jede přímo do elektrárny, ','nie magazynujemy':'neskladuje se','(system doda wpis WZ i zablokuje magazynowanie).':'(systém přidá záznam WZ a zakáže skladování).','Kwit wywozowy i transport z formularza zapiszą się na ':'Vývozní lístek a doprava z formuláře se uloží k ','wywozie zrębki':'vývozu štěpky',': przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).':': u výroby (při dopravě do skladu) nebo na dokladu WZ (při dopravě přímo odběrateli).','Pozostaw puste — nadam automatycznie:':'Nechte prázdné — přiřadí se automaticky:','Deklaracja':'Prohlášení','TAK':'ANO','NIE':'NE','Tony — sposób wyliczenia':'Tuny — způsob výpočtu','M³ ↔ MP — sposób przeliczenia':'m³ ↔ MP — způsob přepočtu','(zł/jedn.)':'(PLN/jedn.)','Nr rejestracyjny':'SPZ','Nr kwitu wywozowego':'Číslo vývozního lístku','Miejsce załadunku (inne niż las)':'Místo nakládky (mimo les)','np.':'např.','Puste = tyle, ile wychodzi z zakupu (m3 × 4)':'Prázdné = množství vypočtené z nákupu (m³ × 4)','Dodaj pierwszy':'Přidat první','Pobierz':'Stáhnout','Usuń skan':'Smazat sken','Zamknij':'Zavřít','Nowa operacja (skrót)':'Nová operace (zkratka)','drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis':'dřevo se štěpkuje v lese, vzniká štěpka. Systém automaticky přidá záznam o','kupionego surowca i wpis':' nakoupené suroviny a záznam o','produkcji.':'výrobě.','zrębka jedzie prosto do elektrowni,':'štěpka jede přímo do elektrárny,','Kwit wywozowy i transport z formularza zapiszą się na':'Vývozní lístek a doprava z formuláře se uloží k','przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).':'u výroby (při dopravě do skladu) nebo na dokladu WZ (při dopravě přímo odběrateli).'
+  }
+};
+const i18nTextSource = new WeakMap(), i18nAttrSource = new WeakMap();
+const supportedLangs = ['pl','cs','en'];
+function currentLang(){ return supportedLangs.includes(state.cfg.lang) ? state.cfg.lang : 'pl'; }
+function tr(value){
+  const source = String(value??'');
+  const map = I18N[currentLang()] || {};
+  if(currentLang()==='pl') return source;
+  if(Object.prototype.hasOwnProperty.call(map,source)) return map[source];
+  return Object.keys(map).sort((a,b)=>b.length-a.length).reduce((out,key)=>out.includes(key) ? out.split(key).join(map[key]) : out, source);
+}
+function translateTextNode(node){
+  const original = i18nTextSource.has(node) ? i18nTextSource.get(node) : node.nodeValue;
+  if(!i18nTextSource.has(node)) i18nTextSource.set(node,original);
+  const parts = String(original).match(/^(\s*)([\s\S]*?)(\s*)$/);
+  node.nodeValue = parts[1] + tr(parts[2]) + parts[3];
+}
+function translateAttribute(el,attr){
+  let source = i18nAttrSource.get(el);
+  if(!source){ source={}; i18nAttrSource.set(el,source); }
+  if(!(attr in source)) source[attr]=el.getAttribute(attr);
+  if(source[attr]!==null){
+    const translated=tr(source[attr]);
+    el.setAttribute(attr,translated);
+    if(attr==='placeholder') el.placeholder=translated;
+    if(attr==='title') el.title=translated;
+    if(attr==='aria-label') el.setAttribute('aria-label',translated);
+  }
+}
+function updateLanguageTool(){
+  const sel=document.getElementById('languageSelect'); if(sel) sel.value=currentLang();
+  const labels={pl:{pl:'Polski',cs:'Czeski',en:'Angielski'},cs:{pl:'Polština',cs:'Čeština',en:'Angličtina'},en:{pl:'Polish',cs:'Czech',en:'English'}}[currentLang()];
+  if(sel) [...sel.options].forEach(o=>o.textContent=labels[o.value]);
+}
+function translatePage(){
+  document.documentElement.lang=currentLang()==='cs'?'cs':currentLang();
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.filter(n=>n.parentElement && !['SCRIPT','STYLE'].includes(n.parentElement.tagName)).forEach(translateTextNode);
+  document.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el=>['placeholder','title','aria-label'].forEach(attr=>{ if(el.hasAttribute(attr)) translateAttribute(el,attr); }));
+  updateLanguageTool();
+}
+let translationQueued=false;
+function queueTranslation(){ if(translationQueued) return; translationQueued=true; requestAnimationFrame(()=>{ translationQueued=false; translatePage(); }); }
+function initLanguageTools(){
+  const nativeConfirm=window.confirm.bind(window);
+  window.confirm=message=>nativeConfirm(tr(message));
+  document.getElementById('homeTool').addEventListener('click',()=>location.hash='pulpit');
+  document.getElementById('printTool').addEventListener('click',()=>window.print());
+  document.getElementById('languageSelect').addEventListener('change',e=>{
+    state.cfg.lang=supportedLangs.includes(e.target.value)?e.target.value:'pl';
+    save(false); route(); queueTranslation();
+  });
+  new MutationObserver(queueTranslation).observe(document.getElementById('view'),{childList:true,subtree:true});
+  queueTranslation();
+}
+
+/* ---------- Załączniki: IndexedDB (skany PZ/WZ i kwitów leśnych) ---------- */
+const zdb = {
+  db:null,
+  open(){ return new Promise((res,rej)=>{
+    const q = indexedDB.open('resinvest_erp_zal', 1);
+    q.onupgradeneeded = e => { const s = e.target.result.createObjectStore('zal',{keyPath:'id'}); s.createIndex('rec','recId'); };
+    q.onsuccess = e => { zdb.db = e.target.result; res(); };
+    q.onerror = () => rej(q.error);
+  });},
+  st(m){ return zdb.db.transaction('zal',m).objectStore('zal'); },
+  add(recId, data, name){ return new Promise((res,rej)=>{
+    const rec = { id: uid()+'z', recId, name: name||'skan', data, ts: Date.now() };
+    const r = zdb.st('readwrite').add(rec); r.onsuccess=()=>res(rec); r.onerror=()=>rej(r.error);
+  });},
+  list(recId){ return new Promise(res=>{ const out=[];
+    const r = zdb.st('readonly').index('rec').openCursor(IDBKeyRange.only(recId));
+    r.onsuccess = e => { const c=e.target.result; if(c){ out.push(c.value); c.continue(); } else res(out); };
+    r.onerror = () => res(out);
+  });},
+  all(){ return new Promise(res=>{ const out=[];
+    const r = zdb.st('readonly').openCursor();
+    r.onsuccess = e => { const c=e.target.result; if(c){ out.push(c.value); c.continue(); } else res(out); };
+    r.onerror = () => res(out);
+  });},
+  del(id){ return new Promise(res=>{ const r=zdb.st('readwrite').delete(id); r.onsuccess=res; r.onerror=res; }); },
+  put(rec){ return new Promise(res=>{ const r=zdb.st('readwrite').put(rec); r.onsuccess=res; r.onerror=res; }); }
+};
+let zalCounts = {};
+async function refreshZalCounts(){
+  if(!zdb.db) return;
+  const all = await zdb.all(); zalCounts = {};
+  for(const z of all) zalCounts[z.recId] = (zalCounts[z.recId]||0)+1;
+  document.querySelectorAll('[data-zb]').forEach(el=>{
+    const n = zalCounts[el.dataset.zb]||0;
+    el.innerHTML = n ? '<span class="zbadge">🖇 '+n+'</span>' : '';
+  });
+}
+function compressFile(file){ // zdjęcie -> JPEG max 1600px; PDF bez zmian
+  return new Promise((res,rej)=>{
+    if(file.type === 'application/pdf'){
+      const rd = new FileReader(); rd.onload = ()=>res({data: rd.result, name: file.name});
+      rd.onerror = ()=>rej(); rd.readAsDataURL(file); return;
+    }
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const M = 1600, k = Math.min(1, M/Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res({data: c.toDataURL('image/jpeg', .72), name: file.name});
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); rej(); };
+    img.src = url;
+  });
+}
+window.showLb = data => { document.getElementById('lbImg').src = data; document.getElementById('lb').classList.add('open'); };
+window.openZal = id => { zdb.st('readonly').get(id).onsuccess = e => {
+  const z = e.target.result; if(!z) return;
+  if(z.data.startsWith('data:application/pdf')){
+    fetch(z.data).then(r=>r.blob()).then(b=>window.open(URL.createObjectURL(b),'_blank'));
+  } else showLb(z.data);
+};};
+
+/* ---------- Przeliczniki i obliczenia ---------- */
+function calc(r){
+  const c = state.cfg;
+  const wol = +r.wolumen || 0;
+  let mp, tony;
+  if(r.jednostka === 'TONA'){ tony = wol; mp = c.mpTona ? wol / c.mpTona : 0; }
+  else { mp = r.jednostka === 'M3' ? wol * c.m3mp : wol; tony = wol * c.mpTona; }
+  let mpReal = false, m3Real = false;
+  if(r.jednostka === 'M3' && r.mpTryb === 'RECZNIE' && +r.mpReczne > 0){ mp = +r.mpReczne; mpReal = true; }  // rzeczywiste MP — zastępuje wynik przeliczenia M³→MP tej operacji
+  let m3 = r.jednostka === 'M3' ? wol : (c.m3mp ? mp / c.m3mp : 0);
+  if(r.jednostka === 'MP' && r.m3Tryb === 'RECZNIE' && +r.m3Reczne > 0){ m3 = +r.m3Reczne; m3Real = true; }  // rzeczywiste M³ — zastępuje wynik przeliczenia MP→M³ tej operacji
+  if(r.tonyTryb === 'RECZNIE' && +r.tonyReczne > 0){ tony = +r.tonyReczne; }  // waga rzeczywista — tylko prezentacja ton/GJ, MP i stany bez zmian
+  const gj = tony * c.tonaGJ;
+  const wZak = (+r.cenaZakupu||0) * wol;
+  const wSpr = (+r.cenaSprzedazy||0) * wol;
+  const wRab = (+r.kosztRabania||0) * wol;
+  return { mp, tony, gj, m3, wZak, wSpr, wRab, mpReal, m3Real, tonyReal: r.tonyTryb==='RECZNIE' && +r.tonyReczne>0 };
+}
+function ruch(r){ // wpływ na stan magazynu: {magazyn: {mp, t}}
+  const {mp, tony} = calc(r); const out = {};
+  const add = (mag, s) => { if(!mag) return; if(!out[mag]) out[mag]={mp:0,t:0}; out[mag].mp += s*mp; out[mag].t += s*tony; };
+  const isMag = n => /magazyn/i.test(n||'');
+  if(r.typ==='ZAKUP' || r.typ==='PRODUKCJA' || r.typ==='BO'){ add(isMag(r.odbiorca)?r.odbiorca:'Magazyn RiC Zabrze', +1); }
+  else if(r.typ==='SPRZEDAŻ' || r.typ==='ZUŻYCIE'){ add(isMag(r.dostawca)?r.dostawca:'Magazyn RiC Zabrze', -1); }
+  else if(r.typ==='MM'){ add(isMag(r.dostawca)?r.dostawca:null,-1); add(isMag(r.odbiorca)?r.odbiorca:null,+1); }
+  return out;
+}
+function stany(){ // {produkt: {magazyn:{mp,t}, total:{mp,t}}}
+  const s = {};
+  for(const r of state.records){
+    const rr = ruch(r); const p = r.produkt || '(bez produktu)';
+    if(!s[p]) s[p] = { mags:{}, total:{mp:0,t:0} };
+    for(const [mag,v] of Object.entries(rr)){
+      if(!s[p].mags[mag]) s[p].mags[mag]={mp:0,t:0};
+      s[p].mags[mag].mp += v.mp; s[p].mags[mag].t += v.t;
+      s[p].total.mp += v.mp; s[p].total.t += v.t;
+    }
+  }
+  return s;
+}
+
+/* ---------- Pomocnicze ---------- */
+const fmt = (n,d=2)=> (isFinite(n)?n:0).toLocaleString('pl-PL',{minimumFractionDigits:0,maximumFractionDigits:d});
+const zl = n => fmt(n,2)+' zł';
+const esc = s => String(s??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const today = ()=> new Date().toISOString().slice(0,10);
+const nowIso = ()=> new Date().toISOString().slice(0,16);
+const dShort = d => d ? d.split('-').reverse().join('.') : '—';
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=tr(msg); t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+function uid(){ return 'REC-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+/* ---------- Rejestr korekt dokumentów ---------- */
+const CORR_LABELS = {
+  typ:'Typ operacji', nrDok:'Nr dokumentu', dataOperacji:'Data operacji', dataZaladunku:'Data załadunku',
+  produkt:'Produkt', rodzaj:'Rodzaj', wolumen:'Wolumen', jednostka:'Jednostka',
+  dostawca:'Dostawca / źródło', odbiorca:'Odbiorca / cel', miejsceZaladunku:'Miejsce załadunku',
+  pochodzenie:'Miejsce pochodzenia', nadlesnictwo:'Nadleśnictwo', lesnictwo:'Leśnictwo',
+  kwitWywozowy:'Nr kwitu wywozowego', transportFirma:'Firma transportowa / kierowca',
+  nrRej:'Nr rejestracyjny', odlegloscKm:'Odległość', kosztTransportu:'Koszt transportu',
+  cenaZakupu:'Cena zakupu / produkcji', cenaSprzedazy:'Cena sprzedaży', rabanie:'Rąbanie',
+  kosztRabania:'Koszt rąbania', certyfikat:'Certyfikat', magazynowane:'Magazynowane',
+  tonyTryb:'Sposób wyliczenia ton', tonyReczne:'Masa rzeczywista', mpTryb:'Sposób przeliczenia MP',
+  mpReczne:'Rzeczywiste MP', m3Tryb:'Sposób przeliczenia m³', m3Reczne:'Rzeczywiste m³',
+  podpis:'Podpis zatwierdzającego', uwagi:'Uwagi'
+};
+const corrValue = v => (v===undefined || v===null || v==='') ? '—' : String(v);
+const corrDateTime = v => {
+  if(!v) return '—';
+  const d = new Date(v);
+  return isNaN(d) ? String(v).replace('T',' ') : d.toLocaleString('pl-PL');
+};
+function registerCorrection(before, after){
+  const ignored = new Set(['id','dataDodania']);
+  const keys = [...new Set(Object.keys(before||{}).concat(Object.keys(after||{})))].filter(k=>
+    !ignored.has(k) && String(before?.[k]??'') !== String(after?.[k]??''));
+  if(!keys.length) return;
+  const fields = keys.map(key=>({ key, label:CORR_LABELS[key]||key, from:before?.[key]??'', to:after?.[key]??'' }));
+  state.corrections.unshift({
+    id:'KOR-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    recId:after.id, nrDok:after.nrDok||'', produkt:after.produkt||'', typ:after.typ||'',
+    editedAt:nowIso(), editor:after.podpis||state.cfg.uzytkownik||'—', fields,
+    before:JSON.parse(JSON.stringify(before))
+  });
+}
+
+function nextDoc(typ){
+  let max=0, re;
+  if(typ==='ZAKUP') re=/PZ\/(\d+)/i;
+  else if(typ==='SPRZEDAŻ') re=/WZ\/(\d+)/i;
+  else if(typ==='MM') re=/MM-(\d+)/i;
+  else if(typ==='BO') re=/BO-(\d+)/i;
+  else return '';
+  for(const r of state.records){ const m=(r.nrDok||'').match(re); if(m) max=Math.max(max,+m[1]); }
+  if(typ==='ZAKUP') return 'PZ/'+(max+1);
+  if(typ==='SPRZEDAŻ') return 'WZ/'+(max+1);
+  if(typ==='BO') return 'BO-'+(max+1);
+  return 'MM-'+(max+1);
+}
+
+function distinct(field, extra=[]){
+  const set = new Set(extra.filter(Boolean));
+  for(const r of state.records){ const v=(r[field]||'').trim(); if(v) set.add(v); }
+  return [...set].sort((a,b)=>a.localeCompare(b,'pl'));
+}
+function datalist(id, values){ return `<datalist id="${id}">`+values.map(v=>`<option value="${esc(v)}">`).join('')+`</datalist>`; }
+
+function lasStr(r){ const a=[]; if(r.nadlesnictwo) a.push('NDL '+r.nadlesnictwo); if(r.lesnictwo) a.push(r.lesnictwo); return a.join(', ') || r.miejsceProdukcji || ''; }
+function stampCls(nr){ if(/^wz/i.test(nr||''))return 'stamp wz'; if(/^mm/i.test(nr||''))return 'stamp mm'; return 'stamp'; }
+
+/* ---------- Ikony ---------- */
+const IC = {
+  pulpit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  ops:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>',
+  mag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5 12 4l9 5.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/></svg>',
+  kontr:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 20c.6-3.4 3.1-5.4 6.2-5.4s5.6 2 6.2 5.4"/><circle cx="17.4" cy="9.5" r="2.6"/><path d="M15.5 14.7c2.9.2 5 1.9 5.6 4.8"/></svg>',
+  rap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V9M10 20V4M16 20v-8M22 20H2"/></svg>',
+  set:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.36.95a7 7 0 0 0-2.42-1.4L13.7 2.6h-3.4l-.38 2.54a7 7 0 0 0-2.42 1.4l-2.36-.95-2 3.46 2 1.55A7 7 0 0 0 5 12c0 .48.05.94.14 1.4l-2 1.55 2 3.46 2.36-.95a7 7 0 0 0 2.42 1.4l.38 2.54h3.4l.38-2.54a7 7 0 0 0 2.42-1.4l2.36.95 2-3.46-2-1.55c.09-.46.14-.92.14-1.4Z"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  del:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>',
+  print:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>',
+  fab:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 21V9.5l6 3.8V9.5l6 3.8V9.5l8 5V21Z"/><path d="M17 9V4.5A1.5 1.5 0 0 1 18.5 3h2A1.5 1.5 0 0 1 22 4.5V13"/></svg>'
+};
+
+/* ---------- Nawigacja ---------- */
+const ROUTES = [
+  {id:'pulpit', t:'Pulpit', ic:IC.pulpit, tab:true},
+  {id:'operacje', t:'Operacje', ic:IC.ops, tab:true},
+  {id:'nowa', t:'Nowa operacja', ic:IC.plus, tab:'add'},
+  {id:'magazyn', t:'Magazyn', ic:IC.mag, tab:true},
+  {id:'produkcja', t:'Produkcja dnia', ic:IC.fab, tab:false},
+  {id:'kontrahenci', t:'Kontrahenci', ic:IC.kontr, tab:false},
+  {id:'raporty', t:'Raporty', ic:IC.rap, tab:true},
+  {id:'korekty', t:'Korekty', ic:IC.edit, tab:false},
+  {id:'ustawienia', t:'Ustawienia', ic:IC.set, tab:false},
+];
+function buildNav(){
+  document.getElementById('menuDesk').innerHTML = ROUTES.map(r=>`<a href="#${r.id}" data-r="${r.id}">${r.ic}<span>${r.t}</span></a>`).join('');
+  document.getElementById('tabbar').innerHTML = ROUTES.filter(r=>r.tab).map(r=> r.tab==='add'
+    ? `<a href="#${r.id}" data-r="${r.id}" class="tab-add"><span class="tab-plus">${IC.plus}</span><span>Dodaj</span></a>`
+    : `<a href="#${r.id}" data-r="${r.id}">${r.ic}<span>${r.t}</span></a>`).join('');
+}
+function setActive(id){ document.querySelectorAll('[data-r]').forEach(a=>a.classList.toggle('active', a.dataset.r===id)); }
+function route(){
+  const id = (location.hash||'#pulpit').slice(1).split('?')[0];
+  const r = ROUTES.find(x=>x.id===id) || ROUTES[0];
+  setActive(r.id);
+  VIEWS[r.id]();
+  queueTranslation();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange', route);
+
+/* =====================  WIDOKI  ===================== */
+const V = document.getElementById('view');
+const VIEWS = {};
+
+function pageHead(title, crumb, actions=''){
+  return `<div class="page-head"><div><div class="crumb">${crumb}</div><h1>${title}</h1></div><div style="display:flex;gap:8px;flex-wrap:wrap">${actions}</div></div>`;
+}
+function monthOf(r){ return (r.dataOperacji||'').slice(0,7); }
+function monthsAvailable(){ return [...new Set(state.records.map(monthOf).filter(Boolean))].sort().reverse(); }
+function monthLabel(m){ if(!m) return '—'; const M=['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia']; const [y,mm]=m.split('-'); const N=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień']; return N[+mm-1]+' '+y; }
+
+/* ---------- Sygnatura: pryzma zrębki (SVG) ---------- */
+function pileSvg(frac, neg){
+  const f = Math.max(0, Math.min(1, frac));
+  const H = 56, W = 160;
+  const clipH = H * f;
+  const col = neg ? '#C9948B' : 'url(#pg)';
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="pg" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#4C9668"/><stop offset="1" stop-color="#8FC49B"/></linearGradient></defs>
+    <path d="M0 ${H} L${W*0.30} 6 Q${W*0.5} -4 ${W*0.68} 10 L${W} ${H} Z" fill="#ECF1EA"/>
+    <g clip-path="inset(${H-clipH}px 0 0 0)">
+      <path d="M0 ${H} L${W*0.30} 6 Q${W*0.5} -4 ${W*0.68} 10 L${W} ${H} Z" fill="${neg?'#E5BDB4':col}"/>
+      <path d="M${W*0.18} ${H} L${W*0.34} ${H*0.36} M${W*0.5} ${H} L${W*0.5} ${H*0.22} M${W*0.78} ${H} L${W*0.64} ${H*0.4}" stroke="rgba(255,255,255,.35)" stroke-width="1.4"/>
+    </g>
+    <path d="M0 ${H} L${W*0.30} 6 Q${W*0.5} -4 ${W*0.68} 10 L${W} ${H}" fill="none" stroke="#C7D4C5" stroke-width="1.2"/>
+  </svg>`;
+}
+
+/* ---------- PULPIT ---------- */
+VIEWS.pulpit = function(){
+  clearInterval(window._pulpitT);
+  window._pulpitT = setInterval(()=>{ if((location.hash||'#pulpit')==='#pulpit') VIEWS.pulpit(); else clearInterval(window._pulpitT); }, 60000);
+  const s = stany();
+  const months = monthsAvailable();
+  const m = months[0] || today().slice(0,7);
+  let zak=0, spr=0, transp=0, rab=0, opsM=0, trIn=0, trOut=0;
+  for(const r of state.records){ if(monthOf(r)!==m) continue; opsM++; const c=calc(r);
+    zak+=c.wZak; spr+=c.wSpr; transp+=(+r.kosztTransportu||0); rab+=c.wRab;
+    const maTr = r.transportFirma || r.nrRej || (+r.kosztTransportu);
+    if(maTr){ if(r.typ==='ZAKUP'||r.typ==='PRODUKCJA'||r.typ==='BO'||(r.typ==='MM'&&/magazyn/i.test(r.odbiorca||''))) trIn++; else trOut++; } }
+  // Kafle wg specyfikacji: surowiec KZR w m³ + zrębka w MP z tonami/GJ wg trybu przeliczeń (agregacja honoruje wartości rzeczywiste)
+  let drewnoMp=0, zrebkaMp=0, zrebkaT=0, totMp=0, totT=0;
+  for(const [p,x] of Object.entries(s)){
+    totMp+=x.total.mp; totT+=x.total.t;
+    if(/drewno/i.test(p)) drewnoMp+=x.total.mp;
+    else if(/zrębk/i.test(p)){ zrebkaMp+=x.total.mp; zrebkaT+=x.total.t; }
+  }
+  const drewnoM3 = state.cfg.m3mp ? drewnoMp / state.cfg.m3mp : 0;
+  // Produkcja: dziś albo ostatni dzień produkcyjny — sumy m³/MP/t/GJ przez calc() (tryby ręczne uwzględnione)
+  const prodSums = day => state.records.filter(r=>r.typ==='PRODUKCJA' && r.dataOperacji===day)
+    .reduce((a,r)=>{ const c=calc(r); a.m3+=c.m3; a.mp+=c.mp; a.t+=c.tony; a.gj+=c.gj; return a; },{m3:0,mp:0,t:0,gj:0});
+  // produkcja dziś / ostatnia
+  const pDays = prodDays();
+  const pToday = pDays.includes(today());
+  const pDay = pToday ? today() : (pDays[0]||null);
+  const pRep = pDay ? prodReport(pDay) : null;
+  const maxMp = Math.max(1, ...Object.values(s).map(x=>Math.abs(x.total.mp)));
+  const prods = Object.entries(s).sort((a,b)=>b[1].total.mp-a[1].total.mp);
+  const last = [...state.records].sort((a,b)=>(b.dataDodania||b.dataOperacji||'').localeCompare(a.dataDodania||a.dataOperacji||'')).slice(0,6);
+
+  V.innerHTML = pageHead('Pulpit','ResInvest Commodities PL · '+monthLabel(m),
+      `<a href="#nowa" class="btn btn-primary">${IC.plus} Nowa operacja</a>`) +
+  `<div class="stat-grid">
+    <div class="stat s-green"><div class="s-ic">${IC.mag}</div><div><div class="s-l">Drewno opałowe KZR · stan surowca</div><div class="s-v">${fmt(drewnoM3)} <small>m³</small></div><div class="s-d">${fmt(drewnoMp)} MP na stanie · Magazyn RiC Zabrze</div></div></div>
+    <div class="stat s-gold"><div class="s-ic">${IC.fab}</div><div><div class="s-l">Zrębka po produkcji</div><div class="s-v">${fmt(zrebkaMp)} <small>MP</small></div><div class="s-d">${fmt(zrebkaT)} t · ${fmt(zrebkaT*state.cfg.tonaGJ,0)} GJ — wg trybu przeliczeń operacji</div></div></div>
+    <div class="stat"><div class="s-ic">${IC.ops}</div><div><div class="s-l">Produkcja ${pToday?'dziś':(pDay?'· ostatnia '+dShort(pDay):'')}</div><div class="s-v">${pRep?fmt(pRep.tot.mp):'0'} <small>MP</small></div><div class="s-d">${pDay?(()=>{const ps=prodSums(pDay);return fmt(ps.m3)+' m³ · '+fmt(ps.t)+' t · '+fmt(ps.gj,0)+' GJ';})():'brak produkcji'}</div></div></div>
+    <div class="stat"><div class="s-ic">${IC.rap}</div><div><div class="s-l">Transporty · ${monthLabel(m).split(' ')[0]}</div><div class="s-v">${trIn} <small>przyj.</small> / ${trOut} <small>wyd.</small></div><div class="s-d">koszt frachtów: ${fmt(transp,0)} zł</div></div></div>
+    <div class="stat"><div class="s-ic">${IC.kontr}</div><div><div class="s-l">Zakupy · miesiąc</div><div class="s-v">${fmt(zak,0)} <small>zł</small></div><div class="s-d">rąbanie: ${fmt(rab,0)} zł</div></div></div>
+    <div class="stat"><div class="s-ic">${IC.print}</div><div><div class="s-l">Sprzedaż · miesiąc</div><div class="s-v">${fmt(spr,0)} <small>zł</small></div><div class="s-d">marża brutto: <span class="${spr-zak>=0?'pos-v':'neg-v'}">${fmt(spr-zak,0)} zł</span></div></div></div>
+  </div>
+  <div class="quick-bar">
+    <a href="#nowa" class="qb"><span class="qb-ic" style="background:var(--amber)">${IC.plus}</span>Nowa operacja</a>
+    <a href="#produkcja" class="qb"><span class="qb-ic">${IC.fab}</span>Kwit produkcji</a>
+    <a href="#operacje" class="qb"><span class="qb-ic">${IC.ops}</span>Rejestr</a>
+    <a href="#magazyn" class="qb"><span class="qb-ic">${IC.mag}</span>Stany</a>
+    <button class="qb" onclick="exportCSV()"><span class="qb-ic">${IC.print}</span>CSV</button>
+  </div>
+  ${(function(){
+    if(!pDay) return '';
+    return `<div class="card" style="margin-bottom:16px;border-left:4px solid var(--amber)">
+      <div class="card-h"><h2>Kwit Produkcji Dnia · ${pToday?'dzisiaj':'ostatnia produkcja'} — ${dShort(pDay)}</h2>
+      <a class="btn btn-ghost btn-sm" href="#produkcja" onclick="prodSelDate='${pDay}'">Pełny raport</a></div>
+      <div class="card-b">${prodKwitHTML(pRep,true)}</div>
+    </div>`;
+  })()}
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-h"><h2>Pryzmy — stan według produktu</h2><a class="btn btn-ghost btn-sm" href="#magazyn">Szczegóły</a></div>
+    <div class="card-b"><div class="piles">${
+      prods.length ? prods.map(([p,x])=>{
+        const neg = x.total.mp < 0;
+        return `<div class="pile ${neg?'neg':''}">
+          <div class="p-name">${esc(p)}</div>
+          <div class="p-gauge">${pileSvg(Math.abs(x.total.mp)/maxMp, neg)}</div>
+          <div class="p-mp">${fmt(x.total.mp)} <small>MP</small></div>
+          <div class="p-t">${fmt(x.total.t)} t · ${fmt(x.total.t*state.cfg.tonaGJ,0)} GJ</div>
+        </div>`;}).join('') : '<div class="empty"><b>Brak danych</b>Dodaj pierwszą operację.</div>'
+    }</div></div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Ostatnie operacje</h2><a class="btn btn-ghost btn-sm" href="#operacje">Wszystkie</a></div>
+    <div class="card-b" style="padding:6px 0 2px">
+      ${last.map(r=>{const c=calc(r);return `<div style="display:flex;align-items:center;gap:11px;padding:9px 18px;border-bottom:1px solid #EEF2ED;cursor:pointer" onclick="showDetail('${r.id}')">
+        <span class="tag ${esc(r.typ)}">${esc(r.typ)}</span>
+        <span class="${stampCls(r.nrDok)}">${esc((r.nrDok||'—').split(' ')[0])}</span>
+        <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.produkt)}</span>
+        <span style="font-family:var(--font-mono);font-size:12.5px;white-space:nowrap">${fmt(c.mp)} MP</span>
+        <span style="font-size:12px;color:var(--ink-2);white-space:nowrap">${dShort(r.dataOperacji)}</span>
+      </div>`;}).join('') || '<div class="empty">Brak operacji</div>'}
+    </div>
+  </div>`;
+};
+
+/* ---------- OPERACJE (rejestr) ---------- */
+let opFilter = { q:'', typ:'', prod:'', m:'', mag:'' };
+VIEWS.operacje = function(){
+  const months = monthsAvailable();
+  const prods = distinct('produkt');
+  const magsF = [...new Set(MAGAZYNY_DEF.concat(distinct('dostawca'), distinct('odbiorca')))].filter(x=>/magazyn/i.test(x)).sort();
+  const list = filteredOps();
+  V.innerHTML = pageHead('Rejestr operacji','Dokumenty PZ · WZ · MM',
+    `<button class="btn btn-ghost" onclick="exportCSV()">${IC.print} CSV</button><a href="#nowa" class="btn btn-primary">${IC.plus} Dodaj</a>`) +
+  `<div class="chips-filter">${['','ZAKUP','SPRZEDAŻ','PRODUKCJA','ZUŻYCIE','MM','BO'].map(t=>
+    `<button class="${opFilter.typ===t?'on':''}" onclick="opFilter.typ='${t}';VIEWS.operacje()">${t||'Wszystkie'}</button>`).join('')}</div>
+  <div class="toolbar">
+    <input type="search" id="fQ" placeholder="Szukaj: dokument, kontrahent, rejestracja…" value="${esc(opFilter.q)}">
+    <select id="fT"><option value="">Typ: wszystkie</option>${TYPY.map(t=>`<option ${opFilter.typ===t?'selected':''}>${t}</option>`).join('')}</select>
+    <select id="fP"><option value="">Produkt: wszystkie</option>${prods.map(p=>`<option ${opFilter.prod===p?'selected':''}>${esc(p)}</option>`).join('')}</select>
+    <select id="fM"><option value="">Miesiąc: wszystkie</option>${months.map(mm=>`<option value="${mm}" ${opFilter.m===mm?'selected':''}>${monthLabel(mm)}</option>`).join('')}</select>
+    <select id="fMag"><option value="">Magazyn: wszystkie</option>${magsF.map(mg=>`<option ${opFilter.mag===mg?'selected':''}>${esc(mg)}</option>`).join('')}</select>
+    <span class="count-pill">${list.length} z ${state.records.length}</span>
+  </div>
+  <div class="card tbl-desktop"><div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Data</th><th>Typ</th><th>Dokument</th><th>Produkt</th><th>Kontrahent</th><th class="num">Wolumen</th><th class="num">MP</th><th class="num">Tony</th><th class="num">Wartość</th><th>Firma transp.</th><th>Nr rej.</th><th class="num">Km</th><th class="num">Koszt tr.</th><th></th></tr></thead>
+    <tbody>${list.map(r=>{const c=calc(r);const w=c.wSpr||c.wZak;
+      const kontr = r.typ==='SPRZEDAŻ'||r.typ==='MM' ? r.odbiorca : (r.typ==='ZAKUP' ? (/^magazyn/i.test(r.dostawca||'')? r.miejsceZaladunku||r.dostawca : r.dostawca) : r.pochodzenie||r.dostawca);
+      return `<tr>
+      <td style="white-space:nowrap">${dShort(r.dataOperacji)}</td>
+      <td><span class="tag ${esc(r.typ)}">${esc(r.typ)}</span></td>
+      <td><span class="${stampCls(r.nrDok)}">${esc((r.nrDok||'—').split(' ')[0])}</span>${scanBadge(r.id)}</td>
+      <td>${esc(r.produkt)}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(kontr||'—')}</td>
+      <td class="num">${fmt(r.wolumen)} ${esc(r.jednostka)}</td>
+      <td class="num">${fmt(c.mp)}</td>
+      <td class="num">${fmt(c.tony)}</td>
+      <td class="num">${w?fmt(w,0)+' zł':'—'}</td>
+      <td style="font-size:12px;white-space:nowrap">${esc(r.transportFirma||'—')}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;white-space:nowrap">${esc(r.nrRej||'—')}</td>
+      <td class="num">${(+r.odlegloscKm)?fmt(r.odlegloscKm,0):'—'}</td>
+      <td class="num">${(+r.kosztTransportu)?fmt(r.kosztTransportu,0)+' zł':'—'}</td>
+      <td style="white-space:nowrap"><button class="icon-btn" title="Podgląd" onclick="showDetail('${r.id}')">${IC.eye}</button> <button class="icon-btn" title="Edytuj" onclick="editRec('${r.id}')">${IC.edit}</button> <button class="icon-btn" title="Duplikuj" onclick="dupRec('${r.id}')">${IC.copy}</button> <button class="icon-btn" title="Usuń" onclick="delRec('${r.id}')">${IC.del}</button></td>
+    </tr>`;}).join('')}</tbody>
+  </table></div>${list.length?'':'<div class="empty"><b>Nic nie znaleziono</b>Zmień filtry lub dodaj operację.</div>'}</div>
+  <div class="op-cards">${list.map(r=>{const c=calc(r);
+    const kontr = r.typ==='SPRZEDAŻ'||r.typ==='MM' ? r.odbiorca : (/^magazyn/i.test(r.dostawca||'')? r.miejsceZaladunku||r.dostawca : r.dostawca);
+    return `<div class="op-card">
+    <div class="r1"><span class="tag ${esc(r.typ)}">${esc(r.typ)}</span><span class="${stampCls(r.nrDok)}">${esc((r.nrDok||'—').split(' ')[0])}</span>${scanBadge(r.id)}<span style="margin-left:auto;font-size:12px;color:var(--ink-2)">${dShort(r.dataOperacji)}</span></div>
+    <div class="r2">${esc(r.produkt)}</div>
+    <div class="r3">${esc(kontr||'—')}${r.transportFirma?' · '+esc(r.transportFirma):''}${r.nrRej?' · '+esc(r.nrRej):''}${(+r.odlegloscKm)?' · '+fmt(r.odlegloscKm,0)+' km':''}${(+r.kosztTransportu)?' · '+fmt(r.kosztTransportu,0)+' zł':''}</div>
+    <div class="r4"><span class="vol">${fmt(c.mp)} <small style="font-size:11px;color:var(--ink-2)">MP · ${fmt(c.tony)} t</small></span>
+      <span class="acts"><button class="icon-btn" onclick="showDetail('${r.id}')">${IC.eye}</button><button class="icon-btn" onclick="editRec('${r.id}')">${IC.edit}</button><button class="icon-btn" onclick="delRec('${r.id}')">${IC.del}</button></span></div>
+  </div>`;}).join('') || '<div class="empty"><b>Nic nie znaleziono</b></div>'}</div>`;
+
+  const rerun = ()=>{ opFilter.q=document.getElementById('fQ').value; opFilter.typ=document.getElementById('fT').value; opFilter.prod=document.getElementById('fP').value; opFilter.m=document.getElementById('fM').value; opFilter.mag=document.getElementById('fMag').value; VIEWS.operacje(); };
+  document.getElementById('fQ').addEventListener('change', rerun);
+  document.getElementById('fQ').addEventListener('search', rerun);
+  ['fT','fP','fM','fMag'].forEach(id=>document.getElementById(id).addEventListener('change', rerun));
+};
+function filteredOps(){
+  const q = opFilter.q.toLowerCase();
+  return state.records.filter(r=>{
+    if(opFilter.typ && r.typ!==opFilter.typ) return false;
+    if(opFilter.prod && r.produkt!==opFilter.prod) return false;
+    if(opFilter.m && monthOf(r)!==opFilter.m) return false;
+    if(opFilter.mag && r.dostawca!==opFilter.mag && r.odbiorca!==opFilter.mag) return false;
+    if(q){ const hay=[r.nrDok,r.dostawca,r.odbiorca,r.produkt,r.nrRej,r.transportFirma,r.uwagi,r.miejsceZaladunku,r.pochodzenie,r.kwitWywozowy,r.miejsceProdukcji,r.nadlesnictwo,r.lesnictwo,r.podpis].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  }).sort((a,b)=>(b.dataOperacji||'').localeCompare(a.dataOperacji||'') || (b.dataDodania||'').localeCompare(a.dataDodania||''));
+}
+
+/* ---------- NOWA OPERACJA / EDYCJA ---------- */
+let editId = null, pendZal = [];
+function drawPendZal(){
+  const box = document.getElementById('pendZal'); if(!box) return;
+  box.querySelectorAll('.zal-th').forEach(x=>x.remove());
+  pendZal.forEach((z,i)=>{
+    const t = document.createElement('div'); t.className='zal-th';
+    t.innerHTML = (z.data.startsWith('data:application/pdf') ? '<div class="z-pdf">PDF</div>' : '<img src="'+z.data+'" alt="">')
+      + '<button class="z-x" title="Usuń">×</button>';
+    t.querySelector('.z-x').onclick = ev=>{ ev.stopPropagation(); pendZal.splice(i,1); drawPendZal(); };
+    t.onclick = ()=>{ if(!z.data.startsWith('data:application/pdf')) showLb(z.data); };
+    box.appendChild(t);
+  });
+}
+VIEWS.nowa = function(){
+  const r = editId ? state.records.find(x=>x.id===editId) : null;
+  const d = r || { typ:'ZAKUP', dataOperacji:today(), dataZaladunku:today(), jednostka:'M3', magazynowane:'TAK', certyfikat:'KZR', rodzaj:'B', dostawca:'', odbiorca:'Magazyn RiC Zabrze', produkt:'Drewno opałowe z lasu', wolumen:'', cenaZakupu:'', cenaSprzedazy:'', kosztRabania:'', rabanie:'', transportFirma:'', nrRej:'', odlegloscKm:'', kosztTransportu:'', miejsceZaladunku:'', pochodzenie:'', uwagi:'', nrDok:'', kwitWywozowy:'', miejsceProdukcji:'', nadlesnictwo:'', lesnictwo:'', tonyTryb:'AUTO', tonyReczne:'', mpTryb:'AUTO', mpReczne:'', m3Tryb:'AUTO', m3Reczne:'', podpis: state.cfg.uzytkownik };
+
+  normSlowniki();
+  const sl = state.cfg.slowniki;
+  const uq = a => [...new Set(a.filter(Boolean))].sort((x,y)=>String(x).localeCompare(String(y),'pl'));
+  const dl = {
+    dost: uq(distinct('dostawca', MAGAZYNY_DEF).concat(sl.dostawcy)),
+    odb: uq(distinct('odbiorca', MAGAZYNY_DEF).concat(sl.odbiorcy)),
+    prod: uq(DICT_PRODUKTY.concat(distinct('produkt'))),
+    tr: uq(distinct('transportFirma').concat(sl.transport, sl.pojazdy.map(p=>p.firma))),
+    rej: uq(distinct('nrRej').concat(sl.pojazdy.map(p=>p.nr))),
+    mz: uq(distinct('miejsceZaladunku').concat(sl.miejscaZaladunku)),
+    poch: distinct('pochodzenie'),
+    ndl: uq(distinct('nadlesnictwo').concat(sl.nadlesnictwa)),
+    les: uq(distinct('lesnictwo').concat(sl.lesnictwa)),
+    rab: distinct('rabanie', ['własne','wynajęte'])
+  };
+
+  V.innerHTML = pageHead(editId?'Edycja operacji':'Nowa operacja', editId?('Dokument '+esc(d.nrDok||'')):'Wpis do rejestru') +
+  datalist('dlDost',dl.dost)+datalist('dlOdb',dl.odb)+datalist('dlProd',dl.prod)+datalist('dlTr',dl.tr)+datalist('dlRej',dl.rej)+datalist('dlMz',dl.mz)+datalist('dlPoch',dl.poch)+datalist('dlRab',dl.rab)+datalist('dlNdl',dl.ndl)+datalist('dlLes',dl.les)+
+  `<div class="card"><div class="card-b">
+    <div class="fld wide" style="margin-bottom:14px"><label>Typ operacji</label>
+      <div class="seg" id="segTyp">${TYPY.map(t=>`<button type="button" data-t="${t}" class="${d.typ===t?'on':''}">${t}</button>`).join('')}</div>
+    </div>
+    <div class="fsec" id="fsecChain" style="border-color:#A9CFB2;background:#F1F8F2;display:${(!editId && d.typ==='ZAKUP')?'block':'none'}">
+      <h3>Operacje równoległe — łańcuch automatyczny</h3>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="chkProdukcja" style="width:19px;height:19px;margin-top:1px;accent-color:var(--spruce)">
+          <span><b>+ PRODUKCJA</b> — drewno rąbiemy w lesie, powstaje zrębka. System sam doda wpis <b>zużycia</b> kupionego surowca i wpis <b>produkcji</b>.</span>
+        </label>
+        <div id="chainProd" style="display:none;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:10px">
+          <div class="form-grid">
+            <div class="fld"><label>Produkt produkcji</label><input id="i_chProdukt" list="dlProd" value="Zrębka Produkcyjna Leśna"></div>
+            <div class="fld"><label>Wolumen produkcji (MP)</label><input type="number" step="0.01" min="0" id="i_chWolumen" inputmode="decimal" placeholder="auto = MP z zakupu"><span class="hint">Puste = tyle, ile wychodzi z zakupu (m3 × 4)</span></div>
+          </div>
+        </div>
+        <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="chkSprzedaz" style="width:19px;height:19px;margin-top:1px;accent-color:var(--amber)">
+          <span><b>+ SPRZEDAŻ</b> — zrębka jedzie prosto do elektrowni, <b>nie magazynujemy</b> (system doda wpis WZ i zablokuje magazynowanie).</span>
+        </label>
+        <div id="chainSprz" style="display:none;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:10px">
+          <div class="form-grid">
+            <div class="fld"><label>Odbiorca (elektrownia)</label><input id="i_chOdbiorca" list="dlOdb" placeholder="np. Ciepłownia Rydułtowy"></div>
+            <div class="fld"><label>Cena sprzedaży (zł/MP)</label><input type="number" step="0.01" min="0" id="i_chCena" inputmode="decimal"></div>
+          </div>
+        </div>
+        <div id="chainPreview" style="font-size:13px;color:var(--spruce);font-weight:600"></div>
+        <div style="font-size:12px;color:var(--ink-2)">Kwit wywozowy i transport z formularza zapiszą się na <b>wywozie zrębki</b>: przy produkcji (gdy jedzie na magazyn) albo na WZ (gdy prosto do odbiorcy).</div>
+      </div>
+    </div>
+    <div class="fsec"><h3>Dokument</h3><div class="form-grid">
+      <div class="fld"><label>Nr dokumentu</label><input id="i_nrDok" value="${esc(d.nrDok)}" placeholder="${esc(nextDoc(d.typ)||'np. PZ/1')}"><span class="hint" id="docHint">Pozostaw puste — nadam automatycznie: <b>${esc(nextDoc(d.typ)||'—')}</b></span></div>
+      <div class="fld"><label>Data operacji</label><input type="date" id="i_dataOperacji" value="${esc(d.dataOperacji||'')}"></div>
+      <div class="fld"><label>Data załadunku</label><input type="date" id="i_dataZaladunku" value="${esc(d.dataZaladunku||'')}"></div>
+      <div class="fld"><label>Certyfikat</label><select id="i_certyfikat"><option ${d.certyfikat==='Deklaracja'?'selected':''}>Deklaracja</option><option ${d.certyfikat==='KZR'?'selected':''}>KZR</option><option value="-" ${d.certyfikat==='-'?'selected':''}>brak</option></select></div>
+      <div class="fld"><label>Magazynowane</label><select id="i_magazynowane"><option ${d.magazynowane==='TAK'?'selected':''}>TAK</option><option ${d.magazynowane==='NIE'?'selected':''}>NIE</option></select></div>
+    </div></div>
+
+    <div class="fsec"><h3>Towar</h3><div class="form-grid">
+      <div class="fld"><label>Produkt</label><input id="i_produkt" list="dlProd" value="${esc(d.produkt)}"></div>
+      <div class="fld"><label>Rodzaj zrębki (A/B)</label><select id="i_rodzaj"><option value="" ${!d.rodzaj?'selected':''}>—</option><option ${d.rodzaj==='A'?'selected':''}>A</option><option ${d.rodzaj==='B'?'selected':''}>B</option></select></div>
+      <div class="fld"><label>Wolumen</label><input type="number" step="0.01" min="0" id="i_wolumen" value="${esc(d.wolumen)}" inputmode="decimal"></div>
+      <div class="fld"><label>Jednostka</label><select id="i_jednostka"><option ${d.jednostka==='MP'?'selected':''}>MP</option><option ${d.jednostka==='M3'?'selected':''}>M3</option><option ${d.jednostka==='TONA'?'selected':''}>TONA</option></select></div>
+      <div class="fld"><label>Tony — sposób wyliczenia</label><select id="i_tonyTryb"><option value="AUTO" ${d.tonyTryb!=='RECZNIE'?'selected':''}>Automatycznie (przelicznik firmowy)</option><option value="RECZNIE" ${d.tonyTryb==='RECZNIE'?'selected':''}>Ręcznie (waga rzeczywista)</option></select></div>
+      <div class="fld" id="fldTonyReczne" style="display:${d.tonyTryb==='RECZNIE'?'flex':'none'}"><label>Masa rzeczywista (t)</label><input type="number" step="0.001" min="0" id="i_tonyReczne" value="${esc(d.tonyReczne||'')}" inputmode="decimal" placeholder="np. 18.42"></div>
+      <div class="fld" id="fldKonwTryb" style="display:${d.jednostka==='TONA'?'none':'flex'}"><label>M³ ↔ MP — sposób przeliczenia</label><select id="i_konwTryb"><option value="AUTO" ${(d.jednostka==='M3'?d.mpTryb:d.m3Tryb)!=='RECZNIE'?'selected':''}>Automatycznie (przelicznik firmowy)</option><option value="RECZNIE" ${(d.jednostka==='M3'?d.mpTryb:d.m3Tryb)==='RECZNIE'?'selected':''}>Ręcznie (wartość rzeczywista)</option></select></div>
+      <div class="fld" id="fldKonwReczne" style="display:${(d.jednostka!=='TONA'&&(d.jednostka==='M3'?d.mpTryb:d.m3Tryb)==='RECZNIE')?'flex':'none'}"><label id="lblKonwReczne">${d.jednostka==='MP'?'Rzeczywiste M³':'Rzeczywiste MP (z placu)'}</label><input type="number" step="0.001" min="0" id="i_konwReczne" value="${esc(d.jednostka==='MP'?(d.m3Reczne||''):(d.mpReczne||''))}" inputmode="decimal" placeholder="${d.jednostka==='MP'?'np. 27.5':'np. 150.0'}"></div>
+      <div class="fld"><label>Cena zakupu / produkcji <span style="text-transform:none">(zł/jedn.)</span></label><input type="number" step="0.01" min="0" id="i_cenaZakupu" value="${esc(d.cenaZakupu)}" inputmode="decimal"></div>
+      <div class="fld"><label>Cena sprzedaży <span style="text-transform:none">(zł/jedn.)</span></label><input type="number" step="0.01" min="0" id="i_cenaSprzedazy" value="${esc(d.cenaSprzedazy)}" inputmode="decimal"></div>
+      <div class="fld"><label>Rąbanie (własne / wynajęte)</label><input id="i_rabanie" list="dlRab" value="${esc(d.rabanie)}"></div>
+      <div class="fld"><label>Koszt rąbania <span style="text-transform:none">(zł/jedn.)</span></label><input type="number" step="0.01" min="0" id="i_kosztRabania" value="${esc(d.kosztRabania)}" inputmode="decimal"></div>
+    </div></div>
+
+    <div class="fsec"><h3>Las i strony operacji</h3><div class="form-grid">
+      <div class="fld"><label>Nadleśnictwo (NDL)</label><input id="i_nadlesnictwo" list="dlNdl" value="${esc(d.nadlesnictwo||'')}" placeholder="np. Zawadzkie"></div>
+      <div class="fld"><label>Leśnictwo</label><input id="i_lesnictwo" list="dlLes" value="${esc(d.lesnictwo||'')}" placeholder="np. Kielcza"></div>
+      <div class="fld"><label>Nr kwitu wywozowego</label><input id="i_kwitWywozowy" value="${esc(d.kwitWywozowy)}" placeholder="np. 10/202636843/1063"></div>
+      <div class="fld"><label>Miejsce załadunku (inne niż las)</label><input id="i_miejsceZaladunku" list="dlMz" value="${esc(d.miejsceZaladunku)}" placeholder="np. Litwa, magazyn"></div>
+      <div class="fld"><label>Dostawca / źródło</label><input id="i_dostawca" list="dlDost" value="${esc(d.dostawca)}"></div>
+      <div class="fld"><label>Odbiorca / cel</label><input id="i_odbiorca" list="dlOdb" value="${esc(d.odbiorca)}"></div>
+      <div class="fld"><label>Miejsce pochodzenia</label><input id="i_pochodzenie" list="dlPoch" value="${esc(d.pochodzenie)}"></div>
+    </div></div>
+
+    <div class="fsec"><h3>Transport</h3><div class="form-grid">
+      <div class="fld"><label>Firma transportowa / kierowca</label><input id="i_transportFirma" list="dlTr" value="${esc(d.transportFirma)}" placeholder="np. własny (Kretek)"></div>
+      <div class="fld"><label>Nr rejestracyjny</label><input id="i_nrRej" list="dlRej" value="${esc(d.nrRej)}" style="text-transform:uppercase"></div>
+      <div class="fld"><label>Odległość (km)</label><input type="number" step="1" min="0" id="i_odlegloscKm" value="${esc(d.odlegloscKm)}" inputmode="numeric"></div>
+      <div class="fld"><label>Koszt transportu / fracht (zł)</label><input type="number" step="0.01" min="0" id="i_kosztTransportu" value="${esc(d.kosztTransportu)}" inputmode="decimal"><span class="hint" id="frachtHint"></span></div>
+    </div></div>
+
+    <div class="fsec"><h3>Skany dokumentów — zdjęcia kwitów / PDF</h3>
+      <div class="zal-grid" id="pendZal"></div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:10px;align-items:center">
+        <button type="button" class="btn btn-green btn-sm" onclick="document.getElementById('i_skany').click()">＋ Dodaj skan (aparat / plik)</button>
+        <span style="font-size:12px;color:var(--ink-2)">Załączniki zapiszą się razem z operacją. Zdjęcia są kompresowane automatycznie.</span>
+      </div>
+      <input type="file" id="i_skany" accept="image/*,application/pdf" multiple style="display:none">
+    </div>
+    <div class="fsec"><h3>Zatwierdzenie</h3><div class="form-grid">
+      <div class="fld"><label>Uwagi</label><input id="i_uwagi" value="${esc(d.uwagi)}"></div>
+      <div class="fld" style="background:var(--amber-soft);border:1px solid #D8C078;border-radius:10px;padding:10px 12px"><label style="color:#8F7418">Podpis zatwierdzającego — imię i nazwisko (wymagane)</label><input id="i_podpis" value="${esc(d.podpis)}" placeholder="np. Jan Kowalski" style="background:#fff"></div>
+    </div></div>
+    <div class="calc-strip" id="calcStrip"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveForm(false)">${IC.plus} ${editId?'Zapisz zmiany':'Zapisz operację'}</button>
+      ${editId?'':`<button class="btn btn-green" onclick="saveForm(true)">Zapisz i dodaj kolejną</button>`}
+      <button class="btn btn-ghost" onclick="editId=null;location.hash='operacje'">Anuluj</button>
+    </div>
+  </div></div>`;
+
+  const seg = document.getElementById('segTyp');
+  seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    const t=b.dataset.t;
+    document.getElementById('docHint').innerHTML = 'Pozostaw puste — nadam automatycznie: <b>'+esc(nextDoc(t)||'—')+'</b>';
+    document.getElementById('i_nrDok').placeholder = nextDoc(t)||'';
+    const odb=document.getElementById('i_odbiorca'), dost=document.getElementById('i_dostawca');
+    if(t==='ZAKUP'||t==='PRODUKCJA'||t==='BO'){ if(!odb.value) odb.value='Magazyn RiC Zabrze'; }
+    if(t==='SPRZEDAŻ'||t==='ZUŻYCIE'||t==='MM'){ if(!dost.value) dost.value='Magazyn RiC Zabrze'; }
+    const setV=(id,v)=>{ document.getElementById('i_'+id).value=v; };
+    const setS=(id,v)=>{ document.getElementById('i_'+id).value=v; };
+    if(t==='ZAKUP'){ setV('produkt','Drewno opałowe z lasu'); setS('jednostka','M3'); setS('certyfikat','KZR'); }      // kwit leśny: m3 ×4 = MP
+    if(t==='PRODUKCJA'){ setV('produkt','Zrębka Produkcyjna Leśna'); setS('jednostka','MP'); }
+    if(t==='ZUŻYCIE'){ setV('produkt','Drewno opałowe z lasu'); setS('jednostka','MP'); setS('certyfikat','KZR'); }    // zużywamy zakupione drewno KZR
+    const fc = document.getElementById('fsecChain');
+    if(fc){ fc.style.display = (t==='ZAKUP' && !editId) ? 'block' : 'none';
+      if(t!=='ZAKUP'){ const a=document.getElementById('chkProdukcja'), b=document.getElementById('chkSprzedaz');
+        if(a) a.checked=false; if(b){ b.checked=false; } const ms=document.getElementById('i_magazynowane'); if(ms) ms.disabled=false;
+        document.getElementById('chainProd').style.display='none'; document.getElementById('chainSprz').style.display='none'; } }
+    liveCalc();
+  }));
+  ['i_wolumen','i_jednostka','i_cenaZakupu','i_cenaSprzedazy','i_kosztRabania','i_kosztTransportu','i_tonyReczne','i_konwReczne','i_odlegloscKm'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', liveCalc);
+  });
+  const syncKonwUI = ()=>{
+    const j = document.getElementById('i_jednostka').value;
+    const tona = j==='TONA';
+    document.getElementById('fldKonwTryb').style.display = tona ? 'none' : 'flex';
+    const on = !tona && document.getElementById('i_konwTryb').value==='RECZNIE';
+    document.getElementById('fldKonwReczne').style.display = on ? 'flex' : 'none';
+    document.getElementById('lblKonwReczne').textContent = j==='MP' ? 'Rzeczywiste M³' : 'Rzeczywiste MP (z placu)';
+    document.getElementById('i_konwReczne').placeholder = j==='MP' ? 'np. 27.5' : 'np. 150.0';
+  };
+  document.getElementById('i_konwTryb').addEventListener('change', ()=>{ syncKonwUI(); liveCalc(); });
+  document.getElementById('i_jednostka').addEventListener('change', syncKonwUI);
+  document.getElementById('i_tonyTryb').addEventListener('change', ()=>{
+    document.getElementById('fldTonyReczne').style.display = document.getElementById('i_tonyTryb').value==='RECZNIE' ? 'flex' : 'none';
+    liveCalc();
+  });
+  document.getElementById('i_nrRej').addEventListener('change', ()=>{
+    const nr = document.getElementById('i_nrRej').value.trim().toUpperCase();
+    const p = (state.cfg.slowniki.pojazdy||[]).find(x=>(x.nr||'').toUpperCase()===nr);
+    const tf = document.getElementById('i_transportFirma');
+    if(p && p.firma && !tf.value){ tf.value = p.firma; toast('Firma z pojazdu: '+p.firma); }
+  });
+  pendZal = [];
+  drawPendZal();
+  document.getElementById('i_skany').addEventListener('change', async e=>{
+    for(const f of e.target.files){
+      try{ const z = await compressFile(f); pendZal.push(z); }
+      catch(_){ toast('Nie udało się wczytać: '+f.name); }
+    }
+    e.target.value = ''; drawPendZal();
+  });
+  drawPendZal();
+  liveCalc();
+};
+function formData(){
+  const g = id => document.getElementById('i_'+id).value.trim();
+  const typ = document.querySelector('#segTyp button.on').dataset.t;
+  return {
+    typ, nrDok: g('nrDok') || nextDoc(typ),
+    dataOperacji: g('dataOperacji'), dataZaladunku: g('dataZaladunku'),
+    miejsceZaladunku: g('miejsceZaladunku'), dostawca: g('dostawca'), odbiorca: g('odbiorca'),
+    produkt: g('produkt'), rodzaj: document.getElementById('i_rodzaj').value,
+    wolumen: +g('wolumen')||0, jednostka: document.getElementById('i_jednostka').value,
+    cenaZakupu: +g('cenaZakupu')||0, cenaSprzedazy: +g('cenaSprzedazy')||0,
+    rabanie: g('rabanie'), kosztRabania: +g('kosztRabania')||0,
+    transportFirma: g('transportFirma'), nrRej: g('nrRej').toUpperCase(),
+    odlegloscKm: +g('odlegloscKm')||0, kosztTransportu: +g('kosztTransportu')||0,
+    certyfikat: document.getElementById('i_certyfikat').value,
+    magazynowane: document.getElementById('i_magazynowane').value,
+    pochodzenie: g('pochodzenie'), uwagi: g('uwagi'),
+    kwitWywozowy: g('kwitWywozowy'), nadlesnictwo: g('nadlesnictwo'), lesnictwo: g('lesnictwo'),
+    tonyTryb: document.getElementById('i_tonyTryb').value, tonyReczne: +g('tonyReczne')||0,
+    mpTryb: (document.getElementById('i_jednostka').value==='M3' && document.getElementById('i_konwTryb').value==='RECZNIE') ? 'RECZNIE' : 'AUTO',
+    mpReczne: document.getElementById('i_jednostka').value==='M3' ? (+g('konwReczne')||0) : 0,
+    m3Tryb: (document.getElementById('i_jednostka').value==='MP' && document.getElementById('i_konwTryb').value==='RECZNIE') ? 'RECZNIE' : 'AUTO',
+    m3Reczne: document.getElementById('i_jednostka').value==='MP' ? (+g('konwReczne')||0) : 0,
+    miejsceProdukcji: '', podpis: g('podpis')
+  };
+}
+function liveCalc(){
+  const d = formData(); const c = calc(d);
+  document.getElementById('calcStrip').innerHTML =
+    `<div class="ci"><div class="l">Metry przestrz.${c.mpReal?' (wartość rzeczywista)':''}</div><div class="v">${fmt(c.mp)} <small>MP</small></div></div>
+     <div class="ci"><div class="l">M³${c.m3Real?' (wartość rzeczywista)':''}</div><div class="v">${fmt(c.m3)} <small>m³</small></div></div>
+     <div class="ci"><div class="l">Tony${c.tonyReal?' (wartość rzeczywista)':''}</div><div class="v">${fmt(c.tony)} <small>t</small></div></div>
+     <div class="ci"><div class="l">Energia</div><div class="v">${fmt(c.gj,0)} <small>GJ</small></div></div>
+     <div class="ci"><div class="l">Wartość zakupu</div><div class="v">${fmt(c.wZak,0)} <small>zł</small></div></div>
+     <div class="ci"><div class="l">Wartość sprzedaży</div><div class="v">${fmt(c.wSpr,0)} <small>zł</small></div></div>
+     <div class="ci"><div class="l">Koszt rąbania</div><div class="v">${fmt(c.wRab,0)} <small>zł</small></div></div>`;
+  const fh = document.getElementById('frachtHint');
+  if(fh){ const km=+document.getElementById('i_odlegloscKm').value||0, kt=+document.getElementById('i_kosztTransportu').value||0;
+    fh.textContent = (km>0&&kt>0) ? 'stawka: '+fmt(kt/km,2)+' zł/km' : ''; }
+  const pv = document.getElementById('chainPreview');
+  if(pv){
+    const chP=document.getElementById('chkProdukcja'), chS=document.getElementById('chkSprzedaz');
+    if(chP && chP.checked){
+      const prodMp = +(document.getElementById('i_chWolumen').value) || c.mp;
+      const prodN = document.getElementById('i_chProdukt').value || 'Zrębka Produkcyjna Leśna';
+      let s = 'Zapiszę łańcuch: '+ (nextDoc('ZAKUP')||'PZ') + ' zakup ' + fmt(d.wolumen) + ' ' + d.jednostka +
+              ' → auto-zużycie ' + fmt(c.mp) + ' MP surowca → produkcja ' + fmt(prodMp) + ' MP („' + prodN + '”)';
+      if(chS && chS.checked) s += ' → ' + (nextDoc('SPRZEDAŻ')||'WZ') + ' wywóz do odbiorcy (kwit wywozowy + transport na WZ, bez magazynowania)';
+      else s += ' → wywóz na magazyn (kwit wywozowy + transport na produkcji)';
+      pv.textContent = s;
+    } else pv.textContent = '';
+  }
+}
+function saveForm(again){
+  const d = formData();
+  if(!d.produkt){ toast('Podaj produkt'); return; }
+  if(!(d.wolumen>0)){ toast('Podaj wolumen większy od zera'); return; }
+  if(!d.dataOperacji){ toast('Podaj datę operacji'); return; }
+  if(d.podpis.split(/\s+/).filter(Boolean).length < 2){ toast('Podpisz dokument pełnym imieniem i nazwiskiem'); document.getElementById('i_podpis').focus(); return; }
+  const zapiszSkany = async recId => {
+    for(const z of pendZal){ try{ await zdb.add(recId, z.data, z.name); }catch(_){ toast('Skan nie zapisany: '+z.name); } }
+    if(pendZal.length) toast('Zapisano skany: '+pendZal.length);
+    pendZal = []; refreshZalCounts();
+  };
+  const chP = document.getElementById('chkProdukcja'), chS = document.getElementById('chkSprzedaz');
+  const chain = !editId && d.typ==='ZAKUP' && chP && chP.checked;
+  if(chain){
+    const chProdukt = document.getElementById('i_chProdukt').value.trim() || 'Zrębka Produkcyjna Leśna';
+    const zakupMp = d.jednostka==='M3' ? d.wolumen*state.cfg.m3mp : d.wolumen;
+    const chWolumen = +(document.getElementById('i_chWolumen').value) || zakupMp;
+    const sprz = chS && chS.checked;
+    const chOdb = document.getElementById('i_chOdbiorca').value.trim();
+    const chCena = +(document.getElementById('i_chCena').value) || 0;
+    if(!(chWolumen>0)){ toast('Wolumen produkcji musi być większy od zera'); return; }
+    if(sprz && (!chOdb || !(chCena>0))){ toast('Sprzedaż: podaj odbiorcę i cenę większą od zera'); return; }
+    const pzNr = d.nrDok || nextDoc('ZAKUP');
+    const wspolne = { dataOperacji:d.dataOperacji, dataZaladunku:d.dataZaladunku, certyfikat:d.certyfikat,
+      nadlesnictwo:d.nadlesnictwo, lesnictwo:d.lesnictwo,
+      miejsceZaladunku:d.miejsceZaladunku, pochodzenie:d.pochodzenie, dostawca:d.dostawca,
+      rodzaj:d.rodzaj, podpis:d.podpis, lancuch:pzNr };
+    // 1. ZAKUP — magazynowane NIE, bo surowiec od razu idzie do produkcji (logika z makra Excela)
+    const zakup = Object.assign({}, d, wspolne, { id:uid(), nrDok:pzNr, magazynowane:'NIE',
+      cenaSprzedazy:0, kosztRabania:0, kwitWywozowy:'',
+      transportFirma:'', nrRej:'', odlegloscKm:0, kosztTransportu:0, dataDodania:nowIso() });
+    state.records.push(zakup);
+    // 2. ZUŻYCIE — tyle, ile kupiono; ten sam produkt (jak w makrze)
+    state.records.push(Object.assign({}, wspolne, { id:uid(), typ:'ZUŻYCIE', nrDok:pzNr,
+      produkt:d.produkt, wolumen:d.wolumen, jednostka:d.jednostka, magazynowane:'NIE',
+      cenaZakupu:0, cenaSprzedazy:0, rabanie:'', kosztRabania:0, transportFirma:'', nrRej:'',
+      odlegloscKm:0, kosztTransportu:0, odbiorca:d.odbiorca, miejsceProdukcji:'', kwitWywozowy:'',
+      uwagi:'Automatyczne zużycie surowca', dataDodania:nowIso() }));
+    // 3. PRODUKCJA — produkt i wolumen z panelu; koszt rąbania tylko tutaj (bez dublowania kosztów)
+    state.records.push(Object.assign({}, wspolne, { id:uid(), typ:'PRODUKCJA', nrDok:pzNr,
+      produkt:chProdukt, wolumen:chWolumen, jednostka:'MP', magazynowane: sprz?'NIE':'TAK',
+      cenaZakupu:0, cenaSprzedazy:0, rabanie:d.rabanie, kosztRabania:d.kosztRabania,
+      kwitWywozowy: sprz?'':d.kwitWywozowy,
+      transportFirma: sprz?'':d.transportFirma, nrRej: sprz?'':d.nrRej,
+      odlegloscKm: sprz?0:d.odlegloscKm, kosztTransportu: sprz?0:d.kosztTransportu,
+      odbiorca:d.odbiorca, miejsceProdukcji:'',
+      uwagi: sprz?'Automatyczna produkcja z zakupionego surowca':'Automatyczna produkcja — wywóz zrębki na magazyn',
+      dataDodania:nowIso() }));
+    let wzNr = '';
+    if(sprz){
+      wzNr = nextDoc('SPRZEDAŻ');
+      // 4. SPRZEDAŻ — prosto do elektrowni, bez magazynowania; transport przypisany do WZ
+      state.records.push(Object.assign({}, wspolne, { id:uid(), typ:'SPRZEDAŻ', nrDok:wzNr,
+        produkt:chProdukt, wolumen:chWolumen, jednostka:'MP', magazynowane:'NIE',
+        cenaZakupu:0, cenaSprzedazy:chCena, rabanie:'', kosztRabania:0,
+        kwitWywozowy:d.kwitWywozowy,
+        transportFirma:d.transportFirma, nrRej:d.nrRej, odlegloscKm:d.odlegloscKm, kosztTransportu:d.kosztTransportu,
+        dostawca:d.dostawca, odbiorca:chOdb, miejsceProdukcji:'',
+        uwagi:'Automatyczna sprzedaż — wywóz prosto do odbiorcy', dataDodania:nowIso() }));
+    }
+    state.cfg.uzytkownik = d.podpis;
+    save('Łańcuch zapisany: '+pzNr+' + zużycie + produkcja'+(sprz?' + '+wzNr:''));
+    zapiszSkany(zakup.id).then(()=>{ if(again){ VIEWS.nowa(); } else { location.hash='operacje'; } });
+    return;
+  }
+  if(editId){
+    const i = state.records.findIndex(x=>x.id===editId);
+    const before = JSON.parse(JSON.stringify(state.records[i]));
+    const updated = Object.assign({}, state.records[i], d);
+    registerCorrection(before, updated);
+    state.records[i] = updated;
+    const rid = editId; editId = null; save('Zmiany zapisane');
+    zapiszSkany(rid).then(()=>{ location.hash='operacje'; });
+  } else {
+    d.id = uid(); d.dataDodania = nowIso();
+    state.cfg.uzytkownik = d.podpis;
+    state.records.push(d); save('Operacja '+d.nrDok+' zapisana');
+    zapiszSkany(d.id).then(()=>{ if(again){ VIEWS.nowa(); } else { location.hash='operacje'; } });
+  }
+}
+window.editRec = id => { editId = id; if(location.hash==='#nowa') VIEWS.nowa(); else location.hash='nowa'; };
+window.dupRec = id => {
+  const r = state.records.find(x=>x.id===id); if(!r) return;
+  const n = Object.assign({}, r, { id: uid(), nrDok: nextDoc(r.typ), dataOperacji: today(), dataDodania: nowIso() });
+  state.records.push(n); save('Skopiowano jako '+n.nrDok); route();
+};
+window.delRec = id => {
+  const r = state.records.find(x=>x.id===id); if(!r) return;
+  if(!confirm('Usunąć operację '+(r.nrDok||'')+' ('+r.typ+', '+r.produkt+')?')) return;
+  state.records = state.records.filter(x=>x.id!==id); skanyDelForRec(id); save('Usunięto'); route();
+};
+
+/* ---------- RAPORT DZIENNY PRODUKCJI ---------- */
+function prodDays(){ // daty z operacjami PRODUKCJA, malejąco
+  return [...new Set(state.records.filter(r=>r.typ==='PRODUKCJA' && r.dataOperacji).map(r=>r.dataOperacji))].sort().reverse();
+}
+function prodReport(d){
+  const prod = state.records.filter(r=>r.typ==='PRODUKCJA' && r.dataOperacji===d);
+  const zuz  = state.records.filter(r=>r.typ==='ZUŻYCIE'   && r.dataOperacji===d);
+  const wyd  = state.records.filter(r=>r.typ==='SPRZEDAŻ'  && r.dataOperacji===d);
+  const perProd = {}; let tot = {mp:0,t:0,gj:0,rab:0,wol:0};
+  const docs = new Set();
+  for(const r of prod){ const c=calc(r);
+    const p=r.produkt||'—';
+    if(!perProd[p]) perProd[p]={mp:0,t:0,gj:0,n:0,zrodla:new Set()};
+    perProd[p].mp+=c.mp; perProd[p].t+=c.tony; perProd[p].gj+=c.gj; perProd[p].n++;
+    const _l=lasStr(r)||r.pochodzenie; if(_l) perProd[p].zrodla.add(_l);
+    tot.mp+=c.mp; tot.t+=c.tony; tot.gj+=c.gj; tot.rab+=c.wRab; tot.wol+=(+r.wolumen||0);
+    String(r.nrDok||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>docs.add(s));
+  }
+  const surowce = zuz.map(r=>{const c=calc(r); return {produkt:r.produkt, mp:c.mp, t:c.tony, zrodlo:lasStr(r)||r.pochodzenie||r.miejsceZaladunku||'', dok:r.nrDok||''};});
+  const kwity = [...new Set(state.records.filter(r=>r.dataOperacji===d && r.kwitWywozowy).map(r=>r.kwitWywozowy))];
+  const lasy = [...new Set(prod.map(r=>lasStr(r)).filter(Boolean))];
+  const wzDocs = wyd.map(r=>(r.nrDok||'').split(' ')[0]).filter(Boolean);
+  return { date:d, prod, perProd, tot, docs:[...docs], surowce, wzDocs, kwity, lasy, n:prod.length };
+}
+function docStamps(list){ return list.map(t=>`<span class="${stampCls(t)}" style="margin:2px 3px 2px 0">${esc(t)}</span>`).join(''); }
+function prodKwitHTML(rep, compact){
+  if(!rep || !rep.n){
+    return `<div class="empty"><b>Brak produkcji w dniu ${dShort(rep?rep.date:'')}</b>Operacje typu PRODUKCJA z tą datą pojawią się tu automatycznie.</div>`;
+  }
+  const prods = Object.entries(rep.perProd);
+  return `
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:${compact?'10px':'14px'}">
+    <div style="flex:1;min-width:130px;background:var(--spruce-deep);border-radius:12px;padding:12px 15px">
+      <div style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#BFDCC7">Wyprodukowano</div>
+      <div style="font-family:var(--font-disp);font-weight:800;font-size:24px;color:#fff">${fmt(rep.tot.mp)} <small style="font-size:12px;color:#D8EBDD">MP</small></div>
+      <div style="font-size:12px;color:#D8EBDD">${fmt(rep.tot.t)} t · ${fmt(rep.tot.gj,0)} GJ</div>
+    </div>
+    <div style="flex:1;min-width:130px;background:#FAFBF8;border:1px solid var(--line);border-radius:12px;padding:12px 15px">
+      <div style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Partie produkcji</div>
+      <div style="font-family:var(--font-disp);font-weight:800;font-size:24px;color:var(--spruce-deep)">${rep.n}</div>
+      <div style="font-size:12px;color:var(--ink-2)">koszt rąbania: ${zl(rep.tot.rab)}</div>
+    </div>
+    <div style="flex:1;min-width:130px;background:#FAFBF8;border:1px solid var(--line);border-radius:12px;padding:12px 15px">
+      <div style="font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)">Zużyty surowiec</div>
+      <div style="font-family:var(--font-disp);font-weight:800;font-size:24px;color:var(--spruce-deep)">${fmt(rep.surowce.reduce((a,x)=>a+x.mp,0))} <small style="font-size:12px;color:var(--ink-2)">MP</small></div>
+      <div style="font-size:12px;color:var(--ink-2)">${rep.surowce.length} pozycji zużycia</div>
+    </div>
+  </div>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Produkt gotowy</th><th class="num">MP</th><th class="num">Tony</th><th class="num">GJ</th><th>Źródło surowca</th></tr></thead>
+    <tbody>${prods.map(([p,x])=>`<tr><td style="font-weight:600">${esc(p)}</td><td class="num">${fmt(x.mp)}</td><td class="num">${fmt(x.t)}</td><td class="num">${fmt(x.gj,0)}</td><td style="font-size:12px;color:var(--ink-2)">${esc([...x.zrodla].join(' / ')||'—')}</td></tr>`).join('')}
+    <tr class="sum"><td>Razem</td><td class="num">${fmt(rep.tot.mp)}</td><td class="num">${fmt(rep.tot.t)}</td><td class="num">${fmt(rep.tot.gj,0)}</td><td></td></tr></tbody>
+  </table></div>
+  <div style="margin-top:12px;font-size:12px">
+    ${rep.lasy.length?`<div style="letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-size:10.5px;margin-bottom:5px">Miejsce produkcji (lasy)</div><div style="margin-bottom:9px;font-weight:600">${rep.lasy.map(esc).join(' · ')}</div>`:''}
+    <div style="letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-size:10.5px;margin-bottom:5px">Dokumenty przyjęć powiązane z produkcją (PZ)</div>
+    <div>${rep.docs.length?docStamps(rep.docs):'<span style="color:var(--ink-2)">—</span>'}</div>
+    ${rep.kwity.length?`<div style="letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-size:10.5px;margin:9px 0 5px">Kwity wywozowe dnia</div><div>${docStamps(rep.kwity)}</div>`:''}
+    ${rep.wzDocs.length?`<div style="letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-size:10.5px;margin:9px 0 5px">Wydania tego dnia (WZ)</div><div>${docStamps(rep.wzDocs)}</div>`:''}
+  </div>
+  ${!compact && rep.surowce.length ? `
+  <div style="margin-top:14px">
+    <div style="letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);font-size:10.5px;margin-bottom:6px">Surowiec zużyty do produkcji</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Surowiec</th><th class="num">MP</th><th class="num">Tony</th><th>Pochodzenie</th><th>Dokumenty</th></tr></thead>
+      <tbody>${rep.surowce.map(x=>`<tr><td>${esc(x.produkt)}</td><td class="num">${fmt(x.mp)}</td><td class="num">${fmt(x.t)}</td><td style="font-size:12px">${esc(x.zrodlo||'—')}</td><td style="font-size:11.5px;color:var(--ink-2)">${esc(x.dok||'—')}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`:''}`;
+}
+
+let prodSelDate = '';
+VIEWS.produkcja = function(){
+  const days = prodDays();
+  if(!prodSelDate) prodSelDate = days.includes(today()) ? today() : (days[0] || today());
+  const rep = prodReport(prodSelDate);
+  const i = days.indexOf(prodSelDate);
+  V.innerHTML = pageHead('Kwit Produkcji Dnia','Raport dzienny · '+dShort(prodSelDate),
+    `<button class="btn btn-ghost" onclick="printProdDay()">${IC.print} Drukuj kwit</button><button class="btn btn-ghost" onclick="mailProdDay()">✉ E-mail kwit</button>`) +
+  `<div class="chips-filter">${['','ZAKUP','SPRZEDAŻ','PRODUKCJA','ZUŻYCIE','MM','BO'].map(t=>
+    `<button class="${opFilter.typ===t?'on':''}" onclick="opFilter.typ='${t}';VIEWS.operacje()">${t||'Wszystkie'}</button>`).join('')}</div>
+  <div class="toolbar">
+    <button class="btn btn-ghost btn-sm" id="pPrev" ${i===-1||i>=days.length-1?'disabled style="opacity:.4"':''}>← Poprzedni dzień prod.</button>
+    <input type="date" id="pDate" value="${prodSelDate}" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;background:#fff">
+    <button class="btn btn-ghost btn-sm" id="pNext" ${i<=0?'disabled style="opacity:.4"':''}>Następny →</button>
+    <span class="count-pill">${days.length} dni z produkcją w rejestrze</span>
+  </div>
+  <div class="card"><div class="card-h"><h2>Produkcja · ${dShort(prodSelDate)}</h2><span style="font-size:12px;color:var(--ink-2)">${rep.n} partii</span></div>
+  <div class="card-b" id="prodKwitBody">${prodKwitHTML(rep,false)}</div></div>
+  <div style="height:16px"></div>
+  <div class="card"><div class="card-h"><h2>Podsumowanie dnia — operacje magazynowe</h2>
+    <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="printDayReport()">${IC.print} Drukuj raport dnia</button><button class="btn btn-green btn-sm" onclick="mailDayReport()">✉ Wyślij e-mailem</button></span></div>
+  <div class="card-b">${dayCardHTML(prodSelDate)}</div></div>`;
+  document.getElementById('pDate').addEventListener('change', e=>{ prodSelDate=e.target.value; VIEWS.produkcja(); });
+  const prev=document.getElementById('pPrev'), next=document.getElementById('pNext');
+  if(prev) prev.addEventListener('click', ()=>{ if(i<days.length-1){ prodSelDate=days[i+1]; VIEWS.produkcja(); } });
+  if(next) next.addEventListener('click', ()=>{ if(i>0){ prodSelDate=days[i-1]; VIEWS.produkcja(); } });
+};
+window.printProdDay = function(){
+  const rep = prodReport(prodSelDate);
+  const w = window.open('', '_blank');
+  if(!w){ toast('Zezwól na wyskakujące okna, aby drukować kwity'); return; }
+  const prods = Object.entries(rep.perProd);
+  w.document.write(`<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><title>Kwit produkcji ${rep.date}</title>
+  <style>body{font-family:Arial,sans-serif;color:#111;max-width:720px;margin:26px auto;padding:0 18px;font-size:14px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2E7D4F;padding-bottom:12px;margin-bottom:16px}
+  h1{font-size:16px;margin:0 0 4px}.co{font-size:12px;color:#444;line-height:1.5}
+  .nr{font-family:'Courier New',monospace;font-weight:bold;font-size:17px;border:2px dashed #2E7D4F;color:#2E7D4F;padding:6px 14px;border-radius:6px;text-align:center}
+  h2{font-size:13px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.06em;color:#2E7D4F}
+  table{width:100%;border-collapse:collapse}td,th{border:1px solid #999;padding:6px 9px;text-align:left;font-size:13px}
+  th{background:#EEF4EE;font-weight:600}.num{text-align:right}.sum td{font-weight:bold;background:#EFF4EF}
+  .docs{font-family:'Courier New',monospace;font-size:12px;line-height:1.9}
+  .sig{display:flex;justify-content:space-between;margin-top:52px;font-size:12px}
+  .sig div{border-top:1px solid #333;width:42%;text-align:center;padding-top:6px}
+  .ft{margin-top:26px;font-size:10.5px;color:#777;text-align:center}</style></head><body>
+  <div class="top"><div><h1>ResInvest Commodities PL</h1><div class="co">ul. Gwarecka 16, Zabrze · tel. 532 824 864<br>KWIT PRODUKCJI DNIA</div></div>
+  <div class="nr">${dShort(rep.date)}<br>${fmt(rep.tot.mp)} MP</div></div>
+  <h2>Produkty wytworzone</h2>
+  <table><tr><th>Produkt</th><th class="num">MP</th><th class="num">Tony</th><th class="num">GJ</th><th>Źródło surowca</th></tr>
+  ${prods.map(([p,x])=>`<tr><td>${esc(p)}</td><td class="num">${fmt(x.mp)}</td><td class="num">${fmt(x.t)}</td><td class="num">${fmt(x.gj,0)}</td><td>${esc([...x.zrodla].join(' / ')||'—')}</td></tr>`).join('')}
+  <tr class="sum"><td>Razem</td><td class="num">${fmt(rep.tot.mp)}</td><td class="num">${fmt(rep.tot.t)}</td><td class="num">${fmt(rep.tot.gj,0)}</td><td></td></tr></table>
+  ${rep.surowce.length?`<h2>Surowiec zużyty</h2><table><tr><th>Surowiec</th><th class="num">MP</th><th class="num">Tony</th><th>Pochodzenie</th></tr>
+  ${rep.surowce.map(x=>`<tr><td>${esc(x.produkt)}</td><td class="num">${fmt(x.mp)}</td><td class="num">${fmt(x.t)}</td><td>${esc(x.zrodlo||'—')}</td></tr>`).join('')}</table>`:''}
+  ${rep.lasy.length?`<h2>Miejsce produkcji (lasy)</h2><div style="font-size:13px">${rep.lasy.map(esc).join(' · ')}</div>`:''}
+  <h2>Dokumenty powiązane</h2>
+  <div class="docs">PZ: ${rep.docs.map(esc).join(', ')||'—'}${rep.kwity.length?'<br>Kwity wywozowe: '+rep.kwity.map(esc).join(', '):''}${rep.wzDocs.length?'<br>WZ: '+rep.wzDocs.map(esc).join(', '):''}</div>
+  <div style="margin-top:10px;font-size:12px">Koszt rąbania: <b>${zl(rep.tot.rab)}</b> · liczba partii: <b>${rep.n}</b></div>
+  <div class="sig"><div>Sporządził</div><div>Zatwierdził</div></div>
+  <div class="ft">Wygenerowano w ResInvest ERP · autor: Mateusz Roesner · ${new Date().toLocaleString('pl-PL')}</div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+};
+
+/* ---------- RAPORT DNIA: operacje magazynowe + e-mail ---------- */
+function dayOps(d){
+  return state.records.filter(r=>r.dataOperacji===d)
+    .sort((a,b)=>(a.typ||'').localeCompare(b.typ||'','pl') || String(a.nrDok||'').localeCompare(String(b.nrDok||''),'pl'));
+}
+function daySums(d){
+  const ops = dayOps(d); const per = {}; let zak=0, spr=0, tr=0, mpIn=0, mpOut=0;
+  for(const r of ops){ const c = calc(r);
+    if(!per[r.typ]) per[r.typ] = {n:0, mp:0};
+    per[r.typ].n++; per[r.typ].mp += c.mp;
+    zak += c.wZak; spr += c.wSpr; tr += (+r.kosztTransportu||0);
+    if(r.typ==='ZAKUP'||r.typ==='PRODUKCJA'||r.typ==='BO') mpIn += c.mp;
+    if(r.typ==='SPRZEDAŻ'||r.typ==='ZUŻYCIE') mpOut += c.mp;
+  }
+  return {ops, per, zak, spr, tr, mpIn, mpOut};
+}
+function dayCardHTML(d){
+  const s = daySums(d);
+  if(!s.ops.length) return '<div class="empty"><b>Brak operacji w tym dniu</b>Wybierz inną datę albo dodaj operację.</div>';
+  const chips = TYPY.filter(t=>s.per[t]).map(t=>`<span class="tag ${t}">${t} · ${s.per[t].n}</span>`).join(' ');
+  const rows = s.ops.map(r=>{ const c=calc(r); const w=c.wSpr||c.wZak;
+    const kontr = r.typ==='SPRZEDAŻ'||r.typ==='MM' ? r.odbiorca : (/^magazyn/i.test(r.dostawca||'')? r.miejsceZaladunku||r.dostawca : r.dostawca);
+    return `<tr><td><span class="tag ${esc(r.typ)}">${esc(r.typ)}</span></td>
+      <td><span class="${stampCls(r.nrDok)}">${esc((r.nrDok||'—').split(' ')[0])}</span></td>
+      <td>${esc(r.produkt||'—')}</td>
+      <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(kontr||'—')}</td>
+      <td class="num">${fmt(c.mp)}${c.mpReal?'<span title="wartość rzeczywista" style="color:var(--amber);font-weight:700">*</span>':''}</td><td class="num">${fmt(c.tony)}${c.tonyReal?'<span title="wartość rzeczywista" style="color:var(--amber);font-weight:700">*</span>':''}</td>
+      <td class="num">${w?fmt(w,0)+' zł':'—'}</td>
+      <td class="num">${(+r.kosztTransportu)?fmt(r.kosztTransportu,0)+' zł':'—'}</td></tr>`; }).join('');
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${chips}
+      <span style="margin-left:auto;font-size:12px;color:var(--ink-2)">przyjęcia <b style="color:var(--pos)">+${fmt(s.mpIn)} MP</b> · wydania <b style="color:var(--neg)">−${fmt(s.mpOut)} MP</b></span></div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Typ</th><th>Dokument</th><th>Produkt</th><th>Kontrahent</th><th class="num">MP</th><th class="num">Tony</th><th class="num">Wartość</th><th class="num">Transport</th></tr></thead>
+      <tbody>${rows}<tr class="sum"><td colspan="4">Sumy dnia</td><td class="num">${fmt(s.mpIn - s.mpOut)}</td><td class="num"></td>
+        <td class="num">zakup ${fmt(s.zak,0)} zł · sprzedaż ${fmt(s.spr,0)} zł</td><td class="num">${fmt(s.tr,0)} zł</td></tr></tbody>
+    </table></div>`;
+}
+function dayReportText(d){
+  const s = daySums(d);
+  const L = ['RAPORT DNIA - '+dShort(d), 'Magazyn RiC Zabrze - ResInvest Commodities PL', ''];
+  L.push('Operacje: '+s.ops.length+(s.ops.length?' ('+TYPY.filter(t=>s.per[t]).map(t=>t+' '+s.per[t].n).join(', ')+')':''));
+  s.ops.slice(0,20).forEach(r=>{ const c=calc(r); const w=c.wSpr||c.wZak;
+    L.push('- '+(r.nrDok?(r.nrDok+' '):'')+r.typ+' '+(r.produkt||'')+' '+fmt(c.mp)+' MP'+(c.mpReal?' (wartosc rzeczywista)':'')+(w?' '+fmt(w,0)+' zl':'')); });
+  if(s.ops.length>20) L.push('- ... i '+(s.ops.length-20)+' kolejnych (pelna lista w aplikacji)');
+  L.push('');
+  L.push('SUMY: przyjecia +'+fmt(s.mpIn)+' MP, wydania -'+fmt(s.mpOut)+' MP');
+  L.push('Zakupy: '+fmt(s.zak,0)+' zl, sprzedaz: '+fmt(s.spr,0)+' zl, transport: '+fmt(s.tr,0)+' zl');
+  L.push(''); L.push('Wygenerowano w ResInvest ERP');
+  return L.join('\n');
+}
+function prodDayText(d){
+  const P = state.records.filter(r=>r.typ==='PRODUKCJA' && r.dataOperacji===d);
+  const Z = state.records.filter(r=>r.typ==='ZUŻYCIE'   && r.dataOperacji===d);
+  let mp=0, tn=0; const lines = P.map(r=>{ const c=calc(r); mp+=c.mp; tn+=c.tony; return '- '+(r.produkt||'')+': '+fmt(c.mp)+' MP'+(c.mpReal?' (wartosc rzeczywista)':'')+' ('+fmt(c.tony)+' t'+(c.tonyReal?' — waga rzeczywista':'')+')'; });
+  let zmp=0; Z.forEach(r=>{ zmp+=calc(r).mp; });
+  return ['KWIT PRODUKCJI DNIA - '+dShort(d), 'Magazyn RiC Zabrze - ResInvest Commodities PL', '',
+    'Wyprodukowano ('+P.length+' partii):', (lines.join('\n')||'- brak produkcji'),
+    'Razem: '+fmt(mp)+' MP / '+fmt(tn)+' t', 'Zuzyty surowiec: '+fmt(zmp)+' MP', '',
+    'Wygenerowano w ResInvest ERP'].join('\n');
+}
+window.mailDayReport = function(){
+  const d = prodSelDate || today();
+  location.href = 'mailto:?subject='+encodeURIComponent('Raport dnia '+dShort(d)+' — Magazyn RiC Zabrze')
+    +'&body='+encodeURIComponent(dayReportText(d));
+};
+window.mailProdDay = function(){
+  const d = prodSelDate || today();
+  location.href = 'mailto:?subject='+encodeURIComponent('Kwit produkcji '+dShort(d)+' — Magazyn RiC Zabrze')
+    +'&body='+encodeURIComponent(prodDayText(d));
+};
+window.printDayReport = function(){
+  const d = prodSelDate || today(); const s = daySums(d);
+  const rows = s.ops.map(r=>{ const c=calc(r); const w=c.wSpr||c.wZak;
+    const kontr = r.typ==='SPRZEDAŻ'||r.typ==='MM' ? r.odbiorca : (/^magazyn/i.test(r.dostawca||'')? r.miejsceZaladunku||r.dostawca : r.dostawca);
+    return '<tr><td>'+esc(r.typ)+'</td><td>'+esc((r.nrDok||'—').split(' ')[0])+'</td><td>'+esc(r.produkt||'—')+'</td><td>'+esc(kontr||'—')+'</td><td class="n">'+fmt(c.mp)+'</td><td class="n">'+fmt(c.tony)+'</td><td class="n">'+(w?fmt(w,0)+' zł':'—')+'</td><td class="n">'+((+r.kosztTransportu)?fmt(r.kosztTransportu,0)+' zł':'—')+'</td></tr>'; }).join('');
+  const w2 = window.open('','_blank'); if(!w2){ toast('Odblokuj wyskakujące okna, aby drukować'); return; }
+  w2.document.write(`<html><head><meta charset="utf-8"><title>Raport dnia ${dShort(d)}</title>
+  <style>body{font-family:Arial,sans-serif;color:#111;max-width:760px;margin:26px auto;padding:0 18px;font-size:13px}
+  h1{font-size:19px;margin:0} .co{color:#555;font-size:12px;margin:4px 0 16px}
+  table{width:100%;border-collapse:collapse;font-size:12px} th,td{border-bottom:1px solid #ddd;padding:6px 7px;text-align:left}
+  th{font-size:10.5px;text-transform:uppercase;color:#555} td.n,th.n{text-align:right}
+  .sum td{font-weight:700;border-top:2px solid #999}
+  .ft{margin-top:26px;font-size:10.5px;color:#777;text-align:center}</style></head><body>
+  <h1>ResInvest Commodities PL</h1><div class="co">ul. Gwarecka 16, Zabrze · tel. 532 824 864<br>RAPORT DNIA — OPERACJE MAGAZYNOWE · ${dShort(d)} · Magazyn RiC Zabrze</div>
+  <table><thead><tr><th>Typ</th><th>Dokument</th><th>Produkt</th><th>Kontrahent</th><th class="n">MP</th><th class="n">Tony</th><th class="n">Wartość</th><th class="n">Transport</th></tr></thead>
+  <tbody>${rows||'<tr><td colspan="8">Brak operacji w tym dniu</td></tr>'}
+  <tr class="sum"><td colspan="4">Sumy dnia — bilans MP: ${fmt(s.mpIn - s.mpOut)}</td><td class="n">+${fmt(s.mpIn)} / −${fmt(s.mpOut)}</td><td></td><td class="n">zak. ${fmt(s.zak,0)} zł · sprz. ${fmt(s.spr,0)} zł</td><td class="n">${fmt(s.tr,0)} zł</td></tr></tbody></table>
+  <div class="ft">Wygenerowano w ResInvest ERP · ${new Date().toLocaleString('pl-PL')}</div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w2.document.close();
+};
+
+
+/* ---------- MAGAZYN ---------- */
+VIEWS.magazyn = function(){
+  const s = stany();
+  const mags = [...new Set([].concat(MAGAZYNY_DEF, ...Object.values(s).map(x=>Object.keys(x.mags))))].sort();
+  const prods = Object.keys(s).sort((a,b)=>a.localeCompare(b,'pl'));
+  let sumMp=0,sumT=0;
+  const rows = prods.map(p=>{
+    const x=s[p]; sumMp+=x.total.mp; sumT+=x.total.t;
+    return `<tr><td style="font-weight:600">${esc(p)}</td>${mags.map(m=>{
+      const v=x.mags[m]; return `<td class="num ${v&&v.mp<0?'neg-v':''}">${v?fmt(v.mp):'·'}</td>`;
+    }).join('')}<td class="num ${x.total.mp<0?'neg-v':''}" style="font-weight:700">${fmt(x.total.mp)}</td><td class="num">${fmt(x.total.t)}</td><td class="num">${fmt(x.total.t*state.cfg.tonaGJ,0)}</td></tr>`;
+  }).join('');
+  // rozbicie wg typów operacji
+  const perTyp = {};
+  for(const r of state.records){ const c=calc(r); if(!perTyp[r.typ]) perTyp[r.typ]={mp:0,t:0,w:0};
+    perTyp[r.typ].mp+=c.mp; perTyp[r.typ].t+=c.tony; perTyp[r.typ].w+=(c.wSpr||c.wZak); }
+
+  V.innerHTML = pageHead('Stan magazynowy','Bilans: zakup + produkcja − sprzedaż − zużycie ± MM',
+    `<button class="btn btn-ghost" onclick="window.print()">${IC.print} Drukuj</button>`) +
+  `<div class="card" style="margin-bottom:16px"><div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Produkt</th>${mags.map(m=>`<th class="num">${esc(m.replace('Magazyn ','Mag. '))}<br><span style="font-weight:400;letter-spacing:0">MP</span></th>`).join('')}<th class="num">Razem MP</th><th class="num">Tony</th><th class="num">GJ</th></tr></thead>
+    <tbody>${rows}<tr class="sum"><td>Suma końcowa</td>${mags.map(m=>{
+      const v=prods.reduce((a,p)=>a+((s[p].mags[m]||{}).mp||0),0); return `<td class="num ${v<0?'neg-v':''}">${fmt(v)}</td>`;
+    }).join('')}<td class="num">${fmt(sumMp)}</td><td class="num">${fmt(sumT)}</td><td class="num">${fmt(sumT*state.cfg.tonaGJ,0)}</td></tr></tbody>
+  </table></div></div>
+  <div class="card"><div class="card-h"><h2>Obroty według typu operacji (całość rejestru)</h2></div>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Operacja</th><th class="num">MP</th><th class="num">Tony</th><th class="num">Wartość</th></tr></thead>
+    <tbody>${TYPY.filter(t=>perTyp[t]).map(t=>`<tr><td><span class="tag ${t}">${t}</span></td><td class="num">${fmt(perTyp[t].mp)}</td><td class="num">${fmt(perTyp[t].t)}</td><td class="num">${fmt(perTyp[t].w,0)} zł</td></tr>`).join('')}</tbody>
+  </table></div></div>
+  <p style="font-size:12px;color:var(--ink-2);margin-top:12px">Ujemny stan oznacza sprzedaż produktu, którego przyjęcie nie zostało jeszcze zarejestrowane (np. przeklasyfikowanie zrębki) — warto uzupełnić operację PRODUKCJA.</p>`;
+};
+
+/* ---------- KONTRAHENCI ---------- */
+VIEWS.kontrahenci = function(){
+  const dost = {}, odb = {};
+  for(const r of state.records){
+    const c = calc(r);
+    if(r.dostawca){ if(!dost[r.dostawca]) dost[r.dostawca]={mp:0,t:0,wz:0,ws:0,tr:0,n:0};
+      const d=dost[r.dostawca]; d.mp+=c.mp; d.t+=c.tony; d.wz+=c.wZak; d.ws+=c.wSpr; d.tr+=(+r.kosztTransportu||0); d.n++; }
+    if(r.odbiorca){ if(!odb[r.odbiorca]) odb[r.odbiorca]={mp:0,t:0,wz:0,ws:0,tr:0,n:0};
+      const o=odb[r.odbiorca]; o.mp+=c.mp; o.t+=c.tony; o.wz+=c.wZak; o.ws+=c.wSpr; o.tr+=(+r.kosztTransportu||0); o.n++; }
+  }
+  const tbl = (obj,title) => `<div class="card"><div class="card-h"><h2>${title}</h2></div><div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Kontrahent</th><th class="num">Operacje</th><th class="num">MP</th><th class="num">Tony</th><th class="num">Wart. zakupu</th><th class="num">Wart. sprzedaży</th><th class="num">Transport</th></tr></thead>
+    <tbody>${Object.entries(obj).sort((a,b)=>b[1].mp-a[1].mp).map(([k,v])=>`<tr>
+      <td style="font-weight:600">${esc(k)}</td><td class="num">${v.n}</td><td class="num">${fmt(v.mp)}</td><td class="num">${fmt(v.t)}</td>
+      <td class="num">${v.wz?fmt(v.wz,0)+' zł':'—'}</td><td class="num">${v.ws?fmt(v.ws,0)+' zł':'—'}</td><td class="num">${v.tr?fmt(v.tr,0)+' zł':'—'}</td>
+    </tr>`).join('')}</tbody></table></div></div>`;
+  V.innerHTML = pageHead('Kontrahenci','Dostawcy i odbiorcy — obroty łączne') +
+    tbl(dost,'Według dostawcy / źródła') + '<div style="height:16px"></div>' + tbl(odb,'Według odbiorcy / celu');
+};
+
+/* ---------- RAPORTY ---------- */
+let rapM = '';
+VIEWS.raporty = function(){
+  const months = monthsAvailable();
+  if(!rapM || !months.includes(rapM)) rapM = months[0] || today().slice(0,7);
+  const recs = state.records.filter(r=>monthOf(r)===rapM);
+  const tot = {zak:{mp:0,w:0}, spr:{mp:0,w:0}, prod:{mp:0}, tr:0, rab:0};
+  const perProd = {}, perDay = {}, perTrans = {};
+  for(const r of recs){ const c=calc(r);
+    if(r.typ==='ZAKUP'){tot.zak.mp+=c.mp;tot.zak.w+=c.wZak;}
+    if(r.typ==='SPRZEDAŻ'){tot.spr.mp+=c.mp;tot.spr.w+=c.wSpr;}
+    if(r.typ==='PRODUKCJA'){tot.prod.mp+=c.mp;}
+    tot.tr+=(+r.kosztTransportu||0); tot.rab+=c.wRab;
+    const p=r.produkt||'—'; if(!perProd[p])perProd[p]={mp:0}; perProd[p].mp+=c.mp;
+    const day=(r.dataOperacji||'').slice(8,10); if(day){ if(!perDay[day])perDay[day]=0; perDay[day]+=c.mp; }
+    if(r.transportFirma){ if(!perTrans[r.transportFirma])perTrans[r.transportFirma]={n:0,kw:0}; perTrans[r.transportFirma].n++; perTrans[r.transportFirma].kw+=(+r.kosztTransportu||0); }
+  }
+  const maxProd = Math.max(1,...Object.values(perProd).map(x=>x.mp));
+  const maxDay = Math.max(1,...Object.values(perDay));
+  V.innerHTML = pageHead('Raport miesięczny','Zestawienie okresu',
+    `<select id="rapMSel" class="btn-ghost" style="border:1.5px solid var(--line);border-radius:10px;padding:9px 13px;background:#fff;font-weight:600">${months.map(m=>`<option value="${m}" ${m===rapM?'selected':''}>${monthLabel(m)}</option>`).join('')}</select>
+     <button class="btn btn-ghost" onclick="window.print()">${IC.print} Drukuj</button>`) +
+  `<div class="kpi-grid">
+    <div class="kpi"><div class="lab">Zakupy surowca</div><div class="val">${fmt(tot.zak.mp,0)}<small>MP</small></div><div class="delta">${zl(tot.zak.w)}</div></div>
+    <div class="kpi"><div class="lab">Sprzedaż</div><div class="val">${fmt(tot.spr.mp,0)}<small>MP</small></div><div class="delta">${zl(tot.spr.w)}</div></div>
+    <div class="kpi"><div class="lab">Produkcja zrębki</div><div class="val">${fmt(tot.prod.mp,0)}<small>MP</small></div><div class="delta">rąbanie: ${zl(tot.rab)}</div></div>
+    <div class="kpi"><div class="lab">Koszty transportu</div><div class="val">${fmt(tot.tr,0)}<small>zł</small></div><div class="delta">${recs.length} operacji</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-h"><h2>Wolumen wg produktu (MP)</h2></div><div class="card-b"><div class="bars">${
+      Object.entries(perProd).sort((a,b)=>b[1].mp-a[1].mp).map(([p,x])=>`<div class="bar-row"><span class="b-lab" title="${esc(p)}">${esc(p)}</span><span class="b-track"><span class="b-fill" style="width:${(x.mp/maxProd*100).toFixed(1)}%"></span></span><span class="b-val">${fmt(x.mp,0)}</span></div>`).join('') || '<div class="empty">Brak danych</div>'
+    }</div></div></div>
+    <div class="card"><div class="card-h"><h2>Aktywność dzienna (MP)</h2></div><div class="card-b"><div class="bars">${
+      Object.entries(perDay).sort().map(([d,v])=>`<div class="bar-row amber"><span class="b-lab">${d}.${rapM.slice(5,7)}</span><span class="b-track"><span class="b-fill" style="width:${(v/maxDay*100).toFixed(1)}%"></span></span><span class="b-val">${fmt(v,0)}</span></div>`).join('') || '<div class="empty">Brak danych</div>'
+    }</div></div></div>
+  </div>
+  <div style="height:16px"></div>
+  <div class="card"><div class="card-h"><h2>Transport w miesiącu</h2></div><div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Przewoźnik / kierowca</th><th class="num">Kursy</th><th class="num">Koszt</th><th class="num">Śr. koszt kursu</th></tr></thead>
+    <tbody>${Object.entries(perTrans).sort((a,b)=>b[1].kw-a[1].kw).map(([k,v])=>`<tr><td style="font-weight:600">${esc(k)}</td><td class="num">${v.n}</td><td class="num">${fmt(v.kw,0)} zł</td><td class="num">${fmt(v.kw/v.n,0)} zł</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Brak danych</td></tr>'}</tbody>
+  </table></div></div>`;
+  document.getElementById('rapMSel').addEventListener('change', e=>{ rapM=e.target.value; VIEWS.raporty(); });
+};
+
+/* ---------- KOREKTY — historia edytowanych dokumentów ---------- */
+let corrFilter = '';
+function corrChangesHTML(c){
+  return (c.fields||[]).map(f=>`<div class="corr-change"><span class="corr-label">${esc(f.label||f.key||'Pole')}</span><span class="corr-before">${esc(corrValue(f.from))}</span><span class="corr-arrow">→</span><span class="corr-after">${esc(corrValue(f.to))}</span></div>`).join('');
+}
+VIEWS.korekty = function(){
+  const all = [...state.corrections].sort((a,b)=>(b.editedAt||'').localeCompare(a.editedAt||''));
+  const q = corrFilter.trim().toLowerCase();
+  const list = q ? all.filter(c=>[
+    c.nrDok,c.produkt,c.typ,c.editor,
+    ...(c.fields||[]).flatMap(f=>[f.label,f.from,f.to])
+  ].join(' ').toLowerCase().includes(q)) : all;
+  const docs = new Set(all.map(c=>c.recId).filter(Boolean)).size;
+  const todayCount = all.filter(c=>(c.editedAt||'').slice(0,10)===today()).length;
+  V.innerHTML = pageHead('Korekty','Historia edytowanych dokumentów i wpisów') +
+  `<div class="stat-grid">
+    <div class="stat s-green"><div class="s-ic">${IC.edit}</div><div><div class="s-l">Wszystkie korekty</div><div class="s-v">${all.length}</div><div class="s-d">zapisanych zmian w rejestrze</div></div></div>
+    <div class="stat"><div class="s-ic">${IC.ops}</div><div><div class="s-l">Edytowane dokumenty</div><div class="s-v">${docs}</div><div class="s-d">unikalnych wpisów w historii</div></div></div>
+    <div class="stat"><div class="s-ic">${IC.pulpit}</div><div><div class="s-l">Korekty dzisiaj</div><div class="s-v">${todayCount}</div><div class="s-d">${dShort(today())}</div></div></div>
+  </div>
+  <div class="toolbar"><input type="search" id="corrQ" placeholder="Szukaj: dokument, produkt, osoba, zmieniona wartość…" value="${esc(corrFilter)}"><span class="count-pill">${list.length} z ${all.length}</span></div>
+  <div class="card"><div class="card-h"><h2>Rejestr korekt</h2><span style="font-size:12px;color:var(--ink-2)">Każda pozycja zawiera stan przed i po zapisaniu zmian.</span></div>
+  <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Data i godzina</th><th>Dokument / wpis</th><th>Zmodyfikowane pola</th><th>Edytował</th><th></th></tr></thead>
+  <tbody>${list.map(c=>`<tr>
+    <td style="white-space:nowrap;font-size:12px">${esc(corrDateTime(c.editedAt))}</td>
+    <td><span class="tag ${esc(c.typ||'BO')}">${esc(c.typ||'WPIS')}</span><div style="margin-top:5px"><span class="${stampCls(c.nrDok)}">${esc(c.nrDok||'bez numeru')}</span></div><div class="corr-note">${esc(c.produkt||'—')}</div></td>
+    <td style="min-width:360px">${corrChangesHTML(c)}</td>
+    <td style="white-space:nowrap">${esc(c.editor||'—')}</td>
+    <td style="white-space:nowrap"><button class="icon-btn" title="Pokaż aktualny wpis" onclick="showCorrectionRecord('${c.recId}')">${IC.eye}</button> <button class="icon-btn" title="Przywróć stan sprzed tej korekty" onclick="restoreCorrection('${c.id}')">↶</button></td>
+  </tr>`).join('') || '<tr><td colspan="5"><div class="empty"><b>Brak zarejestrowanych korekt</b>Każda zmiana zapisana w formularzu operacji pojawi się tutaj automatycznie.</div></td></tr>'}</tbody></table></div></div>`;
+  document.getElementById('corrQ').addEventListener('input', e=>{ corrFilter=e.target.value; VIEWS.korekty(); });
+};
+window.showCorrectionRecord = id => {
+  const r = state.records.find(x=>x.id===id);
+  if(!r){ toast('Ten wpis nie jest już dostępny w rejestrze'); return; }
+  showDetail(id);
+};
+window.restoreCorrection = id => {
+  const c = state.corrections.find(x=>x.id===id);
+  const i = c ? state.records.findIndex(x=>x.id===c.recId) : -1;
+  if(!c || i<0 || !c.before){ toast('Nie można przywrócić tej korekty'); return; }
+  if(!confirm('Przywrócić dokument '+(state.records[i].nrDok||'')+' do stanu sprzed wybranej korekty? Ta operacja zostanie zapisana w historii.')) return;
+  const current = state.records[i];
+  const restored = Object.assign({}, c.before, {id:current.id, dataDodania:current.dataDodania});
+  registerCorrection(current, restored);
+  state.records[i] = restored;
+  save('Przywrócono poprzednią wersję dokumentu');
+  VIEWS.korekty();
+};
+
+/* ---------- USTAWIENIA ---------- */
+VIEWS.ustawienia = function(){
+  normSlowniki();
+  const c = state.cfg;
+  V.innerHTML = pageHead('Ustawienia','Dane, przeliczniki, kopie zapasowe') +
+  `<div class="card"><div class="card-h"><h2>Przeliczniki jednostek</h2></div><div class="card-b">
+    <div class="cfg-inline">
+      <div class="fld"><label>M3 → MP</label><input type="number" step="0.01" id="c_m3mp" value="${c.m3mp}"></div>
+      <div class="fld"><label>MP → tona</label><input type="number" step="0.001" id="c_mpTona" value="${c.mpTona}"></div>
+      <div class="fld"><label>Tona → GJ</label><input type="number" step="0.1" id="c_tonaGJ" value="${c.tonaGJ}"></div>
+      <div class="fld" style="width:220px"><label>Domyślny podpis (imię i nazwisko)</label><input id="c_uz" value="${esc(c.uzytkownik)}"></div>
+    </div>
+    <div style="margin-top:12px"><button class="btn btn-green btn-sm" onclick="saveCfg()">Zapisz przeliczniki</button></div>
+    <p class="hint" style="margin-top:10px;font-size:12px;color:var(--ink-2)">Wartości domyślne odzwierciedlają arkusz: 1 M3 = 4 MP, 1 MP = 0,33 t, 1 t = 8,5 GJ. Zmiana przeliczników przelicza cały rejestr.</p>
+  </div></div>
+  <div style="height:16px"></div>
+  <div class="card"><div class="card-h"><h2>Dane — kopia i udostępnianie</h2></div><div class="card-b">
+    <div class="set-row"><div><div class="s-t">Eksport JSON (pełna kopia)</div><div class="s-d">Plik z całym rejestrem — zapisz na dysku firmowym lub wyślij współpracownikowi. Wczytanie na innym urządzeniu odtwarza dane 1:1.</div></div><button class="btn btn-primary btn-sm" onclick="exportJSON()">Pobierz JSON</button></div>
+    <div class="set-row"><div><div class="s-t">Import JSON</div><div class="s-d">Wczytaj kopię z dysku firmowego. Wybierz: zastąpienie danych lub dopisanie nowych operacji.</div></div>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="importJSON('replace')">Zastąp</button><button class="btn btn-ghost btn-sm" onclick="importJSON('merge')">Dopisz</button></span></div>
+    <div class="set-row"><div><div class="s-t">Pełna kopia z załącznikami (skany)</div><div class="s-d">JSON zawierający rejestr ORAZ wszystkie skany dokumentów. Plik bywa duży (zdjęcia) — do archiwum na dysku firmowym. Import rozpoznaje go automatycznie.</div></div><button class="btn btn-ghost btn-sm" onclick="exportFull()">Pobierz z załącznikami</button></div>
+    <div class="set-row"><div><div class="s-t">Eksport CSV (Excel)</div><div class="s-d">Rejestr operacji w formacie otwieranym bezpośrednio w Excelu (średniki, polskie znaki).</div></div><button class="btn btn-ghost btn-sm" onclick="exportCSV()">Pobierz CSV</button></div>
+    <div class="set-row"><div><div class="s-t">Przywróć dane startowe</div><div class="s-d">Przywraca stan fabryczny aplikacji — pusty rejestr, numeracja dokumentów od początku. Obecne wpisy zostaną usunięte.</div></div><button class="btn btn-danger btn-sm" onclick="resetSeed()">Przywróć</button></div>
+    <div class="set-row"><div><div class="s-t">Wyczyść wszystko</div><div class="s-d">Pusty rejestr — start od zera.</div></div><button class="btn btn-danger btn-sm" onclick="clearAll()">Wyczyść</button></div>
+  </div></div>
+  <div style="height:16px"></div>
+  <div class="card"><div class="card-h"><h2>Słowniki — szybki wybór w formularzu</h2></div><div class="card-b">
+    <p class="hint" style="font-size:12px;color:var(--ink-2);margin-bottom:4px">Pozycje z list pojawiają się jako podpowiedzi w formularzu nowej operacji — obok wartości zapamiętanych z wcześniejszych wpisów. Pojazd powiązany z firmą uzupełnia pole „Firma transportowa" automatycznie po wpisaniu numeru rejestracyjnego.</p>
+    ${slRow('dostawcy','Dostawcy','np. Nadleśnictwo Zawadzkie')}
+    ${slRow('odbiorcy','Odbiorcy','np. Ciepłownia…')}
+    ${slRow('transport','Firmy transportowe / kierowcy','np. własny (Kowalski)')}
+    <div class="set-row" style="align-items:flex-start"><div style="flex:1;min-width:240px"><div class="s-t">Pojazdy — nr rejestracyjny → firma</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${(c.slowniki.pojazdy||[]).map((p,i)=>`<span class="zbadge" style="font-family:var(--font-mono)">${esc(p.nr)}${p.firma?' · '+esc(p.firma):''} <button onclick="pojDel(${i})" style="border:none;background:none;cursor:pointer;color:inherit;font-weight:700;padding:0 2px">×</button></span>`).join('')||'<span style="font-size:12px;color:var(--ink-3)">brak pojazdów — dodaj pierwszy</span>'}</div></div>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_pojNr" placeholder="SK 1234A" style="border:1px solid var(--line-2);border-radius:9px;padding:8px 11px;width:130px;text-transform:uppercase"><input id="sl_pojFirma" placeholder="firma / kierowca" style="border:1px solid var(--line-2);border-radius:9px;padding:8px 11px;min-width:160px"><button class="btn btn-green btn-sm" onclick="pojAdd()">Dodaj</button></span></div>
+    ${slRow('nadlesnictwa','Nadleśnictwa','np. Zawadzkie')}
+    ${slRow('lesnictwa','Leśnictwa','np. Kielcza')}
+    ${slRow('miejscaZaladunku','Miejsca załadunku','np. skład leśny…')}
+  </div></div>
+  <div class="author-card">
+    <div class="a-t">ResInvest ERP · Magazyn Biomasy</div>
+    <div class="a-s"><b>ResInvest Commodities PL</b> — ul. Gwarecka 16, Zabrze · tel. 532 824 864<br>
+    Autor systemu: <b>Mateusz Roesner</b> · wersja 3.1<br>
+    Aplikacja działa w pełni offline — dane pozostają na tym urządzeniu (pamięć przeglądarki).</div>
+  </div>
+  <input type="file" id="jsonFile" accept=".json,application/json" style="display:none">`;
+};
+function saveCfg(){
+  state.cfg.m3mp = +document.getElementById('c_m3mp').value || 4;
+  state.cfg.mpTona = +document.getElementById('c_mpTona').value || 0.33;
+  state.cfg.tonaGJ = +document.getElementById('c_tonaGJ').value || 8.5;
+  state.cfg.uzytkownik = document.getElementById('c_uz').value.trim() || 'Roesner Mateusz';
+  save('Przeliczniki zapisane');
+}
+window.saveCfg = saveCfg;
+function slRow(key,label,ph){
+  const arr = (state.cfg.slowniki && state.cfg.slowniki[key]) || [];
+  return `<div class="set-row" style="align-items:flex-start"><div style="flex:1;min-width:240px"><div class="s-t">${label}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${arr.map((v,i)=>`<span class="zbadge">${esc(v)} <button onclick="slDel('${key}',${i})" style="border:none;background:none;cursor:pointer;color:inherit;font-weight:700;padding:0 2px">×</button></span>`).join('')||'<span style="font-size:12px;color:var(--ink-3)">lista pusta — dodaj pierwszą pozycję</span>'}</div></div>
+    <span style="display:flex;gap:8px"><input id="sl_${key}" placeholder="${ph}" style="border:1px solid var(--line-2);border-radius:9px;padding:8px 11px;min-width:200px"><button class="btn btn-green btn-sm" onclick="slAdd('${key}')">Dodaj</button></span></div>`;
+}
+window.slAdd = key => {
+  const el = document.getElementById('sl_'+key); const v = (el && el.value || '').trim(); if(!v){ toast('Wpisz wartość'); return; }
+  normSlowniki(); const arr = state.cfg.slowniki[key];
+  if(!arr.includes(v)) arr.push(v);
+  arr.sort((a,b)=>String(a).localeCompare(String(b),'pl'));
+  save(false); toast('Dodano do słownika'); VIEWS.ustawienia();
+};
+window.slDel = (key,i) => { normSlowniki(); state.cfg.slowniki[key].splice(i,1); save(false); VIEWS.ustawienia(); };
+window.pojAdd = () => {
+  const nr = (document.getElementById('sl_pojNr').value||'').trim().toUpperCase();
+  const f  = (document.getElementById('sl_pojFirma').value||'').trim();
+  if(!nr){ toast('Podaj nr rejestracyjny'); return; }
+  normSlowniki(); const arr = state.cfg.slowniki.pojazdy;
+  const ex = arr.find(p=>(p.nr||'').toUpperCase()===nr);
+  if(ex){ if(f) ex.firma = f; } else arr.push({nr:nr, firma:f});
+  arr.sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'pl'));
+  save(false); toast('Pojazd zapisany'); VIEWS.ustawienia();
+};
+window.pojDel = i => { normSlowniki(); state.cfg.slowniki.pojazdy.splice(i,1); save(false); VIEWS.ustawienia(); };
+
+/* ---------- Eksport / import ---------- */
+function download(name, content, mime){
+  const blob = new Blob([content], {type: mime});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 400);
+}
+window.exportJSON = function(){
+  const stamp = new Date().toISOString().slice(0,10);
+  download('ResInvest_ERP_kopia_'+stamp+'.json', JSON.stringify(state, null, 1), 'application/json');
+  toast('Kopia JSON pobrana — zapisz na dysku firmowym');
+};
+window.exportFull = async function(){
+  const skany = await idbAll();
+  const stamp = new Date().toISOString().slice(0,10);
+  download('ResInvest_ERP_pelna_kopia_'+stamp+'.json', JSON.stringify({...state, skany}), 'application/json');
+  toast('Pełna kopia pobrana ('+skany.length+' skanów)');
+};
+window.importJSON = function(mode){
+  const inp = document.getElementById('jsonFile');
+  inp.onchange = ()=>{
+    const f = inp.files[0]; if(!f) return;
+    const rd = new FileReader();
+    rd.onload = ()=>{
+      try{
+        const d = JSON.parse(rd.result);
+        const recs = Array.isArray(d) ? d : d.records;
+        if(!Array.isArray(recs)) throw new Error('brak rejestru');
+        if(mode==='replace'){
+          state.records = recs;
+          state.corrections = Array.isArray(d.corrections) ? d.corrections : [];
+          if(d.cfg) Object.assign(state.cfg, d.cfg);
+        }
+        if(Array.isArray(d.skany) && idb){ (async()=>{ let ns=0; for(const s of d.skany){ try{ await skanPut(s); ns++; }catch(e){} } await refreshScanCounts(); if(ns) toast('Wczytano '+ns+' skanów'); route(); })(); }
+        else {
+          const ids = new Set(state.records.map(r=>r.id));
+          let n=0; for(const r of recs){ if(!ids.has(r.id)){ state.records.push(r); n++; } }
+          if(Array.isArray(d.corrections)){
+            const corrIds = new Set(state.corrections.map(c=>c.id));
+            d.corrections.forEach(c=>{ if(c && !corrIds.has(c.id)) state.corrections.push(c); });
+          }
+          toast('Dopisano '+n+' operacji');
+        }
+        save(mode==='replace'?'Dane zastąpione ('+recs.length+' operacji)':false); route();
+      }catch(e){ toast('Nie udało się wczytać pliku: to nie jest kopia ERP'); }
+      inp.value='';
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+};
+window.exportCSV = function(){
+  const H = ['Data operacji','Typ','Nr dokumentu','Produkt','Rodzaj','Dostawca','Odbiorca','Miejsce załadunku','Wolumen','Jednostka','MP','Tony','GJ','Cena zakupu','Wartość zakupu','Cena sprzedaży','Wartość sprzedaży','Koszt rąbania/jedn.','Koszt rąbania razem','Transport','Nr rej.','Km','Koszt transportu','Certyfikat','Magazynowane','Nadleśnictwo','Leśnictwo','Kwit wywozowy','Pochodzenie','Podpis','Uwagi'];
+  const cell = v => '"'+String(v??'').replace(/"/g,'""')+'"';
+  const numc = v => String(Math.round(v*10000)/10000).replace('.',',');
+  const rows = filteredOps().map(r=>{const c=calc(r);return [
+    r.dataOperacji,r.typ,r.nrDok,r.produkt,r.rodzaj,r.dostawca,r.odbiorca,r.miejsceZaladunku,
+    numc(+r.wolumen||0),r.jednostka,numc(c.mp),numc(c.tony),numc(c.gj),
+    numc(+r.cenaZakupu||0),numc(c.wZak),numc(+r.cenaSprzedazy||0),numc(c.wSpr),
+    numc(+r.kosztRabania||0),numc(c.wRab),r.transportFirma,r.nrRej,numc(+r.odlegloscKm||0),numc(+r.kosztTransportu||0),
+    r.certyfikat,r.magazynowane,r.nadlesnictwo,r.lesnictwo,r.kwitWywozowy,r.pochodzenie,r.podpis,r.uwagi].map(cell).join(';');});
+  const csv = '\uFEFF'+H.map(cell).join(';')+'\r\n'+rows.join('\r\n');
+  download('ResInvest_operacje_'+new Date().toISOString().slice(0,10)+'.csv', csv, 'text/csv;charset=utf-8');
+  toast('CSV pobrany ('+rows.length+' operacji)');
+};
+window.resetSeed = function(){
+  if(!confirm('Przywrócić stan fabryczny (pusty rejestr)? Obecne dane zostaną nadpisane.')) return;
+  state.records = JSON.parse(JSON.stringify(SEED)); state.corrections = []; save('Dane startowe przywrócone'); route();
+};
+window.clearAll = function(){
+  if(!confirm('Usunąć WSZYSTKIE operacje? Tej akcji nie można cofnąć (zrób najpierw eksport JSON).')) return;
+  state.records = []; state.corrections = []; save('Rejestr wyczyszczony'); route();
+};
+
+/* ---------- Podgląd + wydruk kwitu ---------- */
+window.showDetail = function(id){
+  const r = state.records.find(x=>x.id===id); if(!r) return;
+  const c = calc(r);
+  const kv = [
+    ['Typ operacji', `<span class="tag ${esc(r.typ)}">${esc(r.typ)}</span>`],
+    ['Dokument', `<span class="${stampCls(r.nrDok)}">${esc(r.nrDok||'—')}</span>`],
+    ['Data operacji', dShort(r.dataOperacji)],
+    ['Data załadunku', dShort(r.dataZaladunku)],
+    ['Produkt', esc(r.produkt)+(r.rodzaj?' · rodzaj '+esc(r.rodzaj):'')],
+    ['Dostawca', esc(r.dostawca||'—')],
+    ['Odbiorca', esc(r.odbiorca||'—')],
+    ['Miejsce załadunku', esc(r.miejsceZaladunku||'—')],
+    ['Wolumen', fmt(r.wolumen)+' '+esc(r.jednostka)+' = '+fmt(c.m3)+' m³'+(c.m3Real?' (wartość rzeczywista)':'')+' = '+fmt(c.mp)+' MP'+(c.mpReal?' (wartość rzeczywista)':'')+' = '+fmt(c.tony)+' t'+(c.tonyReal?' (wartość rzeczywista)':'')+' = '+fmt(c.gj,0)+' GJ'],
+    ['Wartość zakupu', c.wZak?zl(c.wZak)+' ('+fmt(r.cenaZakupu)+' zł/jedn.)':'—'],
+    ['Wartość sprzedaży', c.wSpr?zl(c.wSpr)+' ('+fmt(r.cenaSprzedazy)+' zł/jedn.)':'—'],
+    ['Rąbanie', r.rabanie?esc(r.rabanie)+(c.wRab?' · '+zl(c.wRab):''):'—'],
+    ['Transport', [r.transportFirma,r.nrRej,r.odlegloscKm?fmt(r.odlegloscKm,0)+' km':'',(+r.kosztTransportu)?zl(+r.kosztTransportu):''].filter(Boolean).map(esc).join(' · ')||'—'],
+    ['Certyfikat', esc(r.certyfikat||'—')+' · magazynowane: '+esc(r.magazynowane||'—')],
+    ['Nadleśnictwo / Leśnictwo', esc(lasStr(r)||'—')],
+    ['Kwit wywozowy', r.kwitWywozowy?('<span class="stamp">'+esc(r.kwitWywozowy)+'</span>'):'—'],
+    ['Pochodzenie', esc(r.pochodzenie||'—')],
+    ['Podpis', esc(r.podpis||'—')],
+    ...(r.lancuch?[['Łańcuch', '<span class="stamp">'+esc(r.lancuch)+'</span> zakup → zużycie → produkcja'+(state.records.some(x=>x.lancuch===r.lancuch&&x.typ==='SPRZEDAŻ')?' → sprzedaż':'')]]:[]),
+    ['Uwagi', esc(r.uwagi||'—')],
+  ];
+  openModal(`<h3>Operacja ${esc(r.nrDok||'')}</h3>
+    <dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+    <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <b style="font-family:var(--font-disp);font-size:14.5px;color:var(--spruce-deep)">Skany dokumentów <span id="skanCnt" style="color:var(--ink-2);font-weight:400"></span></b>
+        <select id="scanLabel" style="margin-left:auto;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;background:#fff">
+          <option>PZ wypisana</option><option>Kwit leśny</option><option>WZ wypisana</option><option>Dokument transportowy</option><option>Inny skan</option>
+        </select>
+      </div>
+      <div class="scan-grid" id="skanGrid"></div>
+    </div>
+    <div class="m-acts">
+      <button class="btn btn-primary btn-sm" onclick="printKwit('${r.id}')">${IC.print} Drukuj kwit</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal();editRec('${r.id}')">${IC.edit} Edytuj</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Zamknij</button>
+    </div>`);
+  renderSkany(r.id);
+};
+function openModal(html){ document.getElementById('modalBox').innerHTML=html; document.getElementById('modalBg').classList.add('open'); }
+window.closeModal = ()=> document.getElementById('modalBg').classList.remove('open');
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+window.printKwit = function(id){
+  const r = state.records.find(x=>x.id===id); if(!r) return;
+  const c = calc(r);
+  const docTitle = /^wz/i.test(r.nrDok||'') ? 'WYDANIE ZEWNĘTRZNE (WZ)' : /^mm/i.test(r.nrDok||'') ? 'PRZESUNIĘCIE MIĘDZYMAGAZYNOWE (MM)' : 'PRZYJĘCIE ZEWNĘTRZNE (PZ)';
+  const w = window.open('', '_blank');
+  if(!w){ toast('Zezwól na wyskakujące okna, aby drukować kwity'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"><title>${esc(r.nrDok||'Kwit')}</title>
+  <style>body{font-family:Arial,sans-serif;color:#111;max-width:700px;margin:26px auto;padding:0 18px;font-size:14px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2E7D4F;padding-bottom:12px;margin-bottom:16px}
+  h1{font-size:16px;margin:0 0 4px} .co{font-size:12px;color:#444;line-height:1.5}
+  .nr{font-family:'Courier New',monospace;font-weight:bold;font-size:20px;border:2px dashed #2E7D4F;color:#2E7D4F;padding:6px 14px;border-radius:6px}
+  table{width:100%;border-collapse:collapse;margin-top:8px} td,th{border:1px solid #999;padding:7px 9px;text-align:left;font-size:13px}
+  th{background:#EEF4EE;width:210px;font-weight:600} .sig{display:flex;justify-content:space-between;margin-top:52px;font-size:12px}
+  .sig div{border-top:1px solid #333;width:42%;text-align:center;padding-top:6px}
+  .ft{margin-top:26px;font-size:10.5px;color:#777;text-align:center}</style></head><body>
+  <div class="top"><div><h1>ResInvest Commodities PL</h1><div class="co">ul. Gwarecka 16, Zabrze · tel. 532 824 864<br>${docTitle}</div></div>
+  <div class="nr">${esc(r.nrDok||'—')}</div></div>
+  <table>
+    <tr><th>Data operacji</th><td>${dShort(r.dataOperacji)}</td></tr>
+    <tr><th>Produkt</th><td>${esc(r.produkt)}${r.rodzaj?' — rodzaj '+esc(r.rodzaj):''}</td></tr>
+    <tr><th>Dostawca / źródło</th><td>${esc(r.dostawca||'—')}</td></tr>
+    <tr><th>Odbiorca / cel</th><td>${esc(r.odbiorca||'—')}</td></tr>
+    <tr><th>Miejsce załadunku</th><td>${esc(r.miejsceZaladunku||'—')}</td></tr>
+    <tr><th>Ilość</th><td><b>${fmt(r.wolumen)} ${esc(r.jednostka)}</b> &nbsp;(${fmt(c.m3)} m³${c.m3Real?' <i>(wartość rzeczywista)</i>':''} · ${fmt(c.mp)} MP${c.mpReal?' <i>(wartość rzeczywista)</i>':''} · ${fmt(c.tony)} t${c.tonyReal?' <i>(wartość rzeczywista)</i>':''} · ${fmt(c.gj,0)} GJ)</td></tr>
+    <tr><th>Transport</th><td>${esc(r.transportFirma||'—')} ${r.nrRej?'· '+esc(r.nrRej):''} ${r.odlegloscKm?'· '+fmt(r.odlegloscKm,0)+' km':''}</td></tr>
+    <tr><th>Certyfikat</th><td>${esc(r.certyfikat||'—')}</td></tr>
+    <tr><th>Nadleśnictwo / Leśnictwo</th><td>${esc(lasStr(r)||'—')}</td></tr>
+    <tr><th>Kwit wywozowy</th><td>${esc(r.kwitWywozowy||'—')}</td></tr>
+    <tr><th>Pochodzenie</th><td>${esc(r.pochodzenie||'—')}</td></tr>
+    <tr><th>Uwagi</th><td>${esc(r.uwagi||'—')}</td></tr>
+  </table>
+  <div class="sig"><div>Wystawił: <b>${esc(r.podpis||'____________')}</b></div><div>Odebrał / przekazał</div></div>
+  <div class="ft">Wygenerowano w ResInvest ERP · autor: Mateusz Roesner · ${new Date().toLocaleString('pl-PL')}</div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+};
+
+/* ---------- SKANY DOKUMENTÓW (IndexedDB — zdjęcia PZ, kwitów leśnych) ---------- */
+let idb = null, scanCounts = {};
+function idbOpen(){
+  return new Promise((res)=>{
+    if(!window.indexedDB){ res(null); return; }
+    const q = indexedDB.open('resinvest_skany', 1);
+    q.onupgradeneeded = e => {
+      const db = e.target.result;
+      const st = db.createObjectStore('skany', {keyPath:'id'});
+      st.createIndex('recId','recId',{unique:false});
+    };
+    q.onsuccess = e => { idb = e.target.result; res(idb); };
+    q.onerror = () => { console.warn('IndexedDB niedostępne'); res(null); };
+  });
+}
+function idbAll(){ return new Promise(res=>{ if(!idb) return res([]);
+  const q = idb.transaction('skany').objectStore('skany').getAll();
+  q.onsuccess = ()=>res(q.result||[]); q.onerror = ()=>res([]); }); }
+function skanyFor(recId){ return new Promise(res=>{ if(!idb) return res([]);
+  const q = idb.transaction('skany').objectStore('skany').index('recId').getAll(recId);
+  q.onsuccess = ()=>res(q.result||[]); q.onerror = ()=>res([]); }); }
+function skanPut(s){ return new Promise((res,rej)=>{ if(!idb) return rej();
+  const q = idb.transaction('skany','readwrite').objectStore('skany').put(s);
+  q.onsuccess = res; q.onerror = ()=>rej(q.error); }); }
+function skanDel(id){ return new Promise(res=>{ if(!idb) return res();
+  const q = idb.transaction('skany','readwrite').objectStore('skany').delete(id);
+  q.onsuccess = res; q.onerror = res; }); }
+async function skanyDelForRec(recId){ const s = await skanyFor(recId); for(const x of s) await skanDel(x.id); await refreshScanCounts(); }
+async function refreshScanCounts(){
+  const all = await idbAll(); scanCounts = {};
+  for(const s of all){ scanCounts[s.recId] = (scanCounts[s.recId]||0)+1; }
+}
+function scanBadge(recId){ const c = scanCounts[recId]; return c ? `<span class="clip" title="${c} skan(y)">&#128206;${c}</span>` : ''; }
+
+function compressImage(file, maxDim=1600, q=0.72){
+  return new Promise((res,rej)=>{
+    const rd = new FileReader();
+    rd.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w=img.width, hh=img.height;
+        const k = Math.min(1, maxDim/Math.max(w,hh)); w=Math.round(w*k); hh=Math.round(hh*k);
+        const cv = document.createElement('canvas'); cv.width=w; cv.height=hh;
+        cv.getContext('2d').drawImage(img,0,0,w,hh);
+        res(cv.toDataURL('image/jpeg', q));
+      };
+      img.onerror = rej; img.src = rd.result;
+    };
+    rd.onerror = rej; rd.readAsDataURL(file);
+  });
+}
+window.addScans = function(recId){
+  const label = document.getElementById('scanLabel') ? document.getElementById('scanLabel').value : 'Skan';
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.multiple=true; inp.capture='environment';
+  inp.onchange = async ()=>{
+    if(!inp.files.length) return;
+    if(!idb){ toast('Skany niedostępne w tej przeglądarce'); return; }
+    let n=0;
+    for(const f of inp.files){
+      try{
+        const data = await compressImage(f);
+        await skanPut({ id:'SKN-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+          recId, label, data, ts:new Date().toISOString() });
+        n++;
+      }catch(e){ console.warn('skan pominięty', e); }
+    }
+    await refreshScanCounts();
+    toast(n+' skan(y) zapisane');
+    renderSkany(recId);
+  };
+  inp.click();
+};
+async function renderSkany(recId){
+  const box = document.getElementById('skanGrid'); if(!box) return;
+  const list = await skanyFor(recId);
+  box.innerHTML = list.map(s=>
+    `<div class="scan-th" onclick="openViewer('${s.id}','${esc(s.label)}','${recId}')"><img src="${s.data}" alt="${esc(s.label)}" loading="lazy"><div class="lab">${esc(s.label)}</div></div>`).join('') +
+    `<button class="scan-add" onclick="addScans('${recId}')">${IC.plus}<span>Dodaj skan<br>(aparat / plik)</span></button>`;
+  const cnt = document.getElementById('skanCnt'); if(cnt) cnt.textContent = list.length ? '('+list.length+')' : '';
+}
+let viewerCur = null;
+window.openViewer = async function(id, label, recId){
+  const list = await skanyFor(recId);
+  const s = list.find(x=>x.id===id); if(!s) return;
+  viewerCur = {id, recId};
+  document.getElementById('viewerImg').src = s.data;
+  document.getElementById('viewerLab').textContent = label + ' · ' + (s.ts||'').slice(0,10);
+  const dl = document.getElementById('viewerDl');
+  dl.href = s.data; dl.download = (label||'skan').replace(/\s+/g,'_') + '_' + id + '.jpg';
+  document.getElementById('viewerBg').classList.add('open');
+};
+window.closeViewer = ()=>{ document.getElementById('viewerBg').classList.remove('open'); viewerCur=null; };
+document.getElementById('viewerBg').addEventListener('click', e=>{ if(e.target.id==='viewerBg') closeViewer(); });
+document.getElementById('viewerDel').addEventListener('click', async ()=>{
+  if(!viewerCur) return;
+  if(!confirm('Usunąć ten skan?')) return;
+  await skanDel(viewerCur.id); await refreshScanCounts();
+  const rid = viewerCur.recId; closeViewer(); renderSkany(rid); toast('Skan usunięty');
+});
+
+/* ---------- Start ---------- */
+function normSlowniki(){
+  const base = { dostawcy:[], odbiorcy:[], transport:[], pojazdy:[], nadlesnictwa:[], lesnictwa:[], miejscaZaladunku:[] };
+  if(!state.cfg.slowniki || typeof state.cfg.slowniki!=='object') state.cfg.slowniki = base;
+  else for(const k in base){ if(!Array.isArray(state.cfg.slowniki[k])) state.cfg.slowniki[k]=base[k]; }
+}
+load();
+normSlowniki();
+if(!supportedLangs.includes(state.cfg.lang)) state.cfg.lang='pl';
+buildNav();
+initLanguageTools();
+document.getElementById('mobDate').textContent = new Date().toLocaleDateString('pl-PL');
+route();
+idbOpen().then(refreshScanCounts).then(route);
+</script>
+</body>
+</html>
