@@ -156,11 +156,32 @@ dokumentację i skrypty instalacyjne.
 
 1. Zainstaluj Node.js 22 LTS z <https://nodejs.org/pl>.
 2. Rozpakuj archiwum, np. do `C:\ResInvest-ERP` *(nie uruchamiaj plików z wnętrza ZIP-a)*.
-3. Kliknij dwukrotnie **`INSTALUJ.bat`** — skrypt utworzy konfigurację
-   z unikalnym kluczem bezpieczeństwa, założy bazę, zaproponuje dane testowe
-   i doda skrót na pulpicie.
+3. Kliknij dwukrotnie **`INSTALUJ.bat`**. Skrypt utworzy konfigurację
+   z unikalnym kluczem bezpieczeństwa, założy bazę, zaproponuje dane testowe,
+   **zbuduje program `ResInvestERP.exe`** oraz doda skróty na pulpicie
+   i w menu Start. Zapyta też o uruchamianie po zalogowaniu do Windows.
 4. **Zapisz wyświetlone dane pierwszego logowania.**
-5. Uruchamiaj systemem plikiem **`START.bat`** albo skrótem z pulpitu.
+5. Uruchamiaj system plikiem **`ResInvestERP.exe`** albo skrótem z pulpitu.
+
+#### Program `ResInvestERP.exe`
+
+Po uruchomieniu program siada w **zasobniku systemowym** obok zegara — bez
+okna konsoli, którego nie da się przypadkiem zamknąć w środku pracy magazynu.
+Prawy przycisk na ikonie otwiera menu: aplikacja, folder z danymi, dziennik
+serwera i zakończenie pracy systemu. Kolejne kliknięcie ikony nie uruchamia
+drugiego serwera, tylko otwiera przeglądarkę.
+
+Instalator buduje ten plik na miejscu, kompilatorem wbudowanym w Windows —
+nic nie trzeba pobierać. Gdyby go zabrakło, system uruchamia się plikiem
+**`START.bat`**, a instalator o tym poinformuje.
+
+Diagnostyka bez zdalnego dostępu do komputera:
+
+```bat
+ResInvestERP.exe --sprawdz
+```
+
+Wypisuje, czy jest Node.js, czy komplet plików i czy port jest wolny.
 
 Kopia zapasowa: **`KOPIA-ZAPASOWA.bat`** (warto wpiąć w Harmonogram zadań).
 
@@ -318,9 +339,10 @@ PRO-MAGAZYN-G-PYSKOWICE/
 │
 ├── desktop/
 │   ├── build-zip.mjs           generator pakietu instalacyjnego
-│   └── installer/              INSTALUJ.bat · START.bat · instaluj.sh · start.sh
+│   ├── make-icon.mjs           generator ikony aplikacji (.ico)
+│   └── installer/              INSTALUJ.bat · ResInvestERP.cs · START.bat · instaluj.sh
 │
-├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING
+├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING · FRONTEND
 ├── legacy/                     wcześniejsze wersje jednoplikowe (archiwum)
 └── data/                       runtime: baza, skany, kopie, logi (poza repo)
 ```
@@ -442,6 +464,7 @@ Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 | [docs/REFACTORING.md](docs/REFACTORING.md) | Przegląd kodu: wąskie gardła, strategie refaktoryzacji, pomiary |
 | [docs/DEBUGGING.md](docs/DEBUGGING.md) | Usterki produkcyjne: odtworzenie, przyczyny źródłowe, poprawki |
 | [docs/SCALING.md](docs/SCALING.md) | Skalowanie: model odczytu, strategia buforowania, drabina S1–S4 |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | Wydajność klienta, komponenty UI, launcher Windows |
 
 ---
 

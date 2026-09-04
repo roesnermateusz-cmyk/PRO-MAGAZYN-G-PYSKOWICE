@@ -3,7 +3,7 @@
  * narzędzia globalne i kontener widoku.
  */
 import { esc } from '../core/dom.js';
-import { ICONS } from './icons.js';
+import { ICONS, iconSprite } from './icons.js';
 import { store, can } from '../core/store.js';
 import { initials } from '../core/format.js';
 
@@ -42,6 +42,7 @@ export function renderLayout(root) {
   const company = store.meta?.company?.name ?? 'ResInvest Commodities';
 
   root.innerHTML = `
+    ${iconSprite()}
     <div class="app-tools">
       <button class="app-tool" data-tool="home" title="Pulpit" aria-label="Pulpit">${ICONS.home}</button>
       <button class="app-tool" data-tool="print" title="Drukuj bieżący widok" aria-label="Drukuj">${ICONS.print}</button>

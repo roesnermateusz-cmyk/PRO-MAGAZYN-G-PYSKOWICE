@@ -34,6 +34,9 @@ const INCLUDE_FILES = [
   ['README.md', 'README.md'],
   ['.env.example', '.env.example'],
   ['desktop/installer/INSTALUJ.bat', 'INSTALUJ.bat'],
+  ['desktop/installer/ZBUDUJ-EXE.bat', 'ZBUDUJ-EXE.bat'],
+  ['desktop/installer/ResInvestERP.cs', 'ResInvestERP.cs'],
+  ['desktop/installer/ResInvestERP.ico', 'ResInvestERP.ico'],
   ['desktop/installer/START.bat', 'START.bat'],
   ['desktop/installer/KOPIA-ZAPASOWA.bat', 'KOPIA-ZAPASOWA.bat'],
   ['desktop/installer/instaluj.sh', 'instaluj.sh'],
@@ -93,7 +96,12 @@ INSTALACJA — WINDOWS
      np. C:\\ResInvest-ERP  (nie uruchamiaj plików z wnętrza ZIP-a).
   2. Kliknij dwukrotnie INSTALUJ.bat
   3. Zapisz wyświetlone dane pierwszego logowania.
-  4. Uruchom system plikiem START.bat albo skrótem z pulpitu.
+  4. Uruchom system plikiem ResInvestERP.exe albo skrótem z pulpitu.
+
+  Instalator buduje ResInvestERP.exe kompilatorem wbudowanym w Windows —
+  nic nie trzeba pobierać. Program działa w zasobniku obok zegara; prawy
+  przycisk na ikonie otwiera menu z opcją zakończenia pracy systemu.
+  Gdyby kompilatora zabrakło, system uruchamia się plikiem START.bat.
 
 INSTALACJA — LINUX / macOS
   1. Rozpakuj archiwum.

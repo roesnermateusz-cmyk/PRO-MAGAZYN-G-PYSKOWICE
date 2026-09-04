@@ -1,21 +1,101 @@
-/** Rejestr operacji: filtrowanie, lista (tabela / karty), podgląd i storno dokumentu. */
+/**
+ * Rejestr operacji: filtrowanie, lista, podgląd i storno dokumentu.
+ *
+ * Ekran listy jest złożony z komponentów warstwy `ui/`: pasek filtrów, lista
+ * i stronicowanie budują się raz, a zmiana filtra podmienia wyłącznie wiersze.
+ * Kolumny opisane są w jednym miejscu i obsługują oba układy — tabelę na
+ * komputerze i kartę na telefonie — bez drugiego szablonu.
+ */
 import api from '../core/api.js';
-import { esc, on, options } from '../core/dom.js';
+import { esc } from '../core/dom.js';
 import { qty, qty2, money, moneyShort, date, dateTime, monthLabel } from '../core/format.js';
 import {
-  pageHead, empty, loading, docStamp, typeTag, pager,
+  pageHead, loading, docStamp, typeTag,
   openModal, closeModal, confirmDialog, toast, toastError, showLightbox, alertBox,
 } from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
 import { can, loadCatalog } from '../core/store.js';
 import { navigate } from '../core/router.js';
 import { downloadHandler, unitLabel } from './_shared.js';
+import { createDataTable } from '../ui/DataTable.js';
+import { createListScreen } from '../ui/ListScreen.js';
 
 /** Filtry są modułowe, żeby przetrwały powrót z podglądu dokumentu. */
 const filters = {
   q: '', type: '', productId: '', warehouseId: '', month: '', chainRef: '',
   status: 'POSTED', limit: 50, offset: 0,
 };
+
+/** Ekran listy — trzymany między wejściami, żeby dało się go posprzątać. */
+let screen = null;
+
+const counterparty = (r) => (
+  ['SPRZEDAZ', 'MM'].includes(r.type) ? r.recipientName : (r.supplierName || r.originPlace)
+) || '—';
+
+const documentValue = (r) => r.valueSale || r.valuePurchase;
+
+/**
+ * Kolumny rejestru — jedno źródło dla tabeli i dla karty mobilnej.
+ *
+ * Pole `card` decyduje, co trafia na kartę: na telefonie mieści się kilka
+ * najważniejszych wartości, nie trzynaście kolumn. Kolumny bez tego pola
+ * są widoczne wyłącznie w układzie szerokim.
+ */
+const COLUMNS = [
+  { key: 'operationDate', label: 'Data', nowrap: true, card: 'meta',
+    cell: (r) => date(r.operationDate) },
+  { key: 'type', label: 'Typ', card: 'title',
+    cell: (r) => typeTag(r.type) },
+  { key: 'docNo', label: 'Dokument', card: 'title',
+    cell: (r) => docStamp(r.docNo) },
+  { key: 'productName', label: 'Produkt', cls: 'ellip', card: 'body',
+    cell: (r) => esc(r.productName) },
+  { key: 'counterparty', label: 'Kontrahent', cls: 'ellip', card: 'body',
+    cell: (r) => esc(counterparty(r)) },
+  { key: 'quantity', label: 'Wolumen', align: 'num', card: 'foot', cardLabel: 'Wolumen',
+    cell: (r) => `${qty(r.quantity)} ${esc(unitLabel(r.unit))}` },
+  { key: 'qtyMp', label: 'MP', align: 'num',
+    cell: (r) => qty(r.qtyMp) },
+  { key: 'qtyTonne', label: 'Tony', align: 'num',
+    cell: (r) => qty2(r.qtyTonne) },
+  { key: 'value', label: 'Wartość', align: 'num', card: 'foot', cardLabel: 'Wartość',
+    cell: (r) => (documentValue(r) ? moneyShort(documentValue(r)) : '—') },
+  { key: 'carrierName', label: 'Przewoźnik', cls: 'ellip',
+    cell: (r) => esc(r.carrierName || '—') },
+  { key: 'vehiclePlate', label: 'Nr rej.', nowrap: true, cls: 'plate', card: 'body',
+    cell: (r) => esc(r.vehiclePlate || '—') },
+  { key: 'transportCost', label: 'Koszt tr.', align: 'num',
+    cell: (r) => (r.transportCost ? moneyShort(r.transportCost) : '—') },
+];
+
+/** Przyciski wiersza — zależne od uprawnień i statusu dokumentu. */
+function rowActions(r) {
+  const editable = can('operations:write') && r.status === 'POSTED';
+  return [
+    { act: 'view', icon: 'eye', label: `Podgląd dokumentu ${r.docNo}` },
+    editable && { act: 'edit', icon: 'edit', label: `Edytuj dokument ${r.docNo}` },
+    editable && { act: 'dup', icon: 'copy', label: `Duplikuj dokument ${r.docNo}` },
+    can('operations:cancel') && r.status === 'POSTED'
+      && { act: 'cancel', icon: 'trash', label: `Storno dokumentu ${r.docNo}`, danger: true },
+  ];
+}
+
+/**
+ * Wiersz podsumowania — liczby pochodzą z serwera, nie są sumowane w przeglądarce.
+ * Rozkład komórek musi się zgadzać z `COLUMNS` plus kolumna akcji: sześć
+ * pierwszych zajmuje opis, dalej wartości liczbowe.
+ */
+function summaryRow(rows, totals) {
+  if (!totals) return '';
+  return `<td colspan="6">Razem (po filtrach)</td>
+    <td class="num">${qty(totals.qtyMp)}</td>
+    <td class="num">${qty2(totals.qtyTonne)}</td>
+    <td class="num">${moneyShort(totals.valueSale || totals.valuePurchase)}</td>
+    <td colspan="2"></td>
+    <td class="num">${moneyShort(totals.transportCost)}</td>
+    <td></td>`;
+}
 
 export async function renderOperations(view, params = {}) {
   if (params.id) return renderOperationDetail(view, params.id);
@@ -27,141 +107,73 @@ export async function renderOperations(view, params = {}) {
 
   view.innerHTML = loading('Wczytywanie rejestru…');
   const catalog = await loadCatalog();
-  await refresh(view, catalog);
-}
 
-async function refresh(view, catalog) {
-  const data = await api.get('/operations', filters);
+  screen?.destroy();
 
-  view.innerHTML = pageHead(
-    'Rejestr operacji',
-    'Dokumenty PZ · WZ · PW · RW · MM · BO',
-    `<button class="btn" data-act="csv">${ICONS.download} Eksport CSV</button>
-     ${can('operations:write') ? `<a href="#/nowa" class="btn btn-primary">${ICONS.plus} Dodaj</a>` : ''}`,
-  )
-  + (filters.chainRef
-    ? alertBox('info', `Widok ograniczony do łańcucha ${filters.chainRef}. `
-      + 'Aby wrócić do pełnego rejestru, wybierz „Wszystkie" w filtrze typu.')
-    : '')
-  + `<div class="chips">
-      ${['', 'ZAKUP', 'SPRZEDAZ', 'PRODUKCJA', 'ZUZYCIE', 'MM', 'BO'].map((t) =>
-        `<button data-type="${esc(t)}" class="${filters.type === t ? 'on' : ''}">${esc(t || 'Wszystkie')}</button>`).join('')}
-    </div>
-    <div class="toolbar">
-      <input type="search" id="fq" placeholder="Szukaj: dokument, kontrahent, rejestracja, kwit…" value="${esc(filters.q)}">
-      <select id="fprod">${options(catalog.products, filters.productId, { placeholder: 'Produkt: wszystkie' })}</select>
-      <select id="fmag">${options(catalog.warehouses, filters.warehouseId, { placeholder: 'Magazyn: wszystkie' })}</select>
-      <input type="month" id="fmonth" value="${esc(filters.month)}" aria-label="Miesiąc">
-      <select id="fstatus">
-        <option value="POSTED"${filters.status === 'POSTED' ? ' selected' : ''}>Zaksięgowane</option>
-        <option value="CANCELLED"${filters.status === 'CANCELLED' ? ' selected' : ''}>Anulowane</option>
-        <option value="ALL"${filters.status === 'ALL' ? ' selected' : ''}>Wszystkie</option>
-      </select>
-      <span class="count-pill">${data.page.total} dokument(ów)</span>
-    </div>`
-
-  + `<div class="card tbl-desktop">
-      <div class="tbl-wrap"><table class="tbl">
-        <thead><tr>
-          <th>Data</th><th>Typ</th><th>Dokument</th><th>Produkt</th><th>Kontrahent</th>
-          <th class="num">Wolumen</th><th class="num">MP</th><th class="num">Tony</th><th class="num">Wartość</th>
-          <th>Przewoźnik</th><th>Nr rej.</th><th class="num">Koszt tr.</th><th></th>
-        </tr></thead>
-        <tbody>${data.items.map(rowHtml).join('')}</tbody>
-        ${data.items.length ? `<tfoot><tr>
-          <td colspan="6">Razem (po filtrach)</td>
-          <td class="num">${qty(data.totals.qtyMp)}</td>
-          <td class="num">${qty2(data.totals.qtyTonne)}</td>
-          <td class="num">${moneyShort(data.totals.valueSale || data.totals.valuePurchase)}</td>
-          <td colspan="2"></td>
-          <td class="num">${moneyShort(data.totals.transportCost)}</td>
-          <td></td>
-        </tr></tfoot>` : ''}
-      </table></div>
-      ${data.items.length ? '' : empty('Nic nie znaleziono', 'Zmień filtry albo dodaj nowy dokument.')}
-      ${pager(data.page)}
-    </div>
-
-    <div class="op-cards">
-      ${data.items.map(cardHtml).join('') || empty('Nic nie znaleziono', 'Zmień filtry.')}
-      ${pager(data.page)}
-    </div>`;
-
-  bind(view, catalog);
-}
-
-const counterparty = (r) => (
-  ['SPRZEDAZ', 'MM'].includes(r.type) ? r.recipientName : (r.supplierName || r.originPlace)
-) || '—';
-
-function rowHtml(r) {
-  const value = r.valueSale || r.valuePurchase;
-  return `<tr class="${r.status === 'CANCELLED' ? 'cancelled' : ''}">
-    <td style="white-space:nowrap">${date(r.operationDate)}</td>
-    <td>${typeTag(r.type)}</td>
-    <td>${docStamp(r.docNo)}</td>
-    <td class="ellip">${esc(r.productName)}</td>
-    <td class="ellip">${esc(counterparty(r))}</td>
-    <td class="num">${qty(r.quantity)} ${esc(unitLabel(r.unit))}</td>
-    <td class="num">${qty(r.qtyMp)}</td>
-    <td class="num">${qty2(r.qtyTonne)}</td>
-    <td class="num">${value ? moneyShort(value) : '—'}</td>
-    <td class="ellip" style="font-size:12px">${esc(r.carrierName || '—')}</td>
-    <td style="font-family:var(--font-mono);font-size:12px;white-space:nowrap">${esc(r.vehiclePlate || '—')}</td>
-    <td class="num">${r.transportCost ? moneyShort(r.transportCost) : '—'}</td>
-    <td style="white-space:nowrap">
-      <button class="icon-btn" data-view="${esc(r.id)}" title="Podgląd">${ICONS.eye}</button>
-      ${can('operations:write') && r.status === 'POSTED'
-        ? `<button class="icon-btn" data-edit="${esc(r.id)}" title="Edytuj">${ICONS.edit}</button>
-           <button class="icon-btn" data-dup="${esc(r.id)}" title="Duplikuj">${ICONS.copy}</button>` : ''}
-      ${can('operations:cancel') && r.status === 'POSTED'
-        ? `<button class="icon-btn danger" data-cancel="${esc(r.id)}" title="Storno">${ICONS.trash}</button>` : ''}
-    </td>
-  </tr>`;
-}
-
-function cardHtml(r) {
-  return `<div class="op-card" ${r.status === 'CANCELLED' ? 'style="opacity:.6"' : ''}>
-    <div class="r1">
-      ${typeTag(r.type)}${docStamp(r.docNo)}
-      <span style="margin-left:auto;font-size:12px;color:var(--ink-2)">${date(r.operationDate)}</span>
-    </div>
-    <div class="r2">${esc(r.productName)}</div>
-    <div class="r3">${esc(counterparty(r))}${r.vehiclePlate ? ` · ${esc(r.vehiclePlate)}` : ''}${r.transportCost ? ` · ${moneyShort(r.transportCost)}` : ''}</div>
-    <div class="r4">
-      <span class="vol">${qty(r.qtyMp)} <small style="font-size:11px;color:var(--ink-2)">MP · ${qty2(r.qtyTonne)} t</small></span>
-      <span>
-        <button class="icon-btn" data-view="${esc(r.id)}">${ICONS.eye}</button>
-        ${can('operations:write') && r.status === 'POSTED' ? `<button class="icon-btn" data-edit="${esc(r.id)}">${ICONS.edit}</button>` : ''}
-      </span>
-    </div>
-  </div>`;
-}
-
-function bind(view, catalog) {
-  const reload = () => refresh(view, catalog);
-  const setFilter = (patch) => { Object.assign(filters, patch, { offset: 0 }); reload(); };
-
-  on(view, 'click', '[data-type]', (el) => setFilter({ type: el.dataset.type, chainRef: '' }));
-  view.querySelector('#fq').addEventListener('change', (e) => setFilter({ q: e.target.value.trim() }));
-  view.querySelector('#fq').addEventListener('search', (e) => setFilter({ q: e.target.value.trim() }));
-  view.querySelector('#fprod').addEventListener('change', (e) => setFilter({ productId: e.target.value }));
-  view.querySelector('#fmag').addEventListener('change', (e) => setFilter({ warehouseId: e.target.value }));
-  view.querySelector('#fmonth').addEventListener('change', (e) => setFilter({ month: e.target.value }));
-  view.querySelector('#fstatus').addEventListener('change', (e) => setFilter({ status: e.target.value }));
-
-  on(view, 'click', '[data-page]', (el) => {
-    filters.offset = Math.max(0, filters.offset + (el.dataset.page === 'next' ? filters.limit : -filters.limit));
-    reload();
+  const table = createDataTable({
+    caption: 'Rejestr dokumentów magazynowych',
+    columns: COLUMNS,
+    actions: rowActions,
+    rowClass: (r) => (r.status === 'CANCELLED' ? 'cancelled' : ''),
+    footer: (rows, totals) => summaryRow(rows, totals),
+    empty: { title: 'Nic nie znaleziono', hint: 'Zmień filtry albo dodaj nowy dokument.' },
+    onAction: (act, row) => {
+      if (act === 'view') navigate(`/operacje/${row.id}`);
+      if (act === 'edit') navigate(`/nowa?id=${row.id}`);
+      if (act === 'dup') navigate(`/nowa?copy=${row.id}`);
+      if (act === 'cancel') cancelOperation(row.id, () => screen.reload());
+    },
   });
 
-  on(view, 'click', '[data-view]', (el) => navigate(`/operacje/${el.dataset.view}`));
-  on(view, 'click', '[data-edit]', (el) => navigate(`/nowa?id=${el.dataset.edit}`));
-  on(view, 'click', '[data-dup]', (el) => navigate(`/nowa?copy=${el.dataset.dup}`));
-  on(view, 'click', '[data-cancel]', (el) => cancelOperation(el.dataset.cancel, reload));
+  screen = createListScreen({
+    title: 'Rejestr operacji',
+    subtitle: 'Dokumenty PZ · WZ · PW · RW · MM · BO',
+    headerActions: `<button class="btn" data-act="csv">${ICONS.download} Eksport CSV</button>`
+      + (can('operations:write') ? `<a href="#/nowa" class="btn btn-primary">${ICONS.plus} Dodaj</a>` : ''),
+    filters,
+    fields: [
+      { type: 'chips', name: 'type', label: 'Typ dokumentu',
+        options: [
+          { value: '', label: 'Wszystkie' }, { value: 'ZAKUP', label: 'ZAKUP' },
+          { value: 'SPRZEDAZ', label: 'SPRZEDAZ' }, { value: 'PRODUKCJA', label: 'PRODUKCJA' },
+          { value: 'ZUZYCIE', label: 'ZUZYCIE' }, { value: 'MM', label: 'MM' },
+          { value: 'BO', label: 'BO' },
+        ] },
+      { type: 'search', name: 'q', label: 'Szukaj w rejestrze',
+        placeholder: 'Szukaj: dokument, kontrahent, rejestracja, kwit…' },
+      { type: 'select', name: 'productId', label: 'Produkt',
+        options: catalog.products, placeholder: 'Produkt: wszystkie' },
+      { type: 'select', name: 'warehouseId', label: 'Magazyn',
+        options: catalog.warehouses, placeholder: 'Magazyn: wszystkie' },
+      { type: 'month', name: 'month', label: 'Miesiąc' },
+      { type: 'select', name: 'status', label: 'Status dokumentu',
+        options: [
+          { id: 'POSTED', name: 'Zaksięgowane' },
+          { id: 'CANCELLED', name: 'Anulowane' },
+          { id: 'ALL', name: 'Wszystkie' },
+        ] },
+    ],
+    table,
+    load: (f) => api.get('/operations', f),
+    select: (data) => ({
+      rows: data.items,
+      page: data.page,
+      status: `${data.page.total} dokument(ów)`,
+      extra: data.totals,
+    }),
+    onMount: (root) => {
+      root.querySelector('[data-act="csv"]').addEventListener('click', downloadHandler(
+        '/operations/export.csv', () => filters, 'rejestr-operacji.csv', 'Plik CSV został pobrany',
+      ));
+      if (filters.chainRef) {
+        root.querySelector('[data-ls-filters]').insertAdjacentHTML('beforebegin', alertBox('info',
+          `Widok ograniczony do łańcucha ${filters.chainRef}. `
+          + 'Aby wrócić do pełnego rejestru, wybierz „Wszystkie” w filtrze typu.'));
+      }
+    },
+  });
 
-  view.querySelector('[data-act="csv"]').addEventListener('click',
-    downloadHandler('/operations/export.csv', () => filters, 'rejestr-operacji.csv', 'Plik CSV został pobrany'));
+  await screen.mount(view);
 }
 
 /** Storno dokumentu — zawsze z uzasadnieniem trafiającym do audytu. */
@@ -182,7 +194,6 @@ export async function cancelOperation(id, onDone) {
     toastError(err);
   }
 }
-
 /* ------------------------- Podgląd dokumentu -------------------------- */
 
 export async function renderOperationDetail(view, id) {

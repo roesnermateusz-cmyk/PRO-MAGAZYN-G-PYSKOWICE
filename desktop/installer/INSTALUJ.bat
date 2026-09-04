@@ -84,24 +84,72 @@ if /i "!SEED!"=="T" (
 )
 echo.
 
-REM ---------- 5. Skrot na pulpicie ----------
+REM ---------- 5. Launcher ResInvestERP.exe ----------
+echo  Budowanie programu uruchamiajacego ...
+call "%~dp0ZBUDUJ-EXE.bat"
+set EXE_OK=0
+if exist "%~dp0ResInvestERP.exe" set EXE_OK=1
+echo.
+
+REM ---------- 6. Skroty ----------
+if "!EXE_OK!"=="1" (
+  set TARGET=%~dp0ResInvestERP.exe
+  set ICONSRC=%~dp0ResInvestERP.exe
+) else (
+  set TARGET=%~dp0START.bat
+  set ICONSRC=%SystemRoot%\System32\shell32.dll,13
+)
+
 set DESKTOP=%USERPROFILE%\Desktop
-if exist "%DESKTOP%" (
+if exist "!DESKTOP!" (
   echo  Tworzenie skrotu na pulpicie ...
-  set SHORTCUT=%DESKTOP%\ResInvest ERP.lnk
-  powershell -NoProfile -Command ^
-    "$w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut('%DESKTOP%\ResInvest ERP.lnk');" ^
-    "$s.TargetPath='%~dp0START.bat'; $s.WorkingDirectory='%~dp0';" ^
-    "$s.IconLocation='%SystemRoot%\System32\shell32.dll,13'; $s.Description='ResInvest ERP - Magazyn Biomasy'; $s.Save()" >nul 2>&1
-  if exist "%DESKTOP%\ResInvest ERP.lnk" (echo  [OK] Skrot utworzony) else (echo  [i] Skrotu nie utworzono - uruchamiaj plik START.bat)
+  powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut((Join-Path $env:USERPROFILE 'Desktop\ResInvest ERP.lnk'));" ^
+    "$s.TargetPath='!TARGET!'; $s.WorkingDirectory='%~dp0';" ^
+    "$s.IconLocation='!ICONSRC!'; $s.Description='ResInvest ERP - Magazyn Biomasy'; $s.Save()" >nul 2>&1
+  if exist "!DESKTOP!\ResInvest ERP.lnk" (echo  [OK] Skrot na pulpicie) else (echo  [i] Skrotu na pulpicie nie utworzono)
+)
+
+set STARTMENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs
+if exist "!STARTMENU!" (
+  echo  Dodawanie do menu Start ...
+  powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut((Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\ResInvest ERP.lnk'));" ^
+    "$s.TargetPath='!TARGET!'; $s.WorkingDirectory='%~dp0';" ^
+    "$s.IconLocation='!ICONSRC!'; $s.Description='ResInvest ERP - Magazyn Biomasy'; $s.Save()" >nul 2>&1
+  if exist "!STARTMENU!\ResInvest ERP.lnk" (echo  [OK] Menu Start) else (echo  [i] Wpisu w menu Start nie utworzono)
+)
+
+REM ---------- 7. Uruchamianie przy starcie systemu (opcjonalnie) ----------
+echo.
+set /p AUTOSTART="  Uruchamiac system automatycznie po zalogowaniu? (T/N): "
+set AUTODIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
+if /i "!AUTOSTART!"=="T" (
+  if exist "!AUTODIR!" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+      "$w=New-Object -ComObject WScript.Shell; $s=$w.CreateShortcut((Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\ResInvest ERP.lnk'));" ^
+      "$s.TargetPath='!TARGET!'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='!ICONSRC!'; $s.Save()" >nul 2>&1
+    if exist "!AUTODIR!\ResInvest ERP.lnk" (echo  [OK] Autostart wlaczony) else (echo  [i] Autostartu nie ustawiono)
+  )
+) else (
+  if exist "!AUTODIR!\ResInvest ERP.lnk" del /q "!AUTODIR!\ResInvest ERP.lnk" >nul 2>&1
+  echo  [i] Autostart wylaczony
 )
 
 echo.
 echo  ============================================================
 echo    INSTALACJA ZAKONCZONA
 echo.
-echo    Aby uruchomic system, kliknij dwukrotnie: START.bat
-echo    albo skrot "ResInvest ERP" na pulpicie.
+if "!EXE_OK!"=="1" (
+  echo    Aby uruchomic system, kliknij dwukrotnie: ResInvestERP.exe
+  echo    albo skrot "ResInvest ERP" na pulpicie.
+  echo.
+  echo    Program dziala w zasobniku systemowym obok zegara.
+  echo    Prawy przycisk na ikonie - menu z opcja zakonczenia pracy.
+) else (
+  echo    Aby uruchomic system, kliknij dwukrotnie: START.bat
+  echo    albo skrot "ResInvest ERP" na pulpicie.
+)
 echo.
 echo    Aplikacja otworzy sie w przegladarce pod adresem:
 echo      http://localhost:4173

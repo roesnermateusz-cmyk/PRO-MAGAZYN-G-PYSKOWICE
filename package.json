@@ -19,7 +19,8 @@
     "backup": "node --disable-warning=ExperimentalWarning server/scripts/backup.mjs",
     "test": "node --disable-warning=ExperimentalWarning --test \"server/tests/*.test.mjs\"",
     "test:watch": "node --disable-warning=ExperimentalWarning --test --watch \"server/tests/*.test.mjs\"",
-    "build:installer": "node desktop/build-zip.mjs",
+    "build:icon": "node desktop/make-icon.mjs",
+    "build:installer": "node desktop/make-icon.mjs && node desktop/build-zip.mjs",
     "check": "node --check server/src/index.js"
   }
 }

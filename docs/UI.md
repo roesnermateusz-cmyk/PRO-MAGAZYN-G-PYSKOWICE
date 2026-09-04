@@ -169,6 +169,10 @@ nieosiągalna inaczej niż przez ręczne wpisanie adresu. Wszystkie trzy miejsca
 w `components/layout.js`, więc nowa sekcja pojawia się w nich naraz i podlega
 tej samej kontroli uprawnień.
 
+Warstwa komponentów `web/src/ui/` opisuje listę raz i renderuje wyłącznie
+wariant pasujący do szerokości ekranu — tabelę albo kartę, nigdy oba naraz.
+Szczegóły projektu, propsy i pomiary w [FRONTEND.md](FRONTEND.md).
+
 Zasady utrzymane w całym interfejsie:
 
 * pola dotykowe co najmniej 44 × 44 px,
