@@ -198,6 +198,20 @@ sprzedaży prosto z lasu).
 `PATCH /operations/:id` przyjmuje dowolny podzbiór pól plus wymagane
 `correctionReason`. Odpowiedź zawiera listę zmian zapisanych w rejestrze korekt.
 
+**Brak pola a pole puste to dwie różne intencje** — obowiązuje w każdym `PATCH`
+w tym API, nie tylko w dokumentach:
+
+| Wejście | Znaczenie | Skutek |
+|---|---|---|
+| klucz nieobecny | „nie ruszaj” | wartość bez zmian |
+| `""`, `null`, same spacje | „wyczyść” | kolumna ustawiona na `NULL`, zmiana w rejestrze korekt |
+| pole z wartością domyślną, puste | „przywróć domyślną” | np. `certificate → "BRAK"`, kwoty → `0`, tryby → `"AUTO"` |
+| pole wymagane, puste | błąd | `422 VALIDATION_ERROR` ze wskazaniem pola |
+
+Magazyn wskazany nazwą (`warehouseFrom` / `warehouseTo`) musi istnieć
+w kartotece — nieznana nazwa daje `422` z listą dostępnych magazynów zamiast
+zakładać nową pozycję. Kontrahenci i produkty nadal zakładają się w locie.
+
 `POST /operations/:id/cancel` wymaga `{ "reason": "…" }` (min. 5 znaków).
 Ogniwa łańcucha muszą być anulowane razem.
 
@@ -221,12 +235,27 @@ Ogniwa łańcucha muszą być anulowane razem.
 | Metoda | Ścieżka | Parametry |
 |---|---|---|
 | GET | `/stock` | `date`, `warehouseId`, `productId`, `includeZero` |
-| GET | `/stock/ledger` | `productId` *(wymagany)*, `warehouseId`, `dateFrom`, `dateTo` |
+| GET | `/stock/ledger` | `productId` *(wymagany)*, `warehouseId`, `dateFrom`, `dateTo`, `limit` |
 | GET | `/stock/negative` | — |
 | GET | `/stock/export.csv` | jak `/stock` |
 
-`/stock/ledger` zwraca chronologiczną kartotekę z saldem narastającym
-(`opening`, pozycje z `balanceMp`, `closing`).
+`/stock/ledger` zwraca chronologiczną kartotekę z saldem narastającym:
+
+```json
+{
+  "opening": 120.5,
+  "closing": 1995.67,
+  "moves": 412,
+  "truncated": true,
+  "items": [{ "date": "2026-08-16", "docNo": "PZ/2026/000287", "qtyMp": 48, "balanceMp": 1947.67 }]
+}
+```
+
+`opening` i `closing` liczone są agregatem po całym okresie i **nie zależą od
+`limit`** — parametr skraca wyłącznie wypis. Gdy ruchów jest więcej niż `limit`,
+`truncated` ma wartość `true`, `moves` podaje ich pełną liczbę, a `items`
+zawiera ruchy **najnowsze**, ułożone chronologicznie; saldo ostatniej pozycji
+równa się `closing`.
 
 ---
 

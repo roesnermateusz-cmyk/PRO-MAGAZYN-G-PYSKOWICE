@@ -6,7 +6,7 @@
  * przywrócenie stanu odbywa się przez `operations.restoreCorrection`, które
  * tworzy kolejną korektę — historia nigdy nie jest nadpisywana.
  */
-import db from '../../db/index.js';
+import db, { LIKE_ESCAPE, likePattern } from '../../db/index.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError } from '../../lib/errors.js';
 import { FIELD_LABELS } from '../../domain/operation-fields.js';
@@ -95,8 +95,9 @@ export function listCorrections(query = {}) {
   if (f.dateFrom) { where.push('c.changed_at >= :dateFrom'); params.dateFrom = f.dateFrom; }
   if (f.dateTo) { where.push('c.changed_at <= :dateTo'); params.dateTo = `${f.dateTo} 23:59:59`; }
   if (f.q) {
-    where.push('(c.doc_no LIKE :q OR c.product_name LIKE :q OR c.changed_by_name LIKE :q)');
-    params.q = `%${f.q}%`;
+    where.push(`(c.doc_no LIKE :q ${LIKE_ESCAPE} OR c.product_name LIKE :q ${LIKE_ESCAPE}
+                 OR c.changed_by_name LIKE :q ${LIKE_ESCAPE})`);
+    params.q = likePattern(f.q);
   }
   const whereSql = where.join(' AND ');
 

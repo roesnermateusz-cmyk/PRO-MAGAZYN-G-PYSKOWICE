@@ -156,10 +156,18 @@ Jeden punkt przełamania: **860 px**.
 
 | | Desktop (≥ 861 px) | Telefon (≤ 860 px) |
 |---|---|---|
-| Nawigacja | Sidebar 244 px | Dolny pasek zakładek + nagłówek |
+| Nawigacja | Sidebar 244 px | Dolny pasek zakładek + panel „Więcej” + nagłówek |
 | Rejestr operacji | Tabela 13-kolumnowa | Karty (`.op-card`) |
 | Formularz | Siatka wielokolumnowa | Jedna kolumna |
 | Akcje | Przyciski w nagłówku | Przyciski pełnej szerokości + FAB |
+
+Dolny pasek mieści pięć najczęstszych sekcji i przycisk **„Więcej”**, który
+otwiera panel dolny z pełną listą — okresami, korektami, kartotekami,
+użytkownikami i ustawieniami. Bez tego panelu połowa systemu byłaby na telefonie
+nieosiągalna inaczej niż przez ręczne wpisanie adresu. Wszystkie trzy miejsca
+(sidebar, pasek zakładek, panel) składane są z jednej tablicy `NAV`
+w `components/layout.js`, więc nowa sekcja pojawia się w nich naraz i podlega
+tej samej kontroli uprawnień.
 
 Zasady utrzymane w całym interfejsie:
 

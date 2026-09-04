@@ -13,7 +13,7 @@
  * a poszczególne kartoteki różnią się wyłącznie deklaracją: tabelą, schematem
  * walidacji i mapowaniem kolumn.
  */
-import db from '../../db/index.js';
+import db, { LIKE_ESCAPE, likePattern } from '../../db/index.js';
 import { uuid } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../lib/errors.js';
@@ -193,8 +193,8 @@ const WAREHOUSE_SCHEMA = {
   name: { type: 'string', required: true, max: 120, label: 'Nazwa magazynu' },
   code: { type: 'string', max: 40, upper: true, label: 'Kod' },
   address: { type: 'string', max: 250, label: 'Adres' },
-  isDefault: { type: 'bool', label: 'Magazyn domyślny' },
-  isActive: { type: 'bool', label: 'Aktywny' },
+  isDefault: { type: 'bool', default: false, label: 'Magazyn domyślny' },
+  isActive: { type: 'bool', default: true, label: 'Aktywny' },
 };
 
 export const warehouses = createCatalog({
@@ -232,7 +232,7 @@ const PRODUCT_SCHEMA = {
   mpToTonne: { type: 'number', min: 0.001, max: 100, label: 'Przelicznik MP → tona' },
   tonneToGj: { type: 'number', min: 0.001, max: 100, label: 'Przelicznik tona → GJ' },
   notes: { type: 'string', max: 500, label: 'Uwagi' },
-  isActive: { type: 'bool', label: 'Aktywny' },
+  isActive: { type: 'bool', default: true, label: 'Aktywny' },
 };
 
 export const products = createCatalog({
@@ -275,7 +275,7 @@ const PARTNER_SCHEMA = {
   email: { type: 'string', max: 120, label: 'E-mail' },
   phone: { type: 'string', max: 40, label: 'Telefon' },
   notes: { type: 'string', max: 500, label: 'Uwagi' },
-  isActive: { type: 'bool', label: 'Aktywny' },
+  isActive: { type: 'bool', default: true, label: 'Aktywny' },
 };
 
 export const partners = createCatalog({
@@ -306,8 +306,9 @@ partners.search = ({ includeInactive = false, kind = '', q = '' } = {}) => {
   if (!includeInactive) where.push('is_active = 1');
   if (kind) { where.push("(kind = :kind OR kind = 'OBA')"); params.kind = kind; }
   if (q) {
-    where.push("(name LIKE :q OR COALESCE(nip,'') LIKE :q OR COALESCE(code,'') LIKE :q)");
-    params.q = `%${q}%`;
+    where.push(`(name LIKE :q ${LIKE_ESCAPE} OR COALESCE(nip,'') LIKE :q ${LIKE_ESCAPE}
+                 OR COALESCE(code,'') LIKE :q ${LIKE_ESCAPE})`);
+    params.q = likePattern(q);
   }
   return db.all(`SELECT * FROM partners WHERE ${where.join(' AND ')} ORDER BY name`, params)
     .map((r) => ({
@@ -323,7 +324,7 @@ const VEHICLE_SCHEMA = {
   carrierId: { type: 'string', max: 40, label: 'Przewoźnik (kartoteka)' },
   carrierName: { type: 'string', max: 160, label: 'Przewoźnik / kierowca' },
   description: { type: 'string', max: 200, label: 'Opis' },
-  isActive: { type: 'bool', label: 'Aktywny' },
+  isActive: { type: 'bool', default: true, label: 'Aktywny' },
 };
 
 export const vehicles = createCatalog({

@@ -70,7 +70,9 @@ export async function renderSettings(view) {
               <input type="number" id="backdate" name="rules.backdate_days" min="0" max="3650" step="1"
                      value="${esc(settings['rules.backdate_days'])}" ${editable ? '' : 'disabled'}>
               <div class="hint">Ograniczenie dotyczy magazyniera i księgowego. Kierownik i administrator
-              mogą księgować dokumenty z dowolną datą w otwartym okresie.</div>
+              mogą księgować dokumenty z dowolną datą wsteczną w otwartym okresie.
+              Wartość 0 oznacza wyłącznie dzień bieżący; 3650 to praktyczny brak ograniczenia.
+              Daty przyszłej nie przyjmuje żadna rola.</div>
             </div>
           </div>
           ${editable ? '<button type="submit" class="btn btn-primary" style="margin-top:14px">Zapisz reguły</button>' : ''}

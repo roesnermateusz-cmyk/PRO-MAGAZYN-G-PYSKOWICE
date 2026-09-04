@@ -11,6 +11,12 @@ import { initials } from '../core/format.js';
  * Definicja nawigacji.
  * `tab: true` — pozycja widoczna w dolnym pasku na telefonie.
  * `perm`      — wymagane uprawnienie; pozycje bez uprawnienia są ukrywane.
+ *
+ * Ta lista zasila trzy miejsca naraz: sidebar (desktop), dolny pasek zakładek
+ * i panel „Więcej” (telefon). Dolny pasek mieści pięć pozycji, a system ma ich
+ * dwanaście — bez panelu „Więcej” okresy, korekty, kartoteki, użytkownicy
+ * i ustawienia były na telefonie nieosiągalne inaczej niż przez ręczne wpisanie
+ * adresu. Nowa pozycja dopisana tutaj pojawia się we wszystkich trzech.
  */
 export const NAV = [
   { id: 'pulpit', label: 'Pulpit', icon: 'dashboard', perm: 'reports:read', tab: true },
@@ -81,6 +87,23 @@ export function renderLayout(root) {
       ${items.filter((i) => i.tab).map((item) => (item.tab === 'add'
         ? `<a href="#/${item.id}" data-nav="${item.id}" class="tab-add"><span class="tab-plus">${ICONS.plus}</span><span>Dodaj</span></a>`
         : `<a href="#/${item.id}" data-nav="${item.id}">${ICONS[item.icon]}<span>${esc(item.label)}</span></a>`)).join('')}
+      <button type="button" class="tab-more" data-tool="more" aria-expanded="false" aria-controls="moresheet">
+        ${ICONS.more}<span>Więcej</span>
+      </button>
+    </nav>
+
+    <div class="sheet-back" id="moreback" hidden></div>
+    <nav class="sheet" id="moresheet" hidden aria-label="Pozostałe sekcje">
+      <div class="sheet-grip"></div>
+      <div class="sheet-h">
+        <b>Wszystkie sekcje</b>
+        <button type="button" class="icon-btn" data-tool="more-close" aria-label="Zamknij">${ICONS.close}</button>
+      </div>
+      <div class="sheet-b">
+        ${items.map((item) => (item.group
+          ? `<div class="menu-sep">${esc(item.group)}</div>`
+          : `<a href="#/${item.id}" data-nav="${item.id}">${ICONS[item.icon]}<span>${esc(item.label)}</span></a>`)).join('')}
+      </div>
     </nav>
 
     ${can('operations:write') ? `<a href="#/nowa" class="fab" title="Nowa operacja" aria-label="Nowa operacja">${ICONS.plus}</a>` : ''}

@@ -63,6 +63,30 @@ function normalizeValue(v) {
 /** Wiersze zwracane przez sterownik mają prototyp `null` — normalizujemy do zwykłych obiektów. */
 const plain = (row) => (row ? { ...row } : row);
 
+/**
+ * Klauzula zabezpieczająca wzorce `LIKE` przed metaznakami wpisanymi przez
+ * użytkownika. Doklejana do każdego porównania `LIKE`, którego wzorzec
+ * pochodzi z `likePattern`.
+ */
+export const LIKE_ESCAPE = "ESCAPE '\\'";
+
+/**
+ * Wzorzec „zawiera” dla `LIKE` z neutralizacją metaznaków.
+ *
+ * W `LIKE` znaki `%` i `_` mają znaczenie specjalne: `_` pasuje do dowolnego
+ * znaku, `%` do dowolnego ciągu. Bez tego wyszukiwanie numeru kwitu „A_B”
+ * trafiało też w „AXB”, a szukanie „50%” zwracało cały rejestr — magazynier
+ * dostawał wynik wyglądający poprawnie, ale zawierający cudze dokumenty.
+ *
+ * Wzorzec używać wyłącznie razem z `LIKE_ESCAPE`.
+ *
+ * @param {string} text fragment wpisany przez użytkownika
+ * @returns {string} wzorzec `%…%` z metaznakami poprzedzonymi `\`
+ */
+export function likePattern(text) {
+  return `%${String(text).replace(/[\\%_]/g, '\\$&')}%`;
+}
+
 export function openDatabase(file = config.db.file) {
   if (connection) return connection;
   if (file !== ':memory:') mkdirSync(path.dirname(file), { recursive: true });

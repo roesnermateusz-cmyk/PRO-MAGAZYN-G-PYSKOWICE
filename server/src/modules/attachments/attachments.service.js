@@ -16,6 +16,7 @@ import db from '../../db/index.js';
 import { uuid, sha256Buffer } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ValidationError, PayloadTooLargeError, ForbiddenError } from '../../lib/errors.js';
+import { assertPeriodOpen } from '../periods/periods.service.js';
 import { audit } from '../../middleware/audit.js';
 import logger from '../../lib/logger.js';
 
@@ -34,7 +35,15 @@ const UPLOAD_SCHEMA = {
   kind: { type: 'enum', values: ['SKAN', 'KWIT', 'FAKTURA', 'INNE'], default: 'SKAN', label: 'Rodzaj' },
 };
 
-/** Zapisuje załącznik dokumentu. */
+/**
+ * Zapisuje załącznik dokumentu.
+ *
+ * Świadomie dozwolone także w zamkniętym okresie: uzupełnienie dokumentacji
+ * (skan certyfikatu, który przyszedł pocztą po zamknięciu miesiąca) nie zmienia
+ * żadnej liczby — ani stanu, ani wartości, ani sald okresu. Wymuszanie tu
+ * otwarcia okresu odwracałoby zamknięcie z powodu, który go nie dotyczy.
+ * Wpis trafia do dziennika audytu, więc dołożenie dowodu jest widoczne.
+ */
 export function addAttachment(operationId, input, ctx) {
   const operation = db.get('SELECT id, doc_no, operation_date FROM operations WHERE id = :id', { id: operationId });
   if (!operation) throw new NotFoundError('Nie znaleziono dokumentu.');
@@ -121,13 +130,26 @@ export function readAttachment(id) {
   return { meta: mapAttachment(row), buffer: readFileSync(file) };
 }
 
-/** Usuwa załącznik (rola z uprawnieniem `attachments:write`; magazynier — tylko własne). */
+/**
+ * Usuwa załącznik (rola z uprawnieniem `attachments:write`; magazynier — tylko własne).
+ *
+ * Załącznika z zamkniętego okresu nie usuwamy. Zamknięcie miesiąca pieczętuje
+ * dokumentację źródłową — skan kwitu jest dowodem tak samo jak sam dokument,
+ * a kontrola KZR/SURE sięga do miesięcy dawno rozliczonych. Skoro dokumentu
+ * z zamkniętego okresu nie da się zmienić, jego dowodu nie da się usunąć.
+ * Droga wyjścia jest ta sama co dla dokumentu: otwarcie okresu przez kierownika.
+ */
 export function deleteAttachment(id, ctx) {
   const row = db.get('SELECT * FROM attachments WHERE id = :id', { id });
   if (!row) throw new NotFoundError('Nie znaleziono załącznika.');
   if (ctx.user.role === 'MAGAZYNIER' && row.uploaded_by !== ctx.user.id) {
     throw new ForbiddenError('Magazynier może usuwać wyłącznie własne załączniki.');
   }
+
+  const month = db.value(
+    'SELECT operation_month FROM operations WHERE id = :id', { id: row.operation_id },
+  );
+  if (month) assertPeriodOpen(month);
 
   db.run('DELETE FROM attachments WHERE id = :id', { id });
   const file = path.join(config.attachments.dir, row.storage_path);

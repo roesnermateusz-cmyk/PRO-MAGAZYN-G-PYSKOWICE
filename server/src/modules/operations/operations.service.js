@@ -16,7 +16,7 @@
  * miejscu — `domain/operation-fields.js`. Ten moduł zajmuje się wyłącznie
  * regułami biznesowymi.
  */
-import db from '../../db/index.js';
+import db, { LIKE_ESCAPE, likePattern } from '../../db/index.js';
 import { uuid } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from '../../lib/errors.js';
@@ -55,7 +55,7 @@ function prepareRow(input, { existing = null } = {}) {
   const type = carry(d, existing, 'type');
   const product = resolveProduct(d, existing, errors);
   const quantities = computeAmounts(d, existing, product);
-  const places = resolveWarehouses(d, existing, type);
+  const places = resolveWarehouses(d, existing, type, errors);
   const signature = String(carry(d, existing, 'signature') ?? '').trim();
 
   if (getSetting('rules.require_signature') && signature.split(/\s+/).filter(Boolean).length < 2) {
@@ -125,16 +125,48 @@ function computeAmounts(d, existing, product) {
  * Krok 3 — magazyny. Klucz z żądania ma pierwszeństwo przed nazwą, nazwa przed
  * wartością z edytowanego dokumentu. Brakujący magazyn wymagany przez typ
  * dokumentu uzupełnia się magazynem domyślnym.
+ *
+ * Magazyn musi istnieć w kartotece. Wcześniej nieznana nazwa zakładała nowy
+ * magazyn „w locie”, więc literówka w formularzu tworzyła magazyn widmo:
+ * dokument księgował się bez ostrzeżenia, a towar znikał ze stanu magazynu
+ * właściwego. Kartoteka magazynów opisuje fizyczne place składowe — te zakłada
+ * się świadomie, w kartotece, a nie przy okazji wpisywania dokumentu.
+ * (Kontrahenci i produkty pozostają zakładane w locie: tam nowa nazwa jest
+ * normalnym zdarzeniem, a pomyłka nie przenosi towaru w niewłaściwe miejsce.)
  */
-function resolveWarehouses(d, existing, type) {
+function resolveWarehouses(d, existing, type, errors) {
+  /** Nazwa → klucz kartoteki; nieznana nazwa to błąd formularza, nie nowy magazyn. */
+  const byName = (name, field) => {
+    const found = warehouses.findByName(name);
+    if (found) return found.id;
+    const available = warehouses.list().map((w) => w.name);
+    errors.push({
+      field,
+      message: `Nie ma magazynu o nazwie „${name}”. Dostępne: ${available.join(', ') || 'brak'}. `
+        + 'Nowy magazyn zakłada się w kartotece magazynów.',
+    });
+    return null;
+  };
+
+  /** Klucz z żądania — sprawdzany, żeby literówka dała błąd formularza, nie błąd bazy. */
+  const byId = (id, field) => {
+    if (db.get('SELECT 1 AS x FROM warehouses WHERE id = :id', { id })) return id;
+    errors.push({ field, message: 'Wskazany magazyn nie istnieje w kartotece.' });
+    return null;
+  };
+
   const pick = (idKey, nameKey, existingCol) => {
-    if (d[idKey]) return d[idKey];
-    if (d[nameKey] !== undefined) return d[nameKey] ? warehouses.ensure(d[nameKey]).id : null;
+    if (d[idKey]) return byId(d[idKey], idKey);
+    if (d[nameKey] !== undefined) return d[nameKey] ? byName(d[nameKey], nameKey) : null;
     return existing?.[existingCol] ?? null;
   };
 
   let from = pick('warehouseFromId', 'warehouseFrom', 'warehouse_from_id');
   let to = pick('warehouseToId', 'warehouseTo', 'warehouse_to_id');
+
+  // Wskazano magazyn, którego nie ma — nie podstawiamy domyślnego pod błędną
+  // nazwą, bo to ta sama pomyłka, tylko w innym miejscu. Kontroler zgłosi błąd.
+  if (errors.length) return { from, to };
 
   // Magazyn domyślny odczytujemy dopiero, gdy któraś strona dokumentu go potrzebuje.
   let fallbackId = null;
@@ -208,19 +240,53 @@ function guessCategory(name) {
    Kontrole biznesowe
    ====================================================================== */
 
-/** Blokuje księgowanie zbyt daleko wstecz (poza korektą przez kierownika). */
+/**
+ * Zapas na różnicę stref czasowych. Serwer liczy dzisiaj w UTC, magazyn pracuje
+ * w czasie lokalnym (UTC+1/+2), więc wieczorem data lokalna bywa o dobę „przed”
+ * datą UTC. Jedna doba tolerancji przepuszcza tę różnicę i nic poza nią.
+ */
+const FUTURE_TOLERANCE_DAYS = 1;
+
+/** Liczba dni między dzisiaj a datą dokumentu: dodatnia = wstecz, ujemna = w przód. */
+function daysBack(date) {
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((today - new Date(`${date}T00:00:00Z`).getTime()) / 86_400_000);
+}
+
+/**
+ * Kontrola daty dokumentu — dwie niezależne reguły.
+ *
+ * 1. Data z przyszłości jest niedopuszczalna dla KAŻDEJ roli. Dokument opisuje
+ *    zdarzenie, które już zaszło; data w przód psuje stany na dzień, raporty
+ *    miesięczne i migawki zamknięcia okresu. Wcześniej regułę omijali ADMIN
+ *    i KIEROWNIK, a przy `backdate_days = 0` znikała dla wszystkich — bo cała
+ *    funkcja kończyła się wtedy na pierwszej linii.
+ *
+ * 2. Księgowanie wstecz ponad limit wymaga kierownika. `backdate_days` czytamy
+ *    dosłownie: 0 oznacza „tylko dzień bieżący”, nie „bez ograniczeń”.
+ *    Poprzednie odczytanie zera jako braku limitu dawało wynik odwrotny do
+ *    zamiaru administratora, który wpisywał zero, żeby zamknąć furtkę.
+ */
 function assertDateAllowed(date, user) {
-  const limitDays = Number(getSetting('rules.backdate_days')) || 0;
-  if (!limitDays) return;
+  const diff = daysBack(date);
+
+  if (diff < -FUTURE_TOLERANCE_DAYS) {
+    throw new ValidationError(
+      `Data ${date} jest datą przyszłą. Dokument księguje się po wykonaniu operacji.`,
+      [{ field: 'operationDate', message: 'Data operacji nie może być z przyszłości.' }],
+    );
+  }
+
   if (user.role === 'ADMIN' || user.role === 'KIEROWNIK') return;
 
-  const diffDays = Math.floor((Date.now() - new Date(`${date}T12:00:00Z`).getTime()) / 86_400_000);
-  if (diffDays > limitDays) {
+  const setting = Number(getSetting('rules.backdate_days'));
+  const limitDays = Number.isFinite(setting) && setting >= 0 ? setting : 90;
+  if (diff > limitDays) {
     throw new ForbiddenError(
       `Data ${date} wykracza poza dozwolone ${limitDays} dni wstecz. Poproś kierownika o zaksięgowanie dokumentu.`,
     );
   }
-  if (diffDays < -1) throw new ValidationError('Data operacji nie może być z przyszłości.');
 }
 
 /** Kontrola stanów ujemnych — ostrzeżenie lub twarda blokada zależnie od ustawień. */
@@ -441,11 +507,13 @@ function buildListFilter(query) {
   if (f.dateFrom) { where.push('o.operation_date >= :dateFrom'); params.dateFrom = f.dateFrom; }
   if (f.dateTo) { where.push('o.operation_date <= :dateTo'); params.dateTo = f.dateTo; }
   if (f.q) {
-    where.push(`(o.doc_no LIKE :q OR o.product_name LIKE :q OR COALESCE(o.supplier_name,'') LIKE :q
-                 OR COALESCE(o.recipient_name,'') LIKE :q OR COALESCE(o.vehicle_plate,'') LIKE :q
-                 OR COALESCE(o.carrier_name,'') LIKE :q OR COALESCE(o.haulage_note_no,'') LIKE :q
-                 OR COALESCE(o.forest_district,'') LIKE :q OR COALESCE(o.notes,'') LIKE :q)`);
-    params.q = `%${f.q}%`;
+    const like = (col) => `${col} LIKE :q ${LIKE_ESCAPE}`;
+    where.push(`(${[
+      'o.doc_no', 'o.product_name', "COALESCE(o.supplier_name,'')", "COALESCE(o.recipient_name,'')",
+      "COALESCE(o.vehicle_plate,'')", "COALESCE(o.carrier_name,'')", "COALESCE(o.haulage_note_no,'')",
+      "COALESCE(o.forest_district,'')", "COALESCE(o.notes,'')",
+    ].map(like).join(' OR ')})`);
+    params.q = likePattern(f.q);
   }
 
   const orderColumn = { date: 'o.operation_date', doc: 'o.doc_no', value: '(o.value_sale + o.value_purchase)' }[f.sort];

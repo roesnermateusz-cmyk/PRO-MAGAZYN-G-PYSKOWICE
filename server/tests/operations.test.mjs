@@ -14,6 +14,7 @@ const { currentStock, stockLedger } = await import('../src/modules/stock/stock.s
 const { monthlyReport, productionDay } = await import('../src/modules/reports/reports.service.js');
 const { listCorrections } = await import('../src/modules/corrections/corrections.service.js');
 const { updateSettings, invalidateSettingsCache } = await import('../src/modules/settings/settings.service.js');
+const { addAttachment, deleteAttachment } = await import('../src/modules/attachments/attachments.service.js');
 
 bootstrap();
 const admin = db.get("SELECT id, email, full_name FROM users WHERE role = 'ADMIN' LIMIT 1");
@@ -431,4 +432,211 @@ test('regresja: odpowiedź zapisu zawiera komplet pól dokumentu', () => {
   }
   assert.equal(operation.warehouseTo, 'Magazyn RiC Zabrze', 'nazwa magazynu ze złączenia');
   assert.equal(operation.factors.m3ToMp, 4);
+});
+
+/* ------------------------------------------------------------------ *
+ *  Regresje wykryte w sesji debugowania — patrz docs/DEBUGGING.md
+ * ------------------------------------------------------------------ */
+
+test('regresja: puste pole w korekcie czyści wartość i trafia do historii', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-06-25', quantity: 15,
+    haulageNoteNo: 'KW-BLEDNY-999', notes: 'uwaga do usunięcia', carrierName: 'Przewoźnik X',
+  }), ctx);
+  assert.equal(operation.haulageNoteNo, 'KW-BLEDNY-999');
+
+  const fixed = ops.updateOperation(operation.id, {
+    haulageNoteNo: '', notes: '', carrierName: '   ',
+    correctionReason: 'Kwit wpisany omyłkowo przy innym dokumencie',
+  }, ctx).operation;
+
+  assert.equal(fixed.haulageNoteNo, null, 'pusty ciąg czyści pole, nie zostawia starej wartości');
+  assert.equal(fixed.notes, null);
+  assert.equal(fixed.carrierName, null, 'ciąg samych spacji też jest wartością pustą');
+
+  const correction = listCorrections({ operationId: operation.id }).items[0];
+  const cleared = correction.changes.filter((c) => c.to === null || c.to === '—' || c.to === '');
+  assert.equal(cleared.length, 3, 'wyczyszczenie trzech pól to trzy wpisy w rejestrze korekt');
+});
+
+test('regresja: pominięte pole w korekcie zostaje bez zmian', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-06-26', quantity: 8, haulageNoteNo: 'KW-ZOSTAJE-1', notes: 'uwaga zostaje',
+  }), ctx);
+
+  const after = ops.updateOperation(operation.id, {
+    quantity: 9, correctionReason: 'Poprawka wolumenu po ponownym pomiarze',
+  }, ctx).operation;
+
+  assert.equal(after.haulageNoteNo, 'KW-ZOSTAJE-1', 'brak klucza w żądaniu nie rusza pola');
+  assert.equal(after.notes, 'uwaga zostaje');
+  assert.equal(after.quantity, 9);
+});
+
+test('regresja: wartość domyślna chroni pole przed wyzerowaniem', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-06-27', quantity: 6, certificate: 'SURE', transportCost: 300,
+  }), ctx);
+
+  const after = ops.updateOperation(operation.id, {
+    certificate: '', transportCost: '', m3Mode: '',
+    correctionReason: 'Sprawdzenie zachowania pól z wartością domyślną',
+  }, ctx).operation;
+
+  assert.equal(after.certificate, 'BRAK', 'pole z wartością domyślną wraca do niej, nie do NULL');
+  assert.equal(after.transportCost, 0);
+  assert.equal(after.m3Mode, 'AUTO');
+  assert.equal(after.isStored, true);
+});
+
+test('regresja: saldo końcowe kartoteki nie zależy od limitu wypisu', () => {
+  const productName = 'Zrębka Kartoteka Limit';
+  for (let i = 0; i < 12; i += 1) {
+    ops.createOperation(operationInput({
+      operationDate: '2026-07-05', productName, quantity: 5, unit: 'MP',
+    }), ctx);
+  }
+  const productId = db.value('SELECT id FROM products WHERE name = :name', { name: productName });
+  const real = stockOf(productName);
+
+  const full = stockLedger({ productId });
+  const cut = stockLedger({ productId, limit: 4 });
+
+  assert.equal(full.closing, real);
+  assert.equal(cut.closing, real, 'limit skraca wypis, nie saldo');
+  assert.equal(cut.items.length, 4);
+  assert.equal(cut.truncated, true);
+  assert.equal(cut.moves, full.moves);
+  assert.equal(cut.items.at(-1).balanceMp, real, 'ostatni wiersz okna kończy się stanem rzeczywistym');
+  assert.deepEqual(
+    cut.items.map((m) => m.docNo),
+    full.items.slice(-4).map((m) => m.docNo),
+    'okno pokazuje ruchy najnowsze, ułożone chronologicznie',
+  );
+});
+
+test('regresja: literówka w nazwie magazynu jest odrzucana, nie zakładana', () => {
+  const before = db.value('SELECT COUNT(*) FROM warehouses');
+  assert.throws(
+    () => ops.createOperation(operationInput({
+      operationDate: '2026-07-06', quantity: 20, warehouseTo: 'Magazyn RiC Zabzre',
+    }), ctx),
+    (err) => /Nie ma magazynu o nazwie/.test(err.message)
+      || err.details?.some((d) => /Nie ma magazynu o nazwie/.test(d.message)),
+  );
+  assert.equal(db.value('SELECT COUNT(*) FROM warehouses'), before, 'kartoteka magazynów bez zmian');
+});
+
+test('regresja: nieistniejący klucz magazynu daje błąd formularza, nie błąd bazy', () => {
+  assert.throws(
+    () => ops.createOperation(operationInput({
+      operationDate: '2026-07-06', quantity: 5, warehouseToId: 'nie-ma-takiego-klucza',
+    }), ctx),
+    (err) => err.status === 422,
+  );
+});
+
+test('regresja: metaznaki LIKE w wyszukiwarce nie rozszerzają wyniku', () => {
+  ops.createOperation(operationInput({
+    operationDate: '2026-07-07', quantity: 3, haulageNoteNo: 'A_B-2026',
+  }), ctx);
+  ops.createOperation(operationInput({
+    operationDate: '2026-07-07', quantity: 3, haulageNoteNo: 'AXB-2026',
+  }), ctx);
+  ops.createOperation(operationInput({
+    operationDate: '2026-07-07', quantity: 3, notes: 'rabat 50% od dostawcy',
+  }), ctx);
+
+  const underscore = ops.listOperations({ q: 'A_B-2026' });
+  assert.equal(underscore.page.total, 1, '„_” jest szukane dosłownie, nie jako dowolny znak');
+
+  const percent = ops.listOperations({ q: '50%' });
+  assert.equal(percent.page.total, 1, '„%” jest szukane dosłownie, nie jako dowolny ciąg');
+
+  const partial = ops.listOperations({ q: 'A_B' });
+  assert.equal(partial.page.total, 1, 'wyszukiwanie nadal działa jako „zawiera”');
+});
+
+test('regresja: data z przyszłości jest odrzucana dla każdej roli', () => {
+  const future = new Date();
+  future.setDate(future.getDate() + 30);
+  const date = future.toISOString().slice(0, 10);
+
+  for (const role of ['ADMIN', 'KIEROWNIK', 'MAGAZYNIER']) {
+    assert.throws(
+      () => ops.createOperation(
+        operationInput({ operationDate: date, quantity: 4 }),
+        testContext({ userId: admin.id, role }),
+      ),
+      /datą przyszłą/i,
+      `rola ${role} nie może księgować w przód`,
+    );
+  }
+});
+
+test('regresja: backdate_days = 0 zamyka księgowanie wstecz, nie kontrolę daty', () => {
+  updateSettings({ 'rules.backdate_days': 0 }, admin.id);
+  invalidateSettingsCache();
+  try {
+    const magazynier = testContext({ userId: admin.id, role: 'MAGAZYNIER' });
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 5);
+
+    assert.throws(
+      () => ops.createOperation(operationInput({
+        operationDate: yesterday.toISOString().slice(0, 10), quantity: 4,
+      }), magazynier),
+      /dni wstecz/i,
+      'zero dni wstecz znaczy „tylko dzisiaj”, a nie „bez ograniczeń”',
+    );
+
+    const future = new Date();
+    future.setDate(future.getDate() + 10);
+    assert.throws(
+      () => ops.createOperation(operationInput({
+        operationDate: future.toISOString().slice(0, 10), quantity: 4,
+      }), ctx),
+      /datą przyszłą/i,
+      'kontrola daty przyszłej działa niezależnie od limitu wstecz',
+    );
+
+    const today = ops.createOperation(operationInput({
+      operationDate: new Date().toISOString().slice(0, 10), quantity: 4,
+    }), magazynier);
+    assert.equal(today.operation.status, 'POSTED', 'dzień bieżący pozostaje dozwolony');
+  } finally {
+    updateSettings({ 'rules.backdate_days': 90 }, admin.id);
+    invalidateSettingsCache();
+  }
+});
+
+test('regresja: zamknięty okres chroni załączniki przed usunięciem', () => {
+  const PNG_1PX = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-01-20', quantity: 7,
+  }), ctx);
+
+  const kwit = addAttachment(operation.id, {
+    filename: 'kwit.png', mimeType: 'image/png', dataBase64: PNG_1PX, kind: 'KWIT',
+  }, ctx);
+
+  closePeriod('2026-01', { note: 'Zamknięcie do testu załączników' }, ctx);
+  try {
+    assert.throws(
+      () => deleteAttachment(kwit.id, ctx),
+      (err) => err.code === 'PERIOD_CLOSED',
+      'dowodu z rozliczonego miesiąca nie usuwamy',
+    );
+
+    // Uzupełnienie dokumentacji pozostaje możliwe — nie zmienia żadnej liczby.
+    const late = addAttachment(operation.id, {
+      filename: 'certyfikat.png', mimeType: 'image/png', dataBase64: PNG_1PX, kind: 'INNE',
+    }, ctx);
+    assert.ok(late.id);
+  } finally {
+    reopenPeriod('2026-01', { reason: 'Zakończenie testu załączników' }, ctx);
+  }
+
+  assert.deepEqual(deleteAttachment(kwit.id, ctx), { ok: true },
+    'w otwartym okresie usunięcie działa jak dotąd');
 });

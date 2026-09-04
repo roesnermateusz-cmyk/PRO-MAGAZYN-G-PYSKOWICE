@@ -24,27 +24,54 @@ function isValidDate(s) {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
 
-function coerce(field, rule, value, errors) {
+/**
+ * Rozstrzyga wartość pustą.
+ *
+ * Rozróżnienie kluczowe dla korekt: klucz nieobecny w żądaniu znaczy
+ * „nie ruszaj tego pola”, a klucz obecny z pustą wartością — „wyczyść je”.
+ * Bez tego rozróżnienia walidator zwracał w obu przypadkach `undefined`,
+ * więc usunięcie błędnie wpisanego numeru kwitu było niewykonalne: pole
+ * wracało do starej wartości, a rejestr korekt nie odnotowywał zmiany.
+ *
+ * Pole z wartością domyślną nigdy nie jest czyszczone — pusty wpis wraca
+ * do wartości domyślnej (tak zachowują się tryby przeliczeń, certyfikat
+ * i kwoty, których kolumny nie dopuszczają `NULL`).
+ *
+ * @param {string} field nazwa pola
+ * @param {object} rule reguła
+ * @param {Array} errors kolektor błędów
+ * @param {boolean} present czy klucz w ogóle wystąpił w danych wejściowych
+ * @returns {null|undefined|any} `null` = wyczyść, `undefined` = pomiń
+ */
+function resolveEmpty(field, rule, errors, present) {
+  if (rule.required) {
+    errors.push({ field, message: `Pole „${rule.label || field}” jest wymagane.` });
+    return undefined;
+  }
+  if (rule.default !== undefined) return rule.default;
+  return present ? null : undefined;
+}
+
+/**
+ * @param {boolean} present czy klucz wystąpił w danych wejściowych.
+ *   `undefined` pod obecnym kluczem (możliwe tylko przy wywołaniu z kodu,
+ *   nie z JSON-a) liczymy jako brak — czyszczenie wyraża się przez `null` lub `''`.
+ */
+function coerce(field, rule, value, errors, present) {
   const label = rule.label || field;
 
   // Wartości puste
-  if (value === undefined || value === null || value === '') {
-    if (rule.required) {
-      errors.push({ field, message: `Pole „${label}” jest wymagane.` });
-      return undefined;
-    }
-    return rule.default !== undefined ? rule.default : undefined;
-  }
+  if (value === undefined) return resolveEmpty(field, rule, errors, false);
+  if (value === null || value === '') return resolveEmpty(field, rule, errors, present);
 
   switch (rule.type) {
     case 'string': {
       let v = String(value);
       if (rule.trim !== false) v = v.trim();
       if (rule.upper) v = v.toUpperCase();
-      if (v === '' && rule.required) {
-        errors.push({ field, message: `Pole „${label}” jest wymagane.` });
-        return undefined;
-      }
+      // Ciąg samych spacji to pole puste, nie wartość — inaczej do kolumny
+      // trafiłby pusty napis, którego żaden filtr ani raport nie rozpoznaje.
+      if (v === '') return resolveEmpty(field, rule, errors, true);
       if (rule.min !== undefined && v.length < rule.min) {
         errors.push({ field, message: `Pole „${label}” musi mieć co najmniej ${rule.min} znaków.` });
       }
@@ -127,7 +154,7 @@ function coerce(field, rule, value, errors) {
         const sub = [];
         const coerced = rule.item.type === 'object'
           ? validate(entry ?? {}, rule.item.schema, { collect: sub })
-          : coerce(`${field}[${i}]`, rule.item, entry, sub);
+          : coerce(`${field}[${i}]`, rule.item, entry, sub, true);
         sub.forEach((e) => errors.push({ ...e, field: `${field}[${i}].${e.field}`.replace(/\.$/, '') }));
         out.push(coerced);
       });
@@ -151,6 +178,11 @@ function coerce(field, rule, value, errors) {
 
 /**
  * Waliduje i normalizuje obiekt wejściowy według schematu.
+ * Pole nieobecne w wejściu nie pojawia się w wyniku. Pole obecne, ale puste,
+ * daje `null` — czytelny sygnał „wyczyść”, który warstwa zapisu odróżnia od
+ * braku pola. Wyjątkiem są reguły z `default`, gdzie pusty wpis wraca do
+ * wartości domyślnej.
+ *
  * @param {object} input dane surowe
  * @param {object} schema mapa pole → reguła
  * @param {{collect?:Array, partial?:boolean}} [options] `partial` pomija pola nieobecne w wejściu
@@ -162,8 +194,9 @@ export function validate(input, schema, options = {}) {
   const out = {};
 
   for (const [field, rule] of Object.entries(schema)) {
-    if (options.partial && !(field in source)) continue;
-    const value = coerce(field, rule, source[field], errors);
+    const present = Object.hasOwn(source, field);
+    if (options.partial && !present) continue;
+    const value = coerce(field, rule, source[field], errors, present);
     if (value !== undefined) out[field] = value;
   }
 

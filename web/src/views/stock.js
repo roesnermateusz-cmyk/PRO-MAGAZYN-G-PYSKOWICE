@@ -112,7 +112,8 @@ async function showLedger(view, productId, catalog) {
       <div class="card-h">
         <div>
           <h2>Kartoteka magazynowa — ${esc(product?.name ?? '')}</h2>
-          <div class="sub">Bilans otwarcia ${qty(data.opening)} MP · stan końcowy ${qty(data.closing)} MP</div>
+          <div class="sub">Bilans otwarcia ${qty(data.opening)} MP · stan końcowy ${qty(data.closing)} MP${
+            data.truncated ? ` · wypis skrócony do ${data.items.length} z ${data.moves} ruchów (najnowsze)` : ''}</div>
         </div>
         <button class="icon-btn" data-act="close-ledger" aria-label="Zamknij">${ICONS.close}</button>
       </div>

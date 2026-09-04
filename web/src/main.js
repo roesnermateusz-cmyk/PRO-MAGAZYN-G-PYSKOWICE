@@ -105,6 +105,31 @@ function bindGlobalTools() {
     await logout();
     showLogin();
   });
+  bindMoreSheet();
+}
+
+/**
+ * Panel „Więcej” — pełna nawigacja na telefonie.
+ * Zamyka się po wyborze pozycji, kliknięciu tła i klawiszem Escape.
+ */
+function bindMoreSheet() {
+  const sheet = root.querySelector('#moresheet');
+  const back = root.querySelector('#moreback');
+  const button = root.querySelector('[data-tool="more"]');
+  if (!sheet || !back || !button) return;
+
+  const setOpen = (open) => {
+    sheet.hidden = !open;
+    back.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('sheet-open', open);
+  };
+
+  button.addEventListener('click', () => setOpen(sheet.hidden));
+  back.addEventListener('click', () => setOpen(false));
+  sheet.querySelector('[data-tool="more-close"]')?.addEventListener('click', () => setOpen(false));
+  sheet.addEventListener('click', (e) => { if (e.target.closest('a[href]')) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
 }
 
 /* ------------------------------- Start -------------------------------- */

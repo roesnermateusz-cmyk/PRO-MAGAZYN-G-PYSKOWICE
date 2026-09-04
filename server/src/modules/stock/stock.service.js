@@ -94,6 +94,17 @@ export function currentStock(query = {}) {
 /**
  * Kartoteka magazynowa produktu — chronologiczny ciąg ruchów wraz ze stanem
  * narastającym (podstawa uzgodnień i kontroli).
+ *
+ * Bilanse liczone są agregatem po całym okresie, niezależnie od `limit`.
+ * Wcześniej stan końcowy brał się z sumowania wyświetlonych wierszy, więc przy
+ * historii dłuższej niż limit kartoteka pokazywała saldo urwane w połowie —
+ * rozbieżne z listą stanów, która sumuje wszystko. `limit` ogranicza wyłącznie
+ * długość wypisu, nigdy liczb.
+ *
+ * Gdy ruchów jest więcej niż `limit`, pokazujemy okno NAJNOWSZE — kartotekę
+ * czyta się od bieżącego stanu wstecz. Saldo pierwszego wiersza okna wynika
+ * z odjęcia sumy okna od stanu końcowego, więc kolumna „Saldo MP” pozostaje
+ * ciągła i kończy się rzeczywistym stanem magazynu.
  */
 export function stockLedger(query) {
   const f = validate(query, {
@@ -121,19 +132,37 @@ export function stockLedger(query) {
   }
   if (f.dateTo) { where.push('m.move_date <= :dateTo'); params.dateTo = f.dateTo; }
 
+  const whereSql = where.join(' AND ');
+
+  // Obrót i liczba ruchów całego okresu — podstawa bilansów i informacji o obcięciu.
+  const period = db.get(
+    `SELECT COUNT(*) AS moves, COALESCE(SUM(m.qty_mp), 0) AS qty_mp
+       FROM stock_moves m WHERE ${whereSql}`,
+    params,
+  );
+  const closing = roundQty(opening + period.qty_mp);
+  const truncated = period.moves > f.limit;
+
+  // Okno pobierane od najnowszych, wypisywane chronologicznie.
   const rows = db.all(
     `SELECT m.*, o.doc_no, o.type, o.supplier_name, o.recipient_name, o.status,
             w.name AS warehouse_name
        FROM stock_moves m
        JOIN operations o ON o.id = m.operation_id
        JOIN warehouses w ON w.id = m.warehouse_id
-      WHERE ${where.join(' AND ')}
-      ORDER BY m.move_date, m.created_at
+      WHERE ${whereSql}
+      ORDER BY m.move_date DESC, m.created_at DESC
       LIMIT :limit`,
     params,
-  );
+  ).reverse();
 
-  let running = roundQty(opening);
+  // Saldo startowe okna: stan końcowy pomniejszony o obrót samego okna.
+  // Przy pełnym wypisie jest tożsame z bilansem otwarcia — bierzemy go wprost,
+  // żeby zaokrąglenia pośrednie nie przesunęły pierwszego wiersza.
+  let running = truncated
+    ? roundQty(closing - rows.reduce((sum, r) => sum + r.qty_mp, 0))
+    : roundQty(opening);
+
   const items = rows.map((r) => {
     running = roundQty(running + r.qty_mp);
     return {
@@ -149,7 +178,13 @@ export function stockLedger(query) {
     };
   });
 
-  return { opening: roundQty(opening), closing: running, items };
+  return {
+    opening: roundQty(opening),
+    closing,
+    items,
+    moves: period.moves,
+    truncated,
+  };
 }
 
 /** Pozycje ze stanem ujemnym — sygnał braku dokumentu przyjęcia. */

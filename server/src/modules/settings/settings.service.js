@@ -54,13 +54,17 @@ export function getUnitFactors() {
   };
 }
 
+// Każda reguła jest `required`, ale zapis jest częściowy (`partial`): klucz
+// pominięty w żądaniu zostaje bez zmian, a klucz przysłany pusty to błąd
+// formularza. Ustawienie nie ma stanu „puste” — wyczyszczony przelicznik
+// wywróciłby przeliczenia wszystkich przyszłych dokumentów.
 const SCHEMA = {
-  'units.m3_to_mp': { type: 'number', min: 0.001, max: 100, label: 'Przelicznik m³ → MP' },
-  'units.mp_to_tonne': { type: 'number', min: 0.001, max: 100, label: 'Przelicznik MP → tona' },
-  'units.tonne_to_gj': { type: 'number', min: 0.001, max: 100, label: 'Przelicznik tona → GJ' },
-  'rules.allow_negative_stock': { type: 'bool', label: 'Zezwalaj na stany ujemne' },
-  'rules.require_signature': { type: 'bool', label: 'Wymagaj podpisu zatwierdzającego' },
-  'rules.backdate_days': { type: 'int', min: 0, max: 3650, label: 'Dozwolone wstecz (dni)' },
+  'units.m3_to_mp': { type: 'number', required: true, min: 0.001, max: 100, label: 'Przelicznik m³ → MP' },
+  'units.mp_to_tonne': { type: 'number', required: true, min: 0.001, max: 100, label: 'Przelicznik MP → tona' },
+  'units.tonne_to_gj': { type: 'number', required: true, min: 0.001, max: 100, label: 'Przelicznik tona → GJ' },
+  'rules.allow_negative_stock': { type: 'bool', required: true, label: 'Zezwalaj na stany ujemne' },
+  'rules.require_signature': { type: 'bool', required: true, label: 'Wymagaj podpisu zatwierdzającego' },
+  'rules.backdate_days': { type: 'int', required: true, min: 0, max: 3650, label: 'Dozwolone wstecz (dni)' },
 };
 
 /**
