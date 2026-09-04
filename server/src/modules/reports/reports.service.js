@@ -16,6 +16,7 @@ import { validate } from '../../lib/validate.js';
 import { roundQty, roundMoney } from '../../domain/units.js';
 import { endOfMonth, periodStatus } from '../periods/periods.service.js';
 import { currentStock, negativeStock } from '../stock/stock.service.js';
+import { cache, keyFor, TAG } from '../../lib/cache.js';
 
 const MONTH_NAMES = [
   'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
@@ -34,7 +35,7 @@ const currentMonth = () => today().slice(0, 7);
 /* ----------------------------- Pulpit -------------------------------- */
 
 /** Zestaw wskaźników dla ekranu głównego. */
-export function dashboard({ month } = {}) {
+function computeDashboard({ month } = {}) {
   const m = /^\d{4}-\d{2}$/.test(month || '') ? month : currentMonth();
   const stock = currentStock();
 
@@ -162,7 +163,7 @@ function buildAlerts() {
  * Pełny raport miesięczny: bilans otwarcia, obroty wg typu i produktu,
  * bilans zamknięcia, koszty, najwięksi kontrahenci.
  */
-export function monthlyReport(query) {
+function computeMonthlyReport(query) {
   const f = validate(query, {
     month: { type: 'month', required: true, label: 'Miesiąc' },
     warehouseId: { type: 'string', max: 40 },
@@ -340,7 +341,7 @@ const mapPartnerRow = (r) => ({
  * Raport dzienny produkcji: co zużyto, co wyprodukowano, skąd pochodził surowiec
  * i jakie dokumenty wywozowe temu towarzyszyły.
  */
-export function productionDay(query) {
+function computeProductionDay(query) {
   const f = validate(query, { date: { type: 'date', required: true, label: 'Data' } });
   const params = { date: f.date };
 
@@ -433,7 +434,7 @@ const forestLabel = (r) => {
 };
 
 /** Dni z zaksięgowaną produkcją (nawigacja w widoku produkcji). */
-export function productionDays(limit = 60) {
+function computeProductionDays(limit = 60) {
   return db.all(
     `SELECT operation_date AS date, COUNT(*) AS documents, ROUND(SUM(qty_mp), 3) AS qty_mp
        FROM operations WHERE status = 'POSTED' AND type = 'PRODUKCJA'
@@ -445,7 +446,7 @@ export function productionDays(limit = 60) {
 /* --------------------------- Transport -------------------------------- */
 
 /** Zestawienie kosztów transportu wg przewoźnika i pojazdu. */
-export function transportReport(query) {
+function computeTransportReport(query) {
   const f = validate(query, {
     dateFrom: { type: 'date', required: true, label: 'Data od' },
     dateTo: { type: 'date', required: true, label: 'Data do' },
@@ -497,7 +498,7 @@ export function transportReport(query) {
 /* -------------------------- Kontrahenci ------------------------------- */
 
 /** Obroty w podziale na kontrahentów (zakup i sprzedaż w jednym zestawieniu). */
-export function partnerReport(query) {
+function computePartnerReport(query) {
   const f = validate(query, {
     dateFrom: { type: 'date', required: true, label: 'Data od' },
     dateTo: { type: 'date', required: true, label: 'Data do' },
@@ -546,7 +547,7 @@ export function partnerReport(query) {
  * Pokazuje, z jakich nadleśnictw pochodził surowiec i jakie kwity wywozowe
  * towarzyszyły dostawom.
  */
-export function certificationReport(query) {
+function computeCertificationReport(query) {
   const f = validate(query, {
     dateFrom: { type: 'date', required: true, label: 'Data od' },
     dateTo: { type: 'date', required: true, label: 'Data do' },
@@ -593,3 +594,86 @@ export function certificationReport(query) {
     incomplete: missing,
   };
 }
+
+/* ======================================================================
+   Buforowanie odczytów
+
+   Raport jest funkcją danych, nie użytkownika — ten sam miesiąc daje ten sam
+   wynik każdemu, kto ma prawo go zobaczyć. Dlatego wolno go policzyć raz
+   i podać pozostałym; kontrola uprawnień zostaje w warstwie tras i dzieje się
+   PRZED sięgnięciem do pamięci podręcznej.
+
+   Tagi opisują, od czego wynik zależy. Zapis dokumentu podbija `stock`,
+   `documents`, tag swojego miesiąca i tag swojego magazynu — wpisy oznaczone
+   którymkolwiek z nich odpadają natychmiast, reszta zostaje. Dzięki temu
+   zaksięgowanie dokumentu we wrześniu nie unieważnia raportu za marzec.
+   ====================================================================== */
+
+/**
+ * Opakowuje odczyt raportu pamięcią podręczną.
+ * @param {string} name nazwa odczytu (część klucza)
+ * @param {(query:object) => string[]} tagsOf tagi wyliczone z parametrów
+ * @param {Function} compute właściwa implementacja
+ */
+function cached(name, tagsOf, compute) {
+  return (query = {}, ...rest) => cache.wrap(
+    keyFor(name, typeof query === 'object' ? query : { value: query }),
+    { tags: tagsOf(query) },
+    () => compute(query, ...rest),
+  );
+}
+
+/** Wspólny zestaw dla raportów liczonych z ruchów i dokumentów. */
+const LEDGER_TAGS = [TAG.STOCK, TAG.DOCUMENTS, TAG.PERIODS, TAG.SETTINGS, TAG.catalog('products')];
+
+export const dashboard = cached(
+  'reports.dashboard',
+  (q) => [...LEDGER_TAGS, TAG.month(q?.month), TAG.warehouse(null)],
+  computeDashboard,
+);
+
+/**
+ * Tagi raportu miesięcznego zależą od tego, czy miesiąc jest zamknięty.
+ *
+ * Miesiąc OTWARTY zmienia każdy zapis — dokument może trafić w niego wprost
+ * albo przed niego i przesunąć bilans otwarcia. Pełny zestaw tagów.
+ *
+ * Miesiąc ZAMKNIĘTY jest zapieczętowany: nie da się do niego nic dopisać.
+ * Zmienić go może wyłącznie otwarcie okresu (`periods`), zmiana nazw
+ * w kartotekach (`catalog`) albo księgowanie wstecz w jakimś wcześniejszym
+ * miesiącu, który nigdy nie został zamknięty (`history`). Zwykłe księgowanie
+ * dnia dzisiejszego go nie dotyczy — i nie ma powodu, żeby raport sprzed
+ * czterech lat przeliczał się przy każdym przyjęciu zrębki.
+ */
+function monthlyTags(q) {
+  const month = q?.month;
+  if (month && periodStatus(month) === 'CLOSED') {
+    // Bez tagów magazynu i bez `stock`/`documents`: żaden zapis nie wejdzie
+    // do zamkniętego okresu, więc jedyne realne źródła zmiany to otwarcie
+    // okresu, zmiana nazw produktów i księgowanie wstecz (`history`).
+    return [TAG.PERIODS, TAG.SETTINGS, TAG.catalog('products'), TAG.HISTORY, TAG.month(month)];
+  }
+  return [...LEDGER_TAGS, TAG.month(month), TAG.warehouse(q?.warehouseId)];
+}
+
+export const monthlyReport = cached('reports.monthly', monthlyTags, computeMonthlyReport);
+
+export const productionDay = cached(
+  'reports.productionDay',
+  (q) => [...LEDGER_TAGS, TAG.month(String(q?.date ?? '').slice(0, 7)), TAG.warehouse(null)],
+  computeProductionDay,
+);
+
+export const productionDays = cached(
+  'reports.productionDays',
+  () => [TAG.DOCUMENTS, TAG.warehouse(null)],
+  computeProductionDays,
+);
+
+// Raporty okresowe obejmują dowolny zakres dat, więc nie da się zawęzić ich
+// do jednego miesiąca — unieważnia je każdy zapis dokumentu.
+const RANGE_TAGS = [TAG.DOCUMENTS, TAG.CATALOG, TAG.warehouse(null)];
+
+export const transportReport = cached('reports.transport', () => RANGE_TAGS, computeTransportReport);
+export const partnerReport = cached('reports.partners', () => RANGE_TAGS, computePartnerReport);
+export const certificationReport = cached('reports.certification', () => RANGE_TAGS, computeCertificationReport);

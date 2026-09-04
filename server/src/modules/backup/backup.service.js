@@ -14,6 +14,7 @@ import { mkdirSync, readdirSync, statSync, unlinkSync, copyFileSync } from 'node
 import path from 'node:path';
 import config from '../../config/env.js';
 import db from '../../db/index.js';
+import { cache } from '../../lib/cache.js';
 import logger from '../../lib/logger.js';
 import { toCsv } from '../../lib/csv.js';
 import { ValidationError, ConflictError } from '../../lib/errors.js';
@@ -121,6 +122,11 @@ export function importJson(payload, { mode = 'merge' } = {}, ctx) {
   }
   const source = payload.data || {};
   const summary = { operations: 0, skipped: 0, catalog: 0, errors: [] };
+
+  // Import podmienia dowolną część bazy, więc nie da się wskazać dotkniętego
+  // zakresu — czyścimy pamięć podręczną w całości. To jedyne miejsce w systemie,
+  // gdzie takie zgrubne unieważnienie jest właściwe.
+  cache.flush('import kopii zapasowej');
 
   return db.tx(() => {
     if (mode === 'replace') {

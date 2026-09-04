@@ -27,6 +27,7 @@ import {
   OPERATION_SCHEMA, FIELD_LABELS, CONTENT_COLUMNS, DOCUMENT_COLUMNS, MONEY_FIELDS, FIELD_BY_API,
   rowToApi, rowToInput, carry,
 } from '../../domain/operation-fields.js';
+import { cache, keyFor, TAG, invalidateDocument } from '../../lib/cache.js';
 import { getUnitFactors, getSetting } from '../settings/settings.service.js';
 import { products, warehouses, resolvePartners, ensureDictionaries } from '../catalog/catalog.service.js';
 import { assertPeriodOpen } from '../periods/periods.service.js';
@@ -326,7 +327,7 @@ function checkStock(row, { excludeOperationId = null } = {}) {
  */
 export function createOperation(input, ctx) {
   const user = ctx.user;
-  return db.tx(() => {
+  const result = db.tx(() => {
     const row = prepareRow(input);
     assertDateAllowed(row.operation_date, user);
     assertPeriodOpen(row.operation_date.slice(0, 7));
@@ -342,8 +343,27 @@ export function createOperation(input, ctx) {
     writeMoves(id, stored);
 
     audit(ctx, 'CREATE', 'operations', id, { docNo: doc.docNo, type: row.type, qtyMp: row.qty_mp });
-    return { operation: readOperation(id), warnings };
+    return { operation: readOperation(id), warnings, scope: scopeOf(stored) };
   });
+  invalidateDocument(result.scope);
+  return { operation: result.operation, warnings: result.warnings };
+}
+
+/**
+ * Obszar danych dotknięty zapisem — miesiąc i magazyny dokumentu.
+ * Na tej podstawie unieważniamy dokładnie te wpisy pamięci podręcznej,
+ * których zapis dotyczy, zamiast czyścić ją w całości.
+ */
+function scopeOf(...rows) {
+  const months = [];
+  const warehouseIds = [];
+  for (const row of rows) {
+    if (!row) continue;
+    const date = row.operation_date ?? '';
+    if (date) months.push(date.slice(0, 7));
+    warehouseIds.push(row.warehouse_from_id, row.warehouse_to_id);
+  }
+  return { months, warehouseIds };
 }
 
 /**
@@ -352,7 +372,7 @@ export function createOperation(input, ctx) {
  */
 export function updateOperation(id, input, ctx) {
   const user = ctx.user;
-  return db.tx(() => {
+  const result = db.tx(() => {
     const existing = db.get('SELECT * FROM operations WHERE id = :id', { id });
     if (!existing) throw new NotFoundError('Nie znaleziono dokumentu.');
     if (existing.status === 'CANCELLED') {
@@ -369,7 +389,7 @@ export function updateOperation(id, input, ctx) {
     const warnings = checkStock(row, { excludeOperationId: id });
 
     const changes = diffRows(existing, row);
-    if (!changes.length) return { operation: readOperation(id), warnings, changes: [] };
+    if (!changes.length) return { operation: readOperation(id), warnings, changes: [], scope: null };
 
     recordCorrection(existing, changes, input.correctionReason, user);
 
@@ -383,8 +403,12 @@ export function updateOperation(id, input, ctx) {
 
     writeMoves(id, { ...row, id });
     audit(ctx, 'UPDATE', 'operations', id, { docNo: existing.doc_no, fields: changes.map((c) => c.field) });
-    return { operation: readOperation(id), warnings, changes };
+    // Zakres obejmuje stan SPRZED i PO zmianie — korekta potrafi przenieść
+    // dokument w inny miesiąc albo na inny magazyn, a odświeżyć trzeba oba.
+    return { operation: readOperation(id), warnings, changes, scope: scopeOf(existing, row) };
   });
+  if (result.scope) invalidateDocument(result.scope);
+  return { operation: result.operation, warnings: result.warnings, changes: result.changes };
 }
 
 /**
@@ -393,7 +417,7 @@ export function updateOperation(id, input, ctx) {
  */
 export function cancelOperation(id, { reason }, ctx) {
   const user = ctx.user;
-  return db.tx(() => {
+  const result = db.tx(() => {
     const existing = db.get('SELECT * FROM operations WHERE id = :id', { id });
     if (!existing) throw new NotFoundError('Nie znaleziono dokumentu.');
     if (existing.status === 'CANCELLED') throw new ConflictError('Dokument został już anulowany.');
@@ -426,8 +450,10 @@ export function cancelOperation(id, { reason }, ctx) {
       { id, userId: user.id, reason: clean.reason },
     );
     audit(ctx, 'CANCEL', 'operations', id, { docNo: existing.doc_no, reason: clean.reason });
-    return readOperation(id);
+    return { operation: readOperation(id), scope: scopeOf(existing) };
   });
+  invalidateDocument(result.scope);
+  return result.operation;
 }
 
 /** Przywraca dokument do stanu sprzed wskazanej korekty. */
@@ -535,6 +561,17 @@ function buildListFilter(query) {
  */
 export function listOperations(query, { withTotals = true } = {}) {
   const { filters, params, whereSql, orderSql } = buildListFilter(query);
+
+  // Klucz budujemy z filtrów PO walidacji, nie z surowego wejścia — dwa żądania
+  // różniące się tylko zapisem parametrów to ten sam odczyt i jeden wpis.
+  return cache.wrap(
+    keyFor('operations.list', { ...filters, withTotals }),
+    { tags: [TAG.DOCUMENTS, TAG.CATALOG] },
+    () => runList({ filters, params, whereSql, orderSql, withTotals }),
+  );
+}
+
+function runList({ filters, params, whereSql, orderSql, withTotals }) {
   const rows = db.all(`${SELECT_OPERATION} ${whereSql} ${orderSql} LIMIT :limit OFFSET :offset`, params);
   const items = rows.map(rowToApi);
 

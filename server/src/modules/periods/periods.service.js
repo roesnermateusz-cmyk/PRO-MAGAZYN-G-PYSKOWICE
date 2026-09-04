@@ -10,6 +10,7 @@
  * Miesiąc bez wpisu w tabeli jest traktowany jako OTWARTY.
  */
 import db from '../../db/index.js';
+import { cache, TAG } from '../../lib/cache.js';
 import { PeriodClosedError, ConflictError, NotFoundError, ForbiddenError } from '../../lib/errors.js';
 import { validate } from '../../lib/validate.js';
 import { audit } from '../../middleware/audit.js';
@@ -69,6 +70,7 @@ export function listPeriods() {
  * inaczej migawki traciłyby ciągłość.
  */
 export function closePeriod(month, { note } = {}, ctx) {
+  cache.bump([TAG.PERIODS, TAG.STOCK, TAG.DOCUMENTS]);
   const clean = validate({ month, note }, {
     month: { type: 'month', required: true, label: 'Miesiąc' },
     note: { type: 'string', max: 500, label: 'Uwagi' },
@@ -138,6 +140,7 @@ export function closePeriod(month, { note } = {}, ctx) {
 
 /** Otwiera zamknięty okres — wyłącznie ADMIN i KIEROWNIK, zawsze z uzasadnieniem. */
 export function reopenPeriod(month, { reason } = {}, ctx) {
+  cache.bump([TAG.PERIODS, TAG.STOCK, TAG.DOCUMENTS]);
   if (!['ADMIN', 'KIEROWNIK'].includes(ctx.user.role)) {
     throw new ForbiddenError('Otwarcie zamkniętego okresu wymaga uprawnień kierownika.');
   }

@@ -138,7 +138,19 @@ const MIME = {
   '.pdf': 'application/pdf',
 };
 
-function serveStatic(rootDir, urlPath, res) {
+/**
+ * Serwuje plik aplikacji klienckiej z obsługą żądań warunkowych.
+ *
+ * Aplikacja to około trzydziestu modułów ES ładowanych przy każdym wejściu.
+ * Bez `ETag` przeglądarka po wygaśnięciu `max-age` pobiera je wszystkie od nowa,
+ * choć zwykle nic się w nich nie zmieniło. Ze znacznikiem wersji dostaje `304`
+ * bez treści i używa własnej kopii — istotne przy pracy przez telefon
+ * w terenie, gdzie łącze bywa wąskie.
+ *
+ * Znacznik składamy z rozmiaru i czasu modyfikacji pliku: zmiana treści zmienia
+ * co najmniej jedno z nich, a odczyt obu jest darmowy (i tak wołamy `statSync`).
+ */
+function serveStatic(rootDir, urlPath, res, req = null) {
   // Normalizacja chroni przed wyjściem poza katalog (path traversal).
   const rel = path.normalize(decodeURIComponent(urlPath)).replace(/^(\.\.[/\\])+/, '');
   let file = path.join(rootDir, rel);
@@ -148,12 +160,21 @@ function serveStatic(rootDir, urlPath, res) {
 
   const stat = statSync(file);
   const ext = path.extname(file).toLowerCase();
-  res.writeHead(200, {
+  const etag = `W/"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`;
+  const headers = {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Content-Length': stat.size,
     'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=300',
     'Last-Modified': stat.mtime.toUTCString(),
-  });
+    ETag: etag,
+  };
+
+  // Klient ma aktualną kopię — odsyłamy sam nagłówek.
+  if (req?.headers['if-none-match'] === etag) {
+    res.writeHead(304, headers).end();
+    return true;
+  }
+
+  res.writeHead(200, { ...headers, 'Content-Length': stat.size });
   createReadStream(file).pipe(res);
   return true;
 }
@@ -169,7 +190,10 @@ function serveStatic(rootDir, urlPath, res) {
  * @param {string} [options.apiPrefix] prefiks tras API (żądania spoza prefiksu trafiają do SPA)
  * @param {string[]} [options.corsOrigins] dozwolone źródła CORS
  * @param {number} [options.bodyLimitBytes] maksymalny rozmiar treści żądania
- * @param {Function} [options.onRequest] hook wywoływany po zbudowaniu kontekstu (np. audyt)
+ * @param {Function} [options.onRequest] hook wywoływany po dopasowaniu trasy,
+ *   przed uruchomieniem handlerów (synchronizacja pamięci podręcznej)
+ * @param {Function} [options.onResponse] hook wywoływany po odpowiedzi
+ *   z czasem obsługi i kodem statusu (liczniki)
  */
 export function createServer(options) {
   const {
@@ -179,6 +203,8 @@ export function createServer(options) {
     corsOrigins = [],
     bodyLimitBytes = 16 * 1024 * 1024,
     isProduction = true,
+    onRequest = null,
+    onResponse = null,
   } = options;
 
   const server = http.createServer(async (req, res) => {
@@ -253,6 +279,8 @@ export function createServer(options) {
             : new NotFoundError(`Nie znaleziono zasobu API: ${pathname}`);
         }
         ctx.params = params;
+        ctx.routePattern = route.pattern;
+        onRequest?.(ctx);
 
         if (req.method !== 'GET' && req.method !== 'DELETE') {
           const buffer = await readBody(req, bodyLimitBytes);
@@ -283,9 +311,9 @@ export function createServer(options) {
 
       /* Poza prefiksem API: pliki statyczne, a dla nieznanych ścieżek — SPA. */
       if (staticDir) {
-        if (serveStatic(staticDir, pathname, res)) return;
+        if (serveStatic(staticDir, pathname, res, req)) return;
         if (req.method === 'GET' && !path.extname(pathname)) {
-          if (serveStatic(staticDir, '/index.html', res)) return;
+          if (serveStatic(staticDir, '/index.html', res, req)) return;
         }
       }
       throw new NotFoundError('Nie znaleziono zasobu.');
@@ -294,6 +322,7 @@ export function createServer(options) {
     } finally {
       const ms = Number(process.hrtime.bigint() - started) / 1e6;
       if (pathname.startsWith(apiPrefix)) {
+        onResponse?.(ctx, { ms, status: res.statusCode });
         logger.debug('request', {
           method: req.method, path: pathname, status: res.statusCode,
           ms: Math.round(ms * 10) / 10, user: ctx.user?.email || null,

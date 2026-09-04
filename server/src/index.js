@@ -9,7 +9,7 @@ import config from './config/env.js';
 import logger from './lib/logger.js';
 import { createApp, APP_VERSION, API_PREFIX } from './app.js';
 import { bootstrap } from './bootstrap.js';
-import { closeDatabase } from './db/index.js';
+import { closeDatabase, optimizeDatabase } from './db/index.js';
 import { purgeExpiredSessions } from './modules/auth/auth.service.js';
 import { createBackup } from './modules/backup/backup.service.js';
 
@@ -100,6 +100,12 @@ function start() {
     }
   }, DAY_MS);
   backupTimer.unref();
+
+  // Statystyki planisty zapytań — co sześć godzin i przy zamykaniu procesu.
+  // Rozkład danych zmienia się z każdym miesiącem pracy; plan zapytania
+  // dobrany do bazy sprzed roku bywa gorszy niż brak indeksu.
+  const optimizeTimer = setInterval(() => optimizeDatabase(), 6 * 60 * 60 * 1000);
+  optimizeTimer.unref();
 
   /* --- Zamykanie --- */
   let shuttingDown = false;

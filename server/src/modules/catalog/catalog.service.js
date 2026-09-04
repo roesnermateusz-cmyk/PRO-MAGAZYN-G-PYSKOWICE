@@ -14,6 +14,7 @@
  * walidacji i mapowaniem kolumn.
  */
 import db, { LIKE_ESCAPE, likePattern } from '../../db/index.js';
+import { cache, TAG } from '../../lib/cache.js';
 import { uuid } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../lib/errors.js';
@@ -56,6 +57,7 @@ function uniqueCode(table, name, prefix = '') {
 function applyPatch(table, id, patch) {
   const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
   if (!entries.length) return;
+  cache.bump([TAG.CATALOG, TAG.catalog(table)]);
 
   const params = { id };
   const sets = entries.map(([column, value], i) => {
@@ -152,6 +154,7 @@ function createCatalog(spec) {
       if (hasCode) values[columns.code] = d.code || uniqueCode(table, d[naturalKey], codePrefix);
 
       const cols = Object.keys(values);
+      cache.bump([TAG.CATALOG, TAG.catalog(table)]);
       db.tx(() => {
         spec.onWrite?.(d, null);
         db.run(
@@ -388,6 +391,7 @@ export const forest = {
       return { id: existing.id, name: existing.name, region: existing.region, isActive: !!existing.is_active };
     }
     const id = uuid();
+    cache.bump([TAG.CATALOG, TAG.catalog('forest_districts')]);
     db.run('INSERT INTO forest_districts(id, name, region) VALUES (:id, :name, :region)',
       { id, name: d.name, region: d.region ?? null });
     return { id, name: d.name, region: d.region ?? null, isActive: true };
@@ -407,6 +411,7 @@ export const forest = {
     if (existing) return { id: existing.id, districtId: existing.district_id, name: existing.name, isActive: true };
 
     const id = uuid();
+    cache.bump([TAG.CATALOG, TAG.catalog('forest_ranges')]);
     db.run('INSERT INTO forest_ranges(id, district_id, name) VALUES (:id, :districtId, :name)',
       { id, districtId: d.districtId, name: d.name });
     return { id, districtId: d.districtId, name: d.name, isActive: true };
@@ -434,6 +439,7 @@ export const loadingPlaces = {
     const found = db.get('SELECT * FROM loading_places WHERE name = :name COLLATE NOCASE', { name });
     if (found) return { id: found.id, name: found.name, address: found.address, isActive: !!found.is_active };
     const id = uuid();
+    cache.bump([TAG.CATALOG, TAG.catalog('loading_places')]);
     db.run('INSERT INTO loading_places(id, name) VALUES (:id, :name)', { id, name });
     return { id, name, address: null, isActive: true };
   },

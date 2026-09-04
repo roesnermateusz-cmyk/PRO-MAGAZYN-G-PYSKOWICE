@@ -320,7 +320,7 @@ PRO-MAGAZYN-G-PYSKOWICE/
 │   ├── build-zip.mjs           generator pakietu instalacyjnego
 │   └── installer/              INSTALUJ.bat · START.bat · instaluj.sh · start.sh
 │
-├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING
+├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING
 ├── legacy/                     wcześniejsze wersje jednoplikowe (archiwum)
 └── data/                       runtime: baza, skany, kopie, logi (poza repo)
 ```
@@ -441,6 +441,7 @@ Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Wdrożenie, systemd, HTTPS, aktualizacje, diagnostyka |
 | [docs/REFACTORING.md](docs/REFACTORING.md) | Przegląd kodu: wąskie gardła, strategie refaktoryzacji, pomiary |
 | [docs/DEBUGGING.md](docs/DEBUGGING.md) | Usterki produkcyjne: odtworzenie, przyczyny źródłowe, poprawki |
+| [docs/SCALING.md](docs/SCALING.md) | Skalowanie: model odczytu, strategia buforowania, drabina S1–S4 |
 
 ---
 

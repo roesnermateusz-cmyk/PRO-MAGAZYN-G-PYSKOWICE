@@ -11,6 +11,9 @@ import { getAllSettings, updateSettings } from '../settings/settings.service.js'
 import { listPeriods, closePeriod, reopenPeriod } from '../periods/periods.service.js';
 import * as backup from '../backup/backup.service.js';
 import * as attachments from '../attachments/attachments.service.js';
+import { cache } from '../../lib/cache.js';
+import { metricsReport } from '../../lib/metrics.js';
+import { databaseReport } from '../../db/health.js';
 
 export function adminRoutes(prefix) {
   const r = new Router(prefix);
@@ -26,6 +29,16 @@ export function adminRoutes(prefix) {
   });
   r.patch('/users/:id', requireAuth, requirePermission('users:write'),
     (ctx) => users.updateUser(ctx.params.id, ctx.body, ctx));
+
+  /* --- Diagnostyka wydajności ---
+     Odpowiada na pytanie „dlaczego wolno działa” liczbami zamiast domysłów:
+     najwolniejsze trasy, skuteczność pamięci podręcznej, rozmiar bazy
+     i zgodność modelu odczytu z rejestrem ruchów. */
+  r.get('/metrics', ...guard('settings:read'), () => ({
+    ...metricsReport(),
+    cache: cache.report(),
+    database: databaseReport(),
+  }));
 
   /* --- Ustawienia --- */
   r.get('/settings', ...guard('settings:read'), () => getAllSettings());

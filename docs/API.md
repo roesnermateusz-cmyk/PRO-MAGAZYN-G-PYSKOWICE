@@ -326,6 +326,7 @@ Aplikacja kliencka zmniejsza zdjęcia do 1600 px przed wysyłką.
 | PATCH | `/users/:id` | `users:write` |
 | GET | `/users/:id/sessions` | `users:read` |
 | GET | `/audit` | `users:read` |
+| GET | `/metrics` | `settings:read` |
 | GET | `/backup/list` | `backup:export` |
 | POST | `/backup/create` | `backup:export` |
 | GET | `/backup/export.json` | `backup:export` |
@@ -334,6 +335,29 @@ Aplikacja kliencka zmniejsza zdjęcia do 1600 px przed wysyłką.
 Import (`{ mode: "merge" \| "replace", payload }`) zawsze poprzedza automatyczna
 kopia bieżącej bazy. W trybie `merge` dokumenty o istniejących numerach są
 pomijane, a licznik numeracji podnoszony do najwyższego zaimportowanego numeru.
+
+### Diagnostyka wydajności
+
+`GET /metrics` zwraca najwolniejsze trasy, skuteczność pamięci podręcznej,
+rozmiar bazy i kontrolę niezmiennika modelu odczytu:
+
+```json
+{
+  "uptimeSec": 86400, "requests": 15234, "errors": 0,
+  "routes": [{ "route": "GET /api/v1/reports/monthly", "count": 412, "avgMs": 1.2, "maxMs": 58.1 }],
+  "cache": { "entries": 84, "hitRate": 0.988, "hits": 1201, "misses": 14, "stale": 3 },
+  "database": {
+    "operations": 18544, "moves": 18544, "balances": 6,
+    "sizeMb": 41.2, "readModelSpeedup": 3091,
+    "balancesConsistent": true, "nearingLimits": false
+  }
+}
+```
+
+`balancesConsistent: false` oznacza rozjazd tabeli sald z rejestrem ruchów —
+usterkę infrastruktury (uszkodzony plik bazy, zapis z pominięciem wyzwalaczy),
+nie błąd użytkownika. `nearingLimits: true` sygnalizuje zbliżanie się do progu
+kolejnego etapu skalowania (patrz [SCALING.md](SCALING.md)).
 
 ---
 

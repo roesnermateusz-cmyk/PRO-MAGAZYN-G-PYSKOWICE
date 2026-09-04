@@ -6,6 +6,7 @@
  */
 import db from '../../db/index.js';
 import { validate } from '../../lib/validate.js';
+import { cache as responseCache, TAG } from '../../lib/cache.js';
 import { DEFAULT_FACTORS } from '../../domain/units.js';
 
 const DEFAULTS = Object.freeze({
@@ -22,6 +23,7 @@ let cache = null;
 /** Unieważnia pamięć podręczną (wywoływane po każdym zapisie i w testach). */
 export function invalidateSettingsCache() {
   cache = null;
+  responseCache.bump([TAG.SETTINGS, TAG.STOCK, TAG.DOCUMENTS]);
 }
 
 /** Zwraca komplet ustawień (wartości domyślne uzupełniają braki). */

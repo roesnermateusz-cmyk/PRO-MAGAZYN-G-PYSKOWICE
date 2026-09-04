@@ -1,12 +1,19 @@
 /**
  * Stany magazynowe.
  *
- * Wszystkie odczyty opierają się na sumowaniu tabeli `stock_moves`, dzięki czemu
- * stan bieżący, stan historyczny i kartoteka magazynowa pochodzą z jednego źródła.
+ * Źródłem prawdy pozostaje tabela `stock_moves` — stan magazynu jest jej sumą
+ * i niczym więcej. Odczyt stanu BIEŻĄCEGO idzie jednak przez `stock_balances`:
+ * ten sam wynik, policzony przyrostowo przez wyzwalacze przy każdym ruchu
+ * (patrz migracja 002). Koszt przestaje zależeć od długości historii.
+ *
+ * Stan HISTORYCZNY (na wskazany dzień) nadal sumuje ruchy — takie zapytanie
+ * jest świadomym, rzadszym działaniem, a materializowanie stanu na każdy
+ * możliwy dzień kosztowałoby więcej, niż daje.
  */
 import db from '../../db/index.js';
 import { roundQty } from '../../domain/units.js';
 import { validate } from '../../lib/validate.js';
+import { cache, keyFor, TAG } from '../../lib/cache.js';
 
 /**
  * Stan magazynowy na dzień (domyślnie: bieżący).
@@ -22,21 +29,33 @@ export function currentStock(query = {}) {
 
   const where = ['1 = 1'];
   const params = {};
-  if (f.date) { where.push('m.move_date <= :date'); params.date = f.date; }
-  if (f.warehouseId) { where.push('m.warehouse_id = :warehouseId'); params.warehouseId = f.warehouseId; }
-  if (f.productId) { where.push('m.product_id = :productId'); params.productId = f.productId; }
+  if (f.warehouseId) { where.push('s.warehouse_id = :warehouseId'); params.warehouseId = f.warehouseId; }
+  if (f.productId) { where.push('s.product_id = :productId'); params.productId = f.productId; }
+
+  // Bez daty czytamy gotowe saldo; z datą sumujemy ruchy do wskazanego dnia.
+  // Oba zapytania oddają ten sam zestaw kolumn, więc dalszy kod ich nie różnicuje.
+  const source = f.date
+    ? `SELECT m.warehouse_id, m.product_id,
+              SUM(m.qty_mp) AS qty_mp, SUM(m.qty_m3) AS qty_m3,
+              SUM(m.qty_tonne) AS qty_tonne, SUM(m.energy_gj) AS energy_gj,
+              SUM(m.value) AS value, MAX(m.move_date) AS last_move
+         FROM stock_moves m
+        WHERE m.move_date <= :date
+        GROUP BY m.warehouse_id, m.product_id`
+    : `SELECT b.warehouse_id, b.product_id,
+              b.qty_mp, b.qty_m3, b.qty_tonne, b.energy_gj, b.value,
+              b.last_move_date AS last_move
+         FROM stock_balances b`;
+  if (f.date) params.date = f.date;
 
   const rows = db.all(
-    `SELECT m.warehouse_id, w.name AS warehouse_name,
-            m.product_id, p.name AS product_name, p.category, p.default_unit,
-            SUM(m.qty_mp) AS qty_mp, SUM(m.qty_m3) AS qty_m3,
-            SUM(m.qty_tonne) AS qty_tonne, SUM(m.energy_gj) AS energy_gj,
-            SUM(m.value) AS value, MAX(m.move_date) AS last_move
-       FROM stock_moves m
-       JOIN warehouses w ON w.id = m.warehouse_id
-       JOIN products   p ON p.id = m.product_id
+    `SELECT s.warehouse_id, w.name AS warehouse_name,
+            s.product_id, p.name AS product_name, p.category, p.default_unit,
+            s.qty_mp, s.qty_m3, s.qty_tonne, s.energy_gj, s.value, s.last_move
+       FROM (${source}) s
+       JOIN warehouses w ON w.id = s.warehouse_id
+       JOIN products   p ON p.id = s.product_id
       WHERE ${where.join(' AND ')}
-      GROUP BY m.warehouse_id, m.product_id
       ORDER BY w.name, p.category, p.name`,
     params,
   );
@@ -115,6 +134,15 @@ export function stockLedger(query) {
     limit: { type: 'int', min: 1, max: 2000, default: 500 },
   });
 
+  return cache.wrap(
+    keyFor('stock.ledger', f),
+    { tags: [TAG.STOCK, TAG.DOCUMENTS, TAG.CATALOG, TAG.warehouse(f.warehouseId)] },
+    () => buildLedger(f),
+  );
+}
+
+/** Właściwe zapytania kartoteki — wywoływane wyłącznie przy chybieniu pamięci. */
+function buildLedger(f) {
   const where = ['m.product_id = :productId'];
   const params = { productId: f.productId, limit: f.limit };
   if (f.warehouseId) { where.push('m.warehouse_id = :warehouseId'); params.warehouseId = f.warehouseId; }

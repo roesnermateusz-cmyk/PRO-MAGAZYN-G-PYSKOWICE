@@ -7,6 +7,8 @@
  */
 import config from './config/env.js';
 import { Router, createServer } from './lib/http.js';
+import { cache } from './lib/cache.js';
+import { recordRequest } from './lib/metrics.js';
 import db from './db/index.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { operationRoutes } from './modules/operations/operations.routes.js';
@@ -60,6 +62,28 @@ export function buildRouter() {
   return router;
 }
 
+/**
+ * Zabezpieczenie pamięci podręcznej przed zmianami spoza tego procesu.
+ *
+ * Unieważnianie po tagach obejmuje zapisy wykonane przez aplikację. Nie obejmuje
+ * przywrócenia kopii zapasowej z konsoli, skryptu konserwacyjnego ani drugiej
+ * instancji serwera wskazanej na ten sam plik. SQLite podbija w takich razach
+ * `data_version`; porównanie tej liczby raz na żądanie kosztuje mikrosekundy,
+ * a bez niej system podawałby po restore dane sprzed niego — cicho i bez końca.
+ */
+let lastDataVersion = null;
+function syncCacheWithDatabase() {
+  const version = db.dataVersion();
+  if (lastDataVersion === null) {
+    lastDataVersion = version;
+    return;
+  }
+  if (version !== lastDataVersion) {
+    lastDataVersion = version;
+    cache.flush('zmiana danych spoza procesu');
+  }
+}
+
 /** Tworzy instancję serwera HTTP gotową do nasłuchu. */
 export function createApp() {
   return createServer({
@@ -69,5 +93,9 @@ export function createApp() {
     corsOrigins: config.http.corsOrigins,
     bodyLimitBytes: config.http.bodyLimitBytes,
     isProduction: config.isProduction,
+    onRequest: syncCacheWithDatabase,
+    onResponse: (ctx, { ms, status }) => {
+      recordRequest(ctx.method, ctx.routePattern ?? ctx.path, status, ms);
+    },
   });
 }

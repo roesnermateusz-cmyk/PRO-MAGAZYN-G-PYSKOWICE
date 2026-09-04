@@ -15,6 +15,7 @@ const { monthlyReport, productionDay } = await import('../src/modules/reports/re
 const { listCorrections } = await import('../src/modules/corrections/corrections.service.js');
 const { updateSettings, invalidateSettingsCache } = await import('../src/modules/settings/settings.service.js');
 const { addAttachment, deleteAttachment } = await import('../src/modules/attachments/attachments.service.js');
+const { checkStockBalances } = await import('../src/db/health.js');
 
 bootstrap();
 const admin = db.get("SELECT id, email, full_name FROM users WHERE role = 'ADMIN' LIMIT 1");
@@ -639,4 +640,141 @@ test('regresja: zamknięty okres chroni załączniki przed usunięciem', () => {
 
   assert.deepEqual(deleteAttachment(kwit.id, ctx), { ok: true },
     'w otwartym okresie usunięcie działa jak dotąd');
+});
+
+/* ------------------------------------------------------------------ *
+ *  Model odczytu i pamięć podręczna — patrz docs/SCALING.md
+ * ------------------------------------------------------------------ */
+
+/** Niezmiennik: saldo każdej pary (magazyn, produkt) = suma jej ruchów. */
+function assertBalancesConsistent(context) {
+  const report = checkStockBalances();
+  assert.ok(
+    report.consistent,
+    `model odczytu rozjechał się z ruchami po: ${context}\n`
+    + JSON.stringify(report.mismatches, null, 2),
+  );
+}
+
+test('model odczytu: saldo zgadza się z ruchami po księgowaniu', () => {
+  ops.createOperation(operationInput({ operationDate: '2026-05-04', quantity: 55 }), ctx);
+  assertBalancesConsistent('księgowaniu');
+
+  const balance = db.get(
+    `SELECT b.qty_mp, b.moves FROM stock_balances b
+       JOIN products p ON p.id = b.product_id
+      WHERE p.name = :name`,
+    { name: 'Drewno opałowe z lasu' },
+  );
+  assert.ok(balance, 'para magazyn-produkt ma wiersz salda');
+  assert.ok(balance.moves > 0);
+});
+
+test('model odczytu: saldo zgadza się z ruchami po korekcie i po stornie', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-05-05', quantity: 30, unit: 'MP', productName: 'Zrębka Model Odczytu',
+  }), ctx);
+  assertBalancesConsistent('utworzeniu');
+
+  ops.updateOperation(operation.id, { quantity: 45, correctionReason: 'Poprawka po ponownym pomiarze' }, ctx);
+  assertBalancesConsistent('korekcie');
+  assert.equal(stockOf('Zrębka Model Odczytu'), 45);
+
+  const correction = listCorrections({ operationId: operation.id }).items[0];
+  ops.restoreCorrection(correction.id, ctx);
+  assertBalancesConsistent('przywróceniu korekty');
+  assert.equal(stockOf('Zrębka Model Odczytu'), 30);
+
+  ops.cancelOperation(operation.id, { reason: 'Storno po teście modelu odczytu' }, ctx);
+  assertBalancesConsistent('stornie');
+  assert.equal(stockOf('Zrębka Model Odczytu'), 0);
+
+  // Para bez ruchów znika z tabeli sald — tak samo jak znikała z GROUP BY.
+  const left = db.value(
+    `SELECT COUNT(*) FROM stock_balances b JOIN products p ON p.id = b.product_id
+      WHERE p.name = :name`,
+    { name: 'Zrębka Model Odczytu' },
+  );
+  assert.equal(left, 0, 'saldo bez ruchów nie zostaje w tabeli');
+});
+
+test('model odczytu: przesunięcie MM zeruje się między magazynami', () => {
+  ops.createOperation(operationInput({
+    operationDate: '2026-05-06', quantity: 80, unit: 'MP', productName: 'Zrębka Przesunięcie',
+    warehouseTo: 'Magazyn RiC Zabrze',
+  }), ctx);
+  ops.createOperation(operationInput({
+    type: 'MM', operationDate: '2026-05-07', quantity: 20, unit: 'MP',
+    productName: 'Zrębka Przesunięcie',
+    warehouseFrom: 'Magazyn RiC Zabrze', warehouseTo: 'Plac Zapasowy', supplierName: undefined,
+  }), ctx);
+
+  assertBalancesConsistent('przesunięciu MM');
+  assert.equal(stockOf('Zrębka Przesunięcie'), 80, 'MM nie zmienia stanu całej firmy');
+
+  const perWarehouse = db.all(
+    `SELECT w.name, b.qty_mp FROM stock_balances b
+       JOIN warehouses w ON w.id = b.warehouse_id
+       JOIN products p ON p.id = b.product_id
+      WHERE p.name = :name ORDER BY w.name`,
+    { name: 'Zrębka Przesunięcie' },
+  );
+  assert.deepEqual(perWarehouse.map((r) => r.qty_mp), [60, 20], 'towar rozdzielony na dwa magazyny');
+});
+
+test('ruch magazynowy jest niezmienny — próba zmiany jest odrzucana', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-05-08', quantity: 12, unit: 'MP', productName: 'Zrębka Niezmienność',
+  }), ctx);
+  const move = db.get('SELECT id FROM stock_moves WHERE operation_id = :id', { id: operation.id });
+
+  assert.throws(
+    () => db.run('UPDATE stock_moves SET qty_mp = 999 WHERE id = :id', { id: move.id }),
+    /niezmienny/i,
+    'wyzwalacz blokuje zmianę ruchu, więc saldo nie może się rozjechać po cichu',
+  );
+  assertBalancesConsistent('odrzuconej próbie zmiany ruchu');
+});
+
+test('pamięć podręczna: zapis natychmiast odświeża stan i listę', () => {
+  const stockBefore = currentStock().totals.qtyMp;
+  const listBefore = ops.listOperations({ limit: 10 }).page.total;
+
+  // Powtórzone odczyty zapełniają pamięć podręczną przed zapisem.
+  currentStock();
+  ops.listOperations({ limit: 10 });
+
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-05-09', quantity: 25, unit: 'MP', productName: 'Zrębka Odświeżenie',
+  }), ctx);
+
+  assert.equal(currentStock().totals.qtyMp, stockBefore + 25, 'stan po zapisie jest aktualny');
+  assert.equal(ops.listOperations({ limit: 10 }).page.total, listBefore + 1, 'lista po zapisie jest aktualna');
+
+  ops.cancelOperation(operation.id, { reason: 'Storno po teście pamięci podręcznej' }, ctx);
+  assert.equal(currentStock().totals.qtyMp, stockBefore, 'storno też odświeża stan');
+});
+
+test('pamięć podręczna: korekta odświeża kartotekę magazynową produktu', () => {
+  const { operation } = ops.createOperation(operationInput({
+    operationDate: '2026-05-10', quantity: 40, unit: 'MP', productName: 'Zrębka Kartoteka Cache',
+  }), ctx);
+  const productId = db.value('SELECT id FROM products WHERE name = :name', { name: 'Zrębka Kartoteka Cache' });
+
+  assert.equal(stockLedger({ productId }).closing, 40);
+  ops.updateOperation(operation.id, { quantity: 65, correctionReason: 'Korekta wolumenu po ważeniu' }, ctx);
+  assert.equal(stockLedger({ productId }).closing, 65, 'kartoteka nie podaje wartości sprzed korekty');
+});
+
+test('pamięć podręczna: zmiana ustawień odświeża raporty', () => {
+  const before = monthlyReport({ month: '2026-05' });
+  updateSettings({ 'units.tonne_to_gj': 9.1 }, admin.id);
+  invalidateSettingsCache();
+  try {
+    const after = monthlyReport({ month: '2026-05' });
+    assert.notEqual(before, after, 'raport policzony od nowa po zmianie przeliczników');
+  } finally {
+    updateSettings({ 'units.tonne_to_gj': 8.5 }, admin.id);
+    invalidateSettingsCache();
+  }
 });
