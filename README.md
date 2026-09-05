@@ -330,19 +330,25 @@ PRO-MAGAZYN-G-PYSKOWICE/
 │   │                           settings · backup · admin
 │   ├── scripts/                migrate · seed · create-user · backup
 │   ├── seed/demo-data.json     przykładowe dane testowe
-│   └── tests/                  74 testy (node:test)
+│   └── tests/                  119 testów (node:test)
 │
 ├── web/                        Aplikacja kliencka (ESM, bez build-stepu)
 │   ├── index.html · manifest.webmanifest
-│   ├── assets/app.css
-│   └── src/{main.js, core/, components/, views/}
+│   ├── assets/app.css          chrom aplikacji
+│   ├── assets/viz.css          ⭐ instancja palety + style wykresów
+│   └── src/
+│       ├── core/               dom · api · router · format · store · ui
+│       ├── components/         layout · icons
+│       ├── ui/                 DataTable · Toolbar · Pager · ListScreen
+│       │   └── charts/         ⭐ scale · chart-core · Line · Column · Waterfall · Bar · figures
+│       └── views/              pulpit · operacje · magazyn · raporty · kartoteki · …
 │
 ├── desktop/
 │   ├── build-zip.mjs           generator pakietu instalacyjnego
 │   ├── make-icon.mjs           generator ikony aplikacji (.ico)
 │   └── installer/              INSTALUJ.bat · ResInvestERP.cs · START.bat · instaluj.sh
 │
-├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING · FRONTEND
+├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING · FRONTEND · DESIGN-SYSTEM
 ├── legacy/                     wcześniejsze wersje jednoplikowe (archiwum)
 └── data/                       runtime: baza, skany, kopie, logi (poza repo)
 ```
@@ -465,6 +471,7 @@ Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 | [docs/DEBUGGING.md](docs/DEBUGGING.md) | Usterki produkcyjne: odtworzenie, przyczyny źródłowe, poprawki |
 | [docs/SCALING.md](docs/SCALING.md) | Skalowanie: model odczytu, strategia buforowania, drabina S1–S4 |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | Wydajność klienta, komponenty UI, launcher Windows |
+| [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) | System wizualny: paleta z walidacją, układ pulpitu, styl wykresów, sekwencja tworzenia |
 
 ---
 
