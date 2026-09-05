@@ -11,7 +11,7 @@ const ops = await import('../src/modules/operations/operations.service.js');
 const { createChain } = await import('../src/modules/operations/chain.service.js');
 const { closePeriod, reopenPeriod, periodStatus } = await import('../src/modules/periods/periods.service.js');
 const { currentStock, stockLedger } = await import('../src/modules/stock/stock.service.js');
-const { monthlyReport, productionDay } = await import('../src/modules/reports/reports.service.js');
+const { monthlyReport, productionDay, dashboard } = await import('../src/modules/reports/reports.service.js');
 const { listCorrections } = await import('../src/modules/corrections/corrections.service.js');
 const { updateSettings, invalidateSettingsCache } = await import('../src/modules/settings/settings.service.js');
 const { addAttachment, deleteAttachment } = await import('../src/modules/attachments/attachments.service.js');
@@ -777,4 +777,35 @@ test('pamięć podręczna: zmiana ustawień odświeża raporty', () => {
     updateSettings({ 'units.tonne_to_gj': 8.5 }, admin.id);
     invalidateSettingsCache();
   }
+});
+
+test('pulpit: szereg miesięczny domyka się na stanie magazynu', () => {
+  const data = dashboard({});
+  assert.ok(Array.isArray(data.trend) && data.trend.length >= 1, 'szereg nie jest pusty');
+  const last = data.trend.at(-1);
+  assert.equal(last.month, data.month, 'ostatni punkt to miesiąc raportu');
+  assert.ok(
+    Math.abs(last.closingMp - data.stock.totals.qtyMp) < 0.005,
+    `stan z szeregu (${last.closingMp}) musi być równy stanowi z kartoteki (${data.stock.totals.qtyMp})`,
+  );
+  for (const point of data.trend) {
+    assert.equal(typeof point.short, 'string');
+    assert.equal(typeof point.grossMargin, 'number');
+  }
+});
+
+test('pulpit: bilans miesiąca domyka się od BO do BZ', () => {
+  const { balance } = dashboard({});
+  const sum = balance.steps.reduce((acc, step) => acc + step.delta, balance.opening);
+  assert.ok(
+    Math.abs(sum - balance.closing) < 0.005,
+    `BO ${balance.opening} + kroki = ${sum}, a BZ to ${balance.closing}`,
+  );
+  assert.ok(balance.steps.some((s) => s.key === 'purchase'), 'krok zakupu jest zawsze obecny');
+});
+
+test('pulpit: długość okna szeregu jest ograniczona do sensownego zakresu', () => {
+  assert.equal(dashboard({ months: '999' }).trendMonths, 36);
+  assert.equal(dashboard({ months: '1' }).trendMonths, 3);
+  assert.equal(dashboard({ months: 'abc' }).trendMonths, 12);
 });

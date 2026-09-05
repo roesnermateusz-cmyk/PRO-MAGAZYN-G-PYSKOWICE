@@ -32,11 +32,153 @@ export function monthLabel(month) {
 const today = () => new Date().toISOString().slice(0, 10);
 const currentMonth = () => today().slice(0, 7);
 
+/* --------------------- Szereg czasowy i bilans miesiąca ---------------- */
+
+/** Miesiąc przesunięty o `back` miesięcy wstecz, w formacie RRRR-MM. */
+function shiftMonth(month, back) {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 - back, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Lista `count` kolejnych miesięcy kończąca się na `month`. */
+function monthWindow(month, count) {
+  return Array.from({ length: count }, (_, i) => shiftMonth(month, count - 1 - i));
+}
+
+/**
+ * Szereg 12 miesięcy: obroty ilościowe i wartościowe oraz stan końcowy.
+ *
+ * Stan końcowy liczony jest narastająco: bilans otwarcia okna (suma ruchów
+ * sprzed pierwszego miesiąca) plus kolejne salda miesięczne. Dzięki temu
+ * wykres stanu magazynu zgadza się co do jednostki z kartoteką magazynową,
+ * bez osobnego zapytania na każdy miesiąc.
+ *
+ * @param {string} month ostatni miesiąc okna (RRRR-MM)
+ * @param {number} [count] długość okna w miesiącach
+ */
+function buildTrend(month, count = 12) {
+  // Okno przycinane do pierwszego miesiąca z dokumentami. Firma, która ruszyła
+  // pół roku temu, nie ma po co oglądać sześciu pustych słupków — a wykres
+  // rozciągnięty na puste miesiące spłaszcza to, co faktycznie się wydarzyło.
+  const firstDoc = db.value("SELECT MIN(operation_month) FROM operations WHERE status = 'POSTED'");
+  let months = monthWindow(month, count);
+  if (firstDoc && firstDoc > months[0]) {
+    const trimmed = months.filter((mm) => mm >= firstDoc);
+    if (trimmed.length >= 2) months = trimmed;
+  }
+  const from = `${months[0]}-01`;
+  const to = endOfMonth(month);
+
+  const rows = db.all(
+    `SELECT o.operation_month AS month,
+            COUNT(*)                                                              AS documents,
+            COALESCE(SUM(CASE WHEN o.type = 'ZAKUP'     THEN o.qty_mp END), 0)    AS purchase_mp,
+            COALESCE(SUM(CASE WHEN o.type = 'PRODUKCJA' THEN o.qty_mp END), 0)    AS production_mp,
+            COALESCE(SUM(CASE WHEN o.type = 'SPRZEDAZ'  THEN o.qty_mp END), 0)    AS sale_mp,
+            COALESCE(SUM(CASE WHEN o.type = 'ZUZYCIE'   THEN o.qty_mp END), 0)    AS consumption_mp,
+            COALESCE(SUM(CASE WHEN o.type = 'ZAKUP'    THEN o.value_purchase END), 0) AS purchase_value,
+            COALESCE(SUM(CASE WHEN o.type = 'SPRZEDAZ' THEN o.value_sale END), 0)     AS sale_value,
+            COALESCE(SUM(o.chipping_cost), 0)                                     AS chipping_cost,
+            COALESCE(SUM(o.transport_cost), 0)                                    AS transport_cost
+       FROM operations o
+      WHERE o.status = 'POSTED' AND o.operation_month BETWEEN :fromMonth AND :toMonth
+      GROUP BY o.operation_month`,
+    { fromMonth: months[0], toMonth: month },
+  );
+  const byMonth = new Map(rows.map((r) => [r.month, r]));
+
+  // Saldo ruchów w każdym miesiącu okna oraz bilans otwarcia całego okna.
+  const netRows = db.all(
+    `SELECT strftime('%Y-%m', m.move_date) AS month, SUM(m.qty_mp) AS net_mp
+       FROM stock_moves m
+      WHERE m.move_date BETWEEN :from AND :to
+      GROUP BY 1`,
+    { from, to },
+  );
+  const netByMonth = new Map(netRows.map((r) => [r.month, r.net_mp]));
+  let running = db.value(
+    'SELECT COALESCE(SUM(qty_mp), 0) FROM stock_moves WHERE move_date < :from',
+    { from },
+  ) ?? 0;
+
+  return months.map((mm) => {
+    const r = byMonth.get(mm);
+    running += netByMonth.get(mm) ?? 0;
+    const purchaseValue = roundMoney(r?.purchase_value ?? 0);
+    const saleValue = roundMoney(r?.sale_value ?? 0);
+    const chippingCost = roundMoney(r?.chipping_cost ?? 0);
+    const transportCost = roundMoney(r?.transport_cost ?? 0);
+    return {
+      month: mm,
+      label: monthLabel(mm),
+      short: `${mm.slice(5)}.${mm.slice(2, 4)}`,
+      documents: r?.documents ?? 0,
+      purchaseMp: roundQty(r?.purchase_mp ?? 0),
+      productionMp: roundQty(r?.production_mp ?? 0),
+      saleMp: roundQty(r?.sale_mp ?? 0),
+      consumptionMp: roundQty(r?.consumption_mp ?? 0),
+      purchaseValue,
+      saleValue,
+      chippingCost,
+      transportCost,
+      grossMargin: roundMoney(saleValue - purchaseValue - chippingCost - transportCost),
+      closingMp: roundQty(running),
+    };
+  });
+}
+
+/**
+ * Bilans miesiąca w MP — od stanu otwarcia do stanu zamknięcia.
+ *
+ * Ostatnia pozycja („korekty i przesunięcia”) to reszta domykająca równanie.
+ * Nie jest ozdobnikiem: mieszczą się w niej storna, przesunięcia międzymagazynowe
+ * zaksięgowane tylko po jednej stronie oraz dokumenty BO wprowadzone w trakcie
+ * miesiąca. Bez niej wykres pokazywałby stan zamknięcia, którego nie da się
+ * wyprowadzić z widocznych słupków — a taki wykres kłamie.
+ */
+function buildBalance(month) {
+  const from = `${month}-01`;
+  const to = endOfMonth(month);
+  const opening = db.value(
+    'SELECT COALESCE(SUM(qty_mp), 0) FROM stock_moves WHERE move_date < :from', { from },
+  ) ?? 0;
+  const closing = db.value(
+    'SELECT COALESCE(SUM(qty_mp), 0) FROM stock_moves WHERE move_date <= :to', { to },
+  ) ?? 0;
+  const t = db.get(
+    `SELECT COALESCE(SUM(CASE WHEN type = 'ZAKUP'     THEN qty_mp END), 0) AS purchase,
+            COALESCE(SUM(CASE WHEN type = 'PRODUKCJA' THEN qty_mp END), 0) AS production,
+            COALESCE(SUM(CASE WHEN type = 'ZUZYCIE'   THEN qty_mp END), 0) AS consumption,
+            COALESCE(SUM(CASE WHEN type = 'SPRZEDAZ'  THEN qty_mp END), 0) AS sale
+       FROM operations
+      WHERE status = 'POSTED' AND operation_month = :month`,
+    { month },
+  );
+  const steps = [
+    { key: 'purchase', label: 'Zakup', delta: roundQty(t.purchase) },
+    { key: 'production', label: 'Produkcja', delta: roundQty(t.production) },
+    { key: 'consumption', label: 'Zużycie', delta: roundQty(-t.consumption) },
+    { key: 'sale', label: 'Sprzedaż', delta: roundQty(-t.sale) },
+  ];
+  const explained = steps.reduce((a, s) => a + s.delta, 0);
+  const residual = roundQty(closing - opening - explained);
+  if (Math.abs(residual) >= 0.001) {
+    steps.push({ key: 'other', label: 'Korekty i przesunięcia', delta: residual });
+  }
+  return {
+    opening: roundQty(opening),
+    closing: roundQty(closing),
+    steps,
+  };
+}
+
 /* ----------------------------- Pulpit -------------------------------- */
 
 /** Zestaw wskaźników dla ekranu głównego. */
-function computeDashboard({ month } = {}) {
+function computeDashboard({ month, months } = {}) {
   const m = /^\d{4}-\d{2}$/.test(month || '') ? month : currentMonth();
+  const window = Math.min(36, Math.max(3, Number.parseInt(months, 10) || 12));
   const stock = currentStock();
 
   const turnover = db.get(
@@ -95,6 +237,7 @@ function computeDashboard({ month } = {}) {
     month: m,
     monthLabel: monthLabel(m),
     periodStatus: periodStatus(m),
+    trendMonths: window,
     stock: {
       totals: stock.totals,
       rawMaterialMp: roundQty(rawMaterialMp),
@@ -123,6 +266,8 @@ function computeDashboard({ month } = {}) {
       productionTonne: roundQty(turnover.production_t),
     },
     transports: { inbound: transports.inbound, outbound: transports.outbound },
+    trend: buildTrend(m, window),
+    balance: buildBalance(m),
     production: lastProductionDay ? productionDay({ date: lastProductionDay }) : null,
     alerts: buildAlerts(),
     recent,
