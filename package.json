@@ -1,0 +1,27 @@
+{
+  "name": "resinvest-erp",
+  "version": "1.0.0",
+  "description": "ResInvest ERP — system magazynowy biomasy (PZ/WZ/MM/BO, produkcja, raporty, korekty)",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Mateusz Roesner",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/src/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/src/index.js",
+    "migrate": "node --disable-warning=ExperimentalWarning server/scripts/migrate.mjs",
+    "seed": "node --disable-warning=ExperimentalWarning server/scripts/seed.mjs",
+    "seed:reset": "node --disable-warning=ExperimentalWarning server/scripts/seed.mjs --reset",
+    "user:create": "node --disable-warning=ExperimentalWarning server/scripts/create-user.mjs",
+    "backup": "node --disable-warning=ExperimentalWarning server/scripts/backup.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test \"server/tests/*.test.mjs\"",
+    "test:watch": "node --disable-warning=ExperimentalWarning --test --watch \"server/tests/*.test.mjs\"",
+    "build:icon": "node desktop/make-icon.mjs",
+    "build:html": "node standalone/build.mjs",
+    "build:installer": "node desktop/make-icon.mjs && node desktop/build-zip.mjs",
+    "check": "node --check server/src/index.js"
+  }
+}

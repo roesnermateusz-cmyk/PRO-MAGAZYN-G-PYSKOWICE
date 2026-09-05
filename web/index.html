@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1C5E3A">
+<meta name="description" content="ResInvest ERP — system magazynowy biomasy: dokumenty PZ/WZ/MM, produkcja, raporty i korekty.">
+<title>ResInvest ERP · Magazyn Biomasy</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/viz.css">
+</head>
+<body>
+
+<!-- Kontener aplikacji — całą treść renderuje moduł /src/main.js -->
+<div id="root">
+  <div class="loading">Wczytywanie systemu…</div>
+</div>
+
+<!-- Elementy globalne poza drzewem widoku -->
+<div id="toast" role="status" aria-live="polite"></div>
+<div class="modal-bg" id="modalBg" role="dialog" aria-modal="true"><div class="modal" id="modalBox"></div></div>
+<div id="lightbox"><img id="lightboxImg" alt="Podgląd załącznika"></div>
+
+<noscript>
+  <div style="padding:28px;text-align:center">
+    <h1>Wymagana obsługa JavaScript</h1>
+    <p>System ResInvest ERP wymaga włączonej obsługi JavaScript w przeglądarce.</p>
+  </div>
+</noscript>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

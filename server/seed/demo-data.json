@@ -1,0 +1,73 @@
+{
+  "opis": "Przykładowe dane testowe ResInvest ERP — realistyczny miesiąc pracy magazynu biomasy leśnej. Wczytywane skryptem `npm run seed`.",
+  "wersja": 1,
+
+  "uzytkownicy": [
+    { "email": "kierownik@resinvest.local", "fullName": "Anna Kowalczyk", "role": "KIEROWNIK", "password": "Kierownik2026!" },
+    { "email": "magazyn@resinvest.local", "fullName": "Piotr Nowak", "role": "MAGAZYNIER", "password": "Magazyn2026!" },
+    { "email": "ksiegowosc@resinvest.local", "fullName": "Maria Wiśniewska", "role": "KSIEGOWY", "password": "Ksiegowa2026!" },
+    { "email": "audyt@resinvest.local", "fullName": "Tomasz Zieliński", "role": "AUDYTOR", "password": "Audytor2026!" }
+  ],
+
+  "magazyny": [
+    { "name": "Magazyn RiC Zabrze", "code": "MAG-GLOWNY", "address": "ul. Gwarecka 16, 41-800 Zabrze", "isDefault": true },
+    { "name": "Plac Pyskowice", "code": "MAG-PYSKOWICE", "address": "ul. Wyzwolenia 4, 44-120 Pyskowice" }
+  ],
+
+  "kontrahenci": [
+    { "name": "Nadleśnictwo Rudy Raciborskie", "kind": "DOSTAWCA", "nip": "6390001234", "address": "ul. Rudzka 2, 47-430 Rudy" },
+    { "name": "Nadleśnictwo Rybnik", "kind": "DOSTAWCA", "nip": "6420002345", "address": "ul. Kościuszki 36, 44-200 Rybnik" },
+    { "name": "Nadleśnictwo Brynek", "kind": "DOSTAWCA", "nip": "6450003456", "address": "ul. Grabowa 3, 42-690 Brynek" },
+    { "name": "Tartak Gliwice Sp. z o.o.", "kind": "DOSTAWCA", "nip": "6310004567", "address": "ul. Portowa 28, 44-100 Gliwice" },
+    { "name": "Elektrownia Rybnik", "kind": "ODBIORCA", "nip": "6420005678", "address": "ul. Podmiejska 1, 44-207 Rybnik" },
+    { "name": "Ciepłownia Tarnowskie Góry", "kind": "ODBIORCA", "nip": "6450006789", "address": "ul. Zagórska 145, 42-600 Tarnowskie Góry" },
+    { "name": "PGE Energia Ciepła Bytom", "kind": "ODBIORCA", "nip": "6260007890", "address": "ul. Wrocławska 122, 41-902 Bytom" },
+    { "name": "Trans-Bio Roesner", "kind": "PRZEWOZNIK", "nip": "6480008901", "address": "ul. Leśna 12, 41-800 Zabrze" },
+    { "name": "Drewtrans Sp. z o.o.", "kind": "PRZEWOZNIK", "nip": "6310009012", "address": "ul. Transportowa 7, 44-100 Gliwice" }
+  ],
+
+  "pojazdy": [
+    { "plate": "SZA 4512C", "carrierName": "Trans-Bio Roesner", "description": "Zestaw z HDS, 40 t" },
+    { "plate": "SG 88231", "carrierName": "Drewtrans Sp. z o.o.", "description": "Naczepa ruchoma podłoga 92 m³" },
+    { "plate": "SRB 20714", "carrierName": "Trans-Bio Roesner", "description": "Wywrotka 3-osiowa" },
+    { "plate": "SG 4471K", "carrierName": "Drewtrans Sp. z o.o.", "description": "Zestaw do zrębki 100 m³" }
+  ],
+
+  "nadlesnictwa": [
+    { "name": "Rudy Raciborskie", "region": "RDLP Katowice", "lesnictwa": ["Kuźnia", "Stanica", "Ruda Kozielska"] },
+    { "name": "Rybnik", "region": "RDLP Katowice", "lesnictwa": ["Świerklany", "Golejów", "Popielów"] },
+    { "name": "Brynek", "region": "RDLP Katowice", "lesnictwa": ["Tworóg", "Boruszowice", "Miedary"] }
+  ],
+
+  "miejscaZaladunku": [
+    "Skład drewna Rudy — droga leśna nr 12",
+    "Plac przeładunkowy Pyskowice",
+    "Tartak Gliwice — rampa nr 2"
+  ],
+
+  "scenariusze": {
+    "opis": "Skrypt seed generuje dokumenty na podstawie poniższych wzorców przez ostatnie 2 miesiące.",
+    "zakupySurowca": [
+      { "produkt": "Drewno opałowe z lasu", "dostawca": "Nadleśnictwo Rudy Raciborskie", "nadlesnictwo": "Rudy Raciborskie", "lesnictwo": "Kuźnia", "cenaMin": 88, "cenaMax": 102, "m3Min": 40, "m3Max": 120 },
+      { "produkt": "Drewno opałowe z lasu", "dostawca": "Nadleśnictwo Rybnik", "nadlesnictwo": "Rybnik", "lesnictwo": "Świerklany", "cenaMin": 90, "cenaMax": 105, "m3Min": 35, "m3Max": 95 },
+      { "produkt": "Drewno przemysłowe z wycinek inwest.", "dostawca": "Nadleśnictwo Brynek", "nadlesnictwo": "Brynek", "lesnictwo": "Tworóg", "cenaMin": 70, "cenaMax": 86, "m3Min": 25, "m3Max": 70 }
+    ],
+    "produkcja": [
+      { "produkt": "Zrębka Produkcyjna Leśna", "uzysk": 0.94, "kosztRabaniaMin": 9, "kosztRabaniaMax": 14 },
+      { "produkt": "Zrębka Produkcyjna Inwestycyjna", "uzysk": 0.9, "kosztRabaniaMin": 10, "kosztRabaniaMax": 15 }
+    ],
+    "sprzedaz": [
+      { "produkt": "Zrębka Produkcyjna Leśna", "odbiorca": "Elektrownia Rybnik", "cenaMin": 66, "cenaMax": 78 },
+      { "produkt": "Zrębka Produkcyjna Leśna", "odbiorca": "Ciepłownia Tarnowskie Góry", "cenaMin": 64, "cenaMax": 75 },
+      { "produkt": "Zrębka Produkcyjna Inwestycyjna", "odbiorca": "PGE Energia Ciepła Bytom", "cenaMin": 62, "cenaMax": 72 }
+    ],
+    "zakupyPozostale": [
+      { "produkt": "Pozostałość tartaczna", "dostawca": "Tartak Gliwice Sp. z o.o.", "jednostka": "MP", "cenaMin": 42, "cenaMax": 55, "iloscMin": 60, "iloscMax": 180 },
+      { "produkt": "Trociny", "dostawca": "Tartak Gliwice Sp. z o.o.", "jednostka": "MP", "cenaMin": 30, "cenaMax": 40, "iloscMin": 40, "iloscMax": 120 }
+    ],
+    "przewoznicy": [
+      { "nazwa": "Trans-Bio Roesner", "pojazdy": ["SZA 4512C", "SRB 20714"], "stawkaZlKm": 8.6 },
+      { "nazwa": "Drewtrans Sp. z o.o.", "pojazdy": ["SG 88231", "SG 4471K"], "stawkaZlKm": 9.2 }
+    ]
+  }
+}
