@@ -329,6 +329,7 @@ PRO-MAGAZYN-G-PYSKOWICE/
 │   │                           reports · periods · corrections · attachments
 │   │                           settings · backup · admin
 │   ├── scripts/                migrate · seed · create-user · backup
+│   ├── src/seed/demo-seed.js   generator danych demonstracyjnych (wspólny dla obu wersji)
 │   ├── seed/demo-data.json     przykładowe dane testowe
 │   └── tests/                  119 testów (node:test)
 │
@@ -348,7 +349,8 @@ PRO-MAGAZYN-G-PYSKOWICE/
 │   ├── make-icon.mjs           generator ikony aplikacji (.ico)
 │   └── installer/              INSTALUJ.bat · ResInvestERP.cs · START.bat · instaluj.sh
 │
-├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING · FRONTEND · DESIGN-SYSTEM
+├── standalone/                 ⭐ wersja jednoplikowa (build.mjs · runtime/ · vendor/)
+├── docs/                       ARCHITECTURE · DATABASE · API · UI · DEPLOYMENT · DEBUGGING · SCALING · FRONTEND · DESIGN-SYSTEM · STANDALONE
 ├── legacy/                     wcześniejsze wersje jednoplikowe (archiwum)
 └── data/                       runtime: baza, skany, kopie, logi (poza repo)
 ```
@@ -472,6 +474,7 @@ Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 | [docs/SCALING.md](docs/SCALING.md) | Skalowanie: model odczytu, strategia buforowania, drabina S1–S4 |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | Wydajność klienta, komponenty UI, launcher Windows |
 | [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) | System wizualny: paleta z walidacją, układ pulpitu, styl wykresów, sekwencja tworzenia |
+| [docs/STANDALONE.md](docs/STANDALONE.md) | Wersja jednoplikowa: jak powstaje, co jest podmienione, gdzie mieszkają dane |
 
 ---
 

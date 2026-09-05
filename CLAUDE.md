@@ -35,6 +35,7 @@ npm run backup             # kopia zapasowa bazy
 npm test                   # 119 testów (node:test)
 npm run check              # kontrola składni bez uruchamiania
 npm run build:installer    # ikona .ico + pakiet dist/ResInvest-ERP-<wersja>.zip
+npm run build:html         # wersja jednoplikowa → dist/ResInvestERP.html
 ```
 
 **Pojedynczy plik testowy albo pojedynczy test:**
@@ -200,12 +201,47 @@ Każdy plik testowy dostaje własną bazę w katalogu tymczasowym.
 `operationInput(overrides)` daje poprawny dokument do księgowania — uważaj na `unit`,
 domyślnie `M3`, więc ilość zostanie przemnożona przez przelicznik.
 
-Seed jest **deterministyczny**: ten sam zestaw wejściowy daje zawsze te same
-78 łańcuchów / 304 dokumenty. Zmiana tych liczb bez powodu oznacza regresję w silniku.
+Seed jest **powtarzalny**: generator liczb losowych ma stałe ziarno, więc ten sam
+plik wejściowy uruchomiony **tego samego dnia** daje zawsze ten sam komplet
+dokumentów co do grosza. Liczba dokumentów zależy od daty uruchomienia (historia
+sięga 60 dni wstecz, a soboty i niedziele wypadają inaczej), więc nie porównuj jej
+między dniami — porównuj dwa przebiegi z tego samego dnia. Różnica między nimi
+oznacza regresję w silniku.
 
 Testów przeglądarkowych nie ma w repozytorium — pisz je doraźnie w katalogu
 roboczym sesji (Playwright, `executablePath: '/opt/pw-browsers/chromium'`), uruchamiając
 serwer na osobnej bazie i osobnym porcie.
+
+---
+
+## Wersja jednoplikowa
+
+`dist/ResInvestERP.html` to cały system w jednym pliku — otwierany podwójnym
+kliknięciem, bez instalacji i bez sieci. Zasada, której **nie wolno naruszyć**:
+wersja jednoplikowa wykonuje **ten sam kod serwera**, tylko na SQLite
+skompilowanym do WebAssembly (`standalone/vendor/`, MIT). Nie ma drugiego
+silnika i nie ma go być — dwa silniki liczące te same salda rozjeżdżają się,
+a w systemie magazynowym oznacza to dwa różne stany magazynu.
+
+Podmieniane jest sześć plików i moduł `node:fs` — tabela `SUBSTITUTIONS`
+w `standalone/build.mjs`. Dodając cokolwiek do tej tabeli, zapytaj najpierw,
+czy różnica naprawdę wynika ze środowiska, czy tylko z wygody.
+
+Po każdej zmianie w silniku albo w warstwie zastępczej:
+
+```bash
+npm run build:html && node standalone/verify.mjs
+```
+
+`verify.mjs` generuje te same dane po obu stronach i porównuje liczby co do
+grosza. Rozjazd jest błędem blokującym.
+
+Pułapka sterownika: **`Database.export()` w sql.js zwalnia wszystkie
+przygotowane instrukcje**, więc bufor instrukcji trzeba porzucić po każdym
+zrzucie bazy (`forgetStatements` w `standalone/src/runtime/db.js`). Bez tego
+zapytanie potrafi cicho zwrócić cudzy wynik.
+
+Szczegóły: `docs/STANDALONE.md`.
 
 ---
 
@@ -221,6 +257,7 @@ serwer na osobnej bazie i osobnym porcie.
 | `docs/DEBUGGING.md` | usterki produkcyjne: przyczyny źródłowe i poprawki |
 | `docs/FRONTEND.md` | wydajność klienta, komponenty, launcher Windows |
 | `docs/DESIGN-SYSTEM.md` | paleta z walidacją, układ pulpitu, styl wykresów |
+| `docs/STANDALONE.md` | wersja jednoplikowa: podmianki, dane w przeglądarce, ograniczenia |
 | `docs/UI.md`, `docs/DEPLOYMENT.md`, `docs/REFACTORING.md` | interfejs, wdrożenie, przegląd kodu |
 
 Zmiana architektury albo naprawa usterki produkcyjnej **trafia do odpowiedniego
