@@ -606,6 +606,69 @@ serwera cokolwiek mówią o przeglądarce.
 
 ---
 
+## 11. Dwie osoby w jednym dokumencie — cicha utrata poprawki
+
+Znalezione przy pracach nad obsługą wielu użytkowników, zanim zdążyło się
+wydarzyć u klienta.
+
+### Czym jest problem
+
+`updateOperation` czytało dokument, składało nowy wiersz i zapisywało go
+**bezwarunkowo**. Kolumna `revision` rosła przy każdym zapisie, ale nikt jej
+nie sprawdzał.
+
+Scenariusz z dwoma stanowiskami w tej samej firmie:
+
+1. Kierownik otwiera PZ/2026/000123 (rewizja 3) i poprawia cenę zakupu.
+2. Magazynier otwiera ten sam dokument, poprawia ilość po ponownym pomiarze
+   i zapisuje → rewizja 4.
+3. Kierownik zapisuje swój formularz.
+
+Formularz odsyła **komplet pól** z migawki pobranej przy otwarciu, więc zapis
+kierownika przywraca starą ilość. Poprawka magazyniera znika. W rejestrze
+korekt wygląda to na świadomą decyzję kierownika — nie ma śladu, że ktokolwiek
+się pomylił, a stan magazynu przestaje odpowiadać rzeczywistości.
+
+### Dlaczego zawodzi
+
+Formularz z natury pracuje na migawce: pobiera dokument przy otwarciu i odsyła
+go w całości przy zapisie. Bez informacji, na czym pracował, serwer nie ma jak
+odróżnić „użytkownik świadomie ustawił tę wartość” od „użytkownik nie widział
+cudzej zmiany”.
+
+Jeden proces Node i synchroniczny sterownik SQLite dają złudne poczucie
+bezpieczeństwa: zapytania faktycznie się nie przeplatają. Kolizja nie dzieje
+się jednak w bazie — dzieje się **między otwarciem formularza a jego wysłaniem**,
+czyli w minutach, nie w mikrosekundach.
+
+### Naprawiony kod
+
+Blokada optymistyczna na numerze rewizji:
+
+* formularz edycji niesie ukryte pole `revision` z wersją, na której go otwarto;
+* trasa `PATCH /operations/:id` **wymaga** tego pola — to jedyna droga, którą
+  wchodzi nieświeża migawka, więc kontrola nie może być opcjonalna;
+* `assertNotStale()` odrzuca zapis z 409, gdy rewizja się nie zgadza.
+
+Komunikat podaje **kto i kiedy** zmienił dokument: „Dokument PZ/2026/000090
+został w międzyczasie zmieniony przez: Anna Kowalczyk (2026-09-14 16:24). Otwórz
+go ponownie i wprowadź poprawkę na aktualnej wersji — zapis na starej cofnąłby
+cudzą zmianę bez śladu.” Bez nazwiska użytkownik musiałby zgadywać, z kim
+uzgodnić poprawkę.
+
+Wywołania wewnętrzne (`restoreCorrection`) rewizji nie podają i podawać nie
+muszą — czytają stan świeżo w tej samej transakcji, więc stałej migawki nie mają.
+
+### Weryfikacja
+
+Testy `concurrency.test.mjs`: zapis na starej rewizji odrzucony, poprawka
+pierwszego użytkownika **przetrwała**, ta sama poprawka przechodzi po
+odświeżeniu, komunikat zawiera nazwisko. W przeglądarce: zwykła korekta
+przechodzi (rewizja jedzie w ukrytym polu), kolizja kończy się komunikatem,
+a dokument zachowuje wartość zapisaną przez pierwszego.
+
+---
+
 ## Sprawdzone bez zastrzeżeń: zaokrąglenia kwot
 
 Osobny skrypt porównał wartości liczone przez system z liczeniem w pełnej

@@ -6,6 +6,7 @@ import { createChain } from './chain.service.js';
 import * as attachments from '../attachments/attachments.service.js';
 import { exportOperationsCsv } from '../backup/backup.service.js';
 import { listCorrections } from '../corrections/corrections.service.js';
+import { ValidationError } from '../../lib/errors.js';
 
 export function operationRoutes(prefix) {
   const r = new Router(`${prefix}/operations`);
@@ -31,7 +32,20 @@ export function operationRoutes(prefix) {
   });
 
   r.get('/:id', ...guard('operations:read'), (ctx) => ops.getOperation(ctx.params.id, { user: ctx.user }));
-  r.patch('/:id', ...guard('operations:write'), (ctx) => ops.updateOperation(ctx.params.id, ctx.body, ctx));
+  /**
+   * Korekta dokumentu wymaga podania rewizji, na której pracował formularz.
+   * To jedyna droga, którą wchodzi migawka sprzed czyjejś zmiany, więc tu
+   * blokada optymistyczna jest OBOWIĄZKOWA — nie „jeśli klient poda”.
+   * Bez niej zapis z nieświeżego formularza cofa cudzą poprawkę bez śladu.
+   */
+  r.patch('/:id', ...guard('operations:write'), (ctx) => {
+    if (ctx.body?.revision === undefined || ctx.body.revision === null) {
+      throw new ValidationError('Brak numeru rewizji dokumentu — odśwież formularz.', [
+        { field: 'revision', message: 'Pole wymagane przy korekcie dokumentu.' },
+      ]);
+    }
+    return ops.updateOperation(ctx.params.id, ctx.body, ctx);
+  });
   r.post('/:id/cancel', ...guard('operations:cancel'), (ctx) => ops.cancelOperation(ctx.params.id, ctx.body, ctx));
 
   r.get('/:id/corrections', ...guard('corrections:read'),

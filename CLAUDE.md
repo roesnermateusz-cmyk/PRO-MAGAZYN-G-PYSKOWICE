@@ -188,6 +188,24 @@ r.get('/reports/dashboard', ...guard('reports:read'), (ctx) => reports.dashboard
 Role: `ADMIN`, `KIEROWNIK`, `MAGAZYNIER`, `KSIEGOWY`, `AUDYTOR`. Uchwyt zwraca
 obiekt — serializacja, ETag i kody błędów są wspólne.
 
+### Wielu użytkowników: blokada optymistyczna na dokumencie
+
+Kolizja edycji nie dzieje się w bazie (jeden proces, synchroniczny sterownik),
+tylko **między otwarciem formularza a jego wysłaniem** — czyli w minutach.
+Formularz odsyła komplet pól z migawki, więc bez kontroli zapis drugiej osoby
+cicho cofa poprawkę pierwszej i wygląda na jej świadomą decyzję.
+
+Dlatego `PATCH /operations/:id` **wymaga** pola `revision`, a
+`assertNotStale()` odrzuca zapis z 409, podając kto i kiedy zmienił dokument.
+Wywołania wewnętrzne rewizji nie podają — czytają stan świeżo w tej samej
+transakcji. Dokładając kolejny formularz edytujący byt, który może ruszyć
+ktoś inny, dołóż i tę blokadę.
+
+Numeracja dokumentów jest atomowa (`INSERT … ON CONFLICT DO UPDATE …
+RETURNING` w `domain/documents.js`). Nie przepisuj tego na „odczytaj, dodaj
+jeden, zapisz” — testy w `concurrency-processes.test.mjs` uruchamiają cztery
+procesy piszące do jednej bazy właśnie po to, żeby to złapać.
+
 ### Okresy księgowe
 
 `periods.service.js` → `assertPeriodOpen(month)`; kontrola daty księgowania siedzi

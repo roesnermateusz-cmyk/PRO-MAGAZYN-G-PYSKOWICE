@@ -379,6 +379,44 @@ function scopeOf(...rows) {
 }
 
 /**
+ * Blokada optymistyczna: czy dokument nie zmienił się pod ręką edytującego.
+ *
+ * System jest wieloużytkownikowy, a formularz korekty pracuje na migawce
+ * pobranej w chwili otwarcia. Bez tej kontroli scenariusz wygląda tak:
+ * kierownik otwiera dokument i poprawia cenę, w tym czasie magazynier
+ * poprawia w nim ilość i zapisuje, a zapis kierownika **cicho cofa** poprawkę
+ * magazyniera — bo formularz odsyła komplet pól z migawki sprzed jego zmiany.
+ * W rejestrze korekt wygląda to na świadomą decyzję kierownika, a stan
+ * magazynu rozjeżdża się z rzeczywistością bez śladu, że ktokolwiek się pomylił.
+ *
+ * Numer rewizji rośnie przy każdym zapisie, więc wystarczy za niego złapać.
+ * Kontrola działa, gdy klient poda rewizję — trasa HTTP wymaga jej wprost
+ * (patrz `operations.routes.js`), a wywołania wewnętrzne (przywrócenie stanu
+ * sprzed korekty) czytają stan świeżo w tej samej transakcji i stałej migawki
+ * nie mają.
+ */
+function assertNotStale(existing, revision) {
+  if (revision === undefined || revision === null || revision === '') return;
+  const podana = Number(revision);
+  if (Number.isNaN(podana)) {
+    throw new ValidationError('Nieprawidłowy numer rewizji dokumentu.', [
+      { field: 'revision', message: 'Oczekiwano liczby.' },
+    ]);
+  }
+  if (podana === existing.revision) return;
+
+  const autor = db.get(
+    'SELECT full_name AS name FROM users WHERE id = :id', { id: existing.updated_by },
+  )?.name;
+  throw new ConflictError(
+    `Dokument ${existing.doc_no} został w międzyczasie zmieniony`
+    + `${autor ? ` przez: ${autor}` : ''} (${existing.updated_at}). `
+    + 'Otwórz go ponownie i wprowadź poprawkę na aktualnej wersji — '
+    + 'zapis na starej cofnąłby cudzą zmianę bez śladu.',
+  );
+}
+
+/**
  * Aktualizuje dokument. Poprzedni stan trafia do rejestru korekt,
  * a ruchy magazynowe są przeliczane od nowa.
  */
@@ -387,6 +425,7 @@ export function updateOperation(id, input, ctx) {
   const result = db.tx(() => {
     const existing = db.get('SELECT * FROM operations WHERE id = :id', { id });
     if (!existing) throw new NotFoundError('Nie znaleziono dokumentu.');
+    assertNotStale(existing, input.revision);
     if (existing.status === 'CANCELLED') {
       throw new ConflictError('Dokument jest anulowany — edycja nie jest możliwa. Wprowadź nowy dokument.');
     }

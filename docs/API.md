@@ -202,7 +202,25 @@ sprzedaży prosto z lasu).
 ### Edycja i storno
 
 `PATCH /operations/:id` przyjmuje dowolny podzbiór pól plus wymagane
-`correctionReason`. Odpowiedź zawiera listę zmian zapisanych w rejestrze korekt.
+`correctionReason` **oraz `revision`**. Odpowiedź zawiera listę zmian zapisanych
+w rejestrze korekt.
+
+#### `revision` — blokada optymistyczna
+
+`revision` to numer wersji dokumentu, na której pracował formularz (przychodzi
+w `GET /operations/:id`). Serwer odrzuca zapis z **409**, jeśli w międzyczasie
+ktoś dokument zmienił:
+
+```json
+{ "error": { "code": "CONFLICT", "message":
+  "Dokument PZ/2026/000090 został w międzyczasie zmieniony przez: Anna Kowalczyk (2026-09-14 16:24:27). Otwórz go ponownie i wprowadź poprawkę na aktualnej wersji — zapis na starej cofnąłby cudzą zmianę bez śladu." } }
+```
+
+Pole jest **wymagane**, a nie opcjonalne. Formularz odsyła komplet pól
+z migawki pobranej przy otwarciu, więc zapis bez tej kontroli cicho cofa cudzą
+poprawkę — i wygląda w rejestrze korekt na świadomą decyzję zapisującego.
+Klient po otrzymaniu 409 ma pobrać dokument na nowo i pokazać użytkownikowi
+aktualny stan; ponowienie z tą samą rewizją nigdy się nie uda.
 
 **Brak pola a pole puste to dwie różne intencje** — obowiązuje w każdym `PATCH`
 w tym API, nie tylko w dokumentach:

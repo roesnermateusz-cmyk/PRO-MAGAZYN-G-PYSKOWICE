@@ -54,6 +54,10 @@ export async function renderOperationForm(view, params = {}) {
   + (isEdit ? alertBox('info', 'Każda zmiana zapisze stan „przed” i „po” w rejestrze korekt wraz z podanym uzasadnieniem.') : '')
   + `<form id="opForm" novalidate>
       ${datalistsHtml(catalog)}
+      ${isEdit ? `<!-- Rewizja, na której otwarto formularz. Serwer odrzuci zapis, jeśli
+           ktoś zmienił dokument w międzyczasie — inaczej komplet pól z tej
+           migawki cofnąłby cudzą poprawkę bez śladu w rejestrze korekt. -->
+      <input type="hidden" name="revision" value="${esc(doc.revision)}">` : ''}
 
       <div class="card"><div class="card-b">
 
