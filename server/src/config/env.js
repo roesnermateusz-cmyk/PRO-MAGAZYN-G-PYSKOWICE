@@ -118,7 +118,7 @@ export const config = Object.freeze({
     name: str('COMPANY_NAME', 'ResInvest Commodities PL'),
     address: str('COMPANY_ADDRESS', 'ul. Gwarecka 16, 41-800 Zabrze'),
     nip: str('COMPANY_NIP', ''),
-    defaultWarehouse: str('COMPANY_DEFAULT_WAREHOUSE', 'Magazyn RiC Zabrze'),
+    defaultWarehouse: str('COMPANY_DEFAULT_WAREHOUSE', 'RiC Zabrze'),
   }),
 
   log: Object.freeze({

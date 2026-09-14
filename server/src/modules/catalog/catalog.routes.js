@@ -1,7 +1,10 @@
 /** Trasy kartotek: /api/v1/{warehouses,products,partners,vehicles,forest,loading-places,catalog} */
 import { Router } from '../../lib/http.js';
-import { guard } from '../../middleware/auth.js';
-import { audit } from '../../middleware/audit.js';
+import { guard, requireAuth } from '../../middleware/auth.js';
+import { audit, auditChange } from '../../middleware/audit.js';
+import {
+  warehousesForUser, deactivateWarehouse, activateWarehouse,
+} from './warehouse-access.service.js';
 import {
   warehouses, products, partners, vehicles, forest, loadingPlaces, catalogSnapshot,
 } from './catalog.service.js';
@@ -17,6 +20,9 @@ export function catalogRoutes(prefix) {
   /* --- Magazyny --- */
   r.get('/warehouses', ...guard('catalog:read'),
     (ctx) => ({ items: warehouses.list({ includeInactive: asBool(ctx.query.includeInactive) }) }));
+
+  /** Place, w których zalogowany może pracować — źródło przełącznika magazynu. */
+  r.get('/warehouses/mine', requireAuth, (ctx) => ({ items: warehousesForUser(ctx.user) }));
   r.post('/warehouses', ...guard('catalog:write'), (ctx) => {
     const item = warehouses.create(ctx.body);
     audit(ctx, 'CREATE', 'warehouses', item.id, { name: item.name });
@@ -24,10 +30,15 @@ export function catalogRoutes(prefix) {
     return item;
   });
   r.patch('/warehouses/:id', ...guard('catalog:write'), (ctx) => {
+    const before = warehouses.get(ctx.params.id);
     const item = warehouses.update(ctx.params.id, ctx.body);
-    audit(ctx, 'UPDATE', 'warehouses', item.id);
+    auditChange(ctx, 'UPDATE', 'warehouses', item.id, before, item, { magazyn: item.name });
     return item;
   });
+  r.post('/warehouses/:id/deactivate', ...guard('catalog:write'),
+    (ctx) => deactivateWarehouse(ctx.params.id, ctx));
+  r.post('/warehouses/:id/activate', ...guard('catalog:write'),
+    (ctx) => activateWarehouse(ctx.params.id, ctx));
 
   /* --- Produkty --- */
   r.get('/products', ...guard('catalog:read'), (ctx) => ({

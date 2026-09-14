@@ -197,7 +197,8 @@ const WAREHOUSE_SCHEMA = {
   code: { type: 'string', max: 40, upper: true, label: 'Kod' },
   address: { type: 'string', max: 250, label: 'Adres' },
   isDefault: { type: 'bool', default: false, label: 'Magazyn domyślny' },
-  isActive: { type: 'bool', default: true, label: 'Aktywny' },
+  // Bez `isActive`: patrz komentarz przy kolumnach poniżej — zamknięcie placu
+  // ma osobną, zabezpieczoną drogę.
 };
 
 export const warehouses = createCatalog({
@@ -207,7 +208,11 @@ export const warehouses = createCatalog({
   codePrefix: 'MAG',
   orderBy: 'is_default DESC, name',
   insertDefaults: { is_default: 0, is_active: 1 },
-  columns: { code: 'code', name: 'name', address: 'address', isDefault: 'is_default', isActive: 'is_active' },
+  // `isActive` celowo NIE jest polem edytowalnym zwykłą aktualizacją.
+  // Zamknięcie placu ma własną drogę (`deactivateWarehouse`) z kontrolą stanu,
+  // magazynu domyślnego i przypisań. Gdyby dało się je ustawić tutaj, wszystkie
+  // te zabezpieczenia omijałaby jedna zwykła edycja formularza.
+  columns: { code: 'code', name: 'name', address: 'address', isDefault: 'is_default' },
   toApi: (r) => ({
     id: r.id, code: r.code, name: r.name, address: r.address,
     isDefault: !!r.is_default, isActive: !!r.is_active,

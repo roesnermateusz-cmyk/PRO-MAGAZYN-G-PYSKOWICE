@@ -36,6 +36,38 @@ export function audit(ctx, action, entity, entityId = null, detail = undefined) 
   }
 }
 
+/**
+ * Wpis audytu z wartością PRZED i PO zmianie.
+ *
+ * Sam fakt „ktoś edytował kartotekę o 14:32” nie wystarcza kontroli: pytanie
+ * brzmi, co konkretnie się zmieniło i jak było wcześniej. Dokumenty mają do
+ * tego osobny rejestr korekt; dla kartotek, ustawień i kont ten ślad trzyma
+ * dziennik audytu.
+ *
+ * Zapisujemy WYŁĄCZNIE pola, które faktycznie się zmieniły. Zrzut całego
+ * obiektu przy każdej edycji zamienia dziennik w ścianę szumu, przez którą
+ * nikt nie przebrnie — a wtedy przestaje pełnić swoją funkcję.
+ *
+ * @param {object} ctx kontekst żądania
+ * @param {string} action CREATE | UPDATE | DELETE | DEACTIVATE …
+ * @param {string} entity nazwa encji
+ * @param {string|null} entityId identyfikator rekordu
+ * @param {object} before stan przed zmianą
+ * @param {object} after stan po zmianie
+ * @param {object} [extra] dodatkowy kontekst (np. nazwa, numer dokumentu)
+ */
+export function auditChange(ctx, action, entity, entityId, before = {}, after = {}, extra = undefined) {
+  const changes = {};
+  for (const key of new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])) {
+    const from = before?.[key];
+    const to = after?.[key];
+    if (JSON.stringify(from) === JSON.stringify(to)) continue;
+    changes[key] = { przed: from ?? null, po: to ?? null };
+  }
+  if (!Object.keys(changes).length && action === 'UPDATE') return;
+  audit(ctx, action, entity, entityId, { ...(extra ?? {}), zmiany: changes });
+}
+
 /** Odczyt dziennika audytu z filtrowaniem (tylko dla ADMIN / KIEROWNIK). */
 export function listAudit({ entity, entityId, userId, from, to, limit = 200, offset = 0 } = {}) {
   const where = ['1 = 1'];

@@ -290,11 +290,13 @@ const CSV_MAX_ROWS = 200_000;
 
 /** Rejestr operacji w CSV, z uwzględnieniem filtrów z listy (stronicowanie do końca wyniku). */
 export function exportOperationsCsv(query, ctx) {
+  // Eksport widzi dokładnie to, co rejestr — łącznie z zakresem magazynów.
   const rows = [];
   // `withTotals: false` — suma i podsumowania liczone byłyby od nowa dla każdej
   // strony eksportu, a wynik i tak nie jest tu do niczego potrzebny.
   for (let offset = 0; rows.length < CSV_MAX_ROWS; offset += CSV_PAGE) {
-    const page = listOperations({ ...query, limit: CSV_PAGE, offset }, { withTotals: false });
+    const page = listOperations({ ...query, limit: CSV_PAGE, offset },
+      { withTotals: false, user: ctx?.user ?? null });
     rows.push(...page.items);
     if (page.items.length < CSV_PAGE) break;
   }

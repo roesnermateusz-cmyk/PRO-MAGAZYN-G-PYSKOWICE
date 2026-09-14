@@ -10,7 +10,7 @@ import { listCorrections } from '../corrections/corrections.service.js';
 export function operationRoutes(prefix) {
   const r = new Router(`${prefix}/operations`);
 
-  r.get('', ...guard('operations:read'), (ctx) => ops.listOperations(ctx.query));
+  r.get('', ...guard('operations:read'), (ctx) => ops.listOperations(ctx.query, { user: ctx.user }));
 
   // Eksport CSV rejestru — respektuje te same filtry co lista.
   r.get('/export.csv', ...guard('operations:read'), (ctx) => ctx.sendFile({
@@ -30,7 +30,7 @@ export function operationRoutes(prefix) {
     return createChain(ctx.body, ctx);
   });
 
-  r.get('/:id', ...guard('operations:read'), (ctx) => ops.getOperation(ctx.params.id));
+  r.get('/:id', ...guard('operations:read'), (ctx) => ops.getOperation(ctx.params.id, { user: ctx.user }));
   r.patch('/:id', ...guard('operations:write'), (ctx) => ops.updateOperation(ctx.params.id, ctx.body, ctx));
   r.post('/:id/cancel', ...guard('operations:cancel'), (ctx) => ops.cancelOperation(ctx.params.id, ctx.body, ctx));
 

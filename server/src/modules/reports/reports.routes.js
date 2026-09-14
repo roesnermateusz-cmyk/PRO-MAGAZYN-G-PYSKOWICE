@@ -17,11 +17,11 @@ export function reportRoutes(prefix) {
   const r = new Router(prefix);
 
   /* --- Stany magazynowe --- */
-  r.get('/stock', ...guard('stock:read'), (ctx) => currentStock(ctx.query));
-  r.get('/stock/ledger', ...guard('stock:read'), (ctx) => stockLedger(ctx.query));
-  r.get('/stock/negative', ...guard('stock:read'), () => ({ items: negativeStock() }));
+  r.get('/stock', ...guard('stock:read'), (ctx) => currentStock(ctx.query, { user: ctx.user }));
+  r.get('/stock/ledger', ...guard('stock:read'), (ctx) => stockLedger(ctx.query, { user: ctx.user }));
+  r.get('/stock/negative', ...guard('stock:read'), (ctx) => ({ items: negativeStock({ user: ctx.user }) }));
   r.get('/stock/export.csv', ...guard('stock:read'), (ctx) => {
-    const { items } = currentStock(ctx.query);
+    const { items } = currentStock(ctx.query, { user: ctx.user });
     sendCsv(ctx, `stany-magazynowe-${new Date().toISOString().slice(0, 10)}.csv`, [
       { key: 'warehouseName', label: 'Magazyn' },
       { key: 'productName', label: 'Produkt' },
@@ -35,17 +35,17 @@ export function reportRoutes(prefix) {
   });
 
   /* --- Raporty --- */
-  r.get('/reports/dashboard', ...guard('reports:read'), (ctx) => reports.dashboard(ctx.query));
-  r.get('/reports/monthly', ...guard('reports:read'), (ctx) => reports.monthlyReport(ctx.query));
+  r.get('/reports/dashboard', ...guard('reports:read'), (ctx) => reports.dashboard(ctx.query, { user: ctx.user }));
+  r.get('/reports/monthly', ...guard('reports:read'), (ctx) => reports.monthlyReport(ctx.query, { user: ctx.user }));
   r.get('/reports/production-days', ...guard('reports:read'),
     (ctx) => ({ items: reports.productionDays(ctx.query.limit) }));
-  r.get('/reports/production-day', ...guard('reports:read'), (ctx) => reports.productionDay(ctx.query));
-  r.get('/reports/transport', ...guard('reports:read'), (ctx) => reports.transportReport(ctx.query));
-  r.get('/reports/partners', ...guard('reports:read'), (ctx) => reports.partnerReport(ctx.query));
-  r.get('/reports/certification', ...guard('reports:read'), (ctx) => reports.certificationReport(ctx.query));
+  r.get('/reports/production-day', ...guard('reports:read'), (ctx) => reports.productionDay(ctx.query, { user: ctx.user }));
+  r.get('/reports/transport', ...guard('reports:read'), (ctx) => reports.transportReport(ctx.query, { user: ctx.user }));
+  r.get('/reports/partners', ...guard('reports:read'), (ctx) => reports.partnerReport(ctx.query, { user: ctx.user }));
+  r.get('/reports/certification', ...guard('reports:read'), (ctx) => reports.certificationReport(ctx.query, { user: ctx.user }));
 
   r.get('/reports/monthly/export.csv', ...guard('reports:read'), (ctx) => {
-    const report = reports.monthlyReport(ctx.query);
+    const report = reports.monthlyReport(ctx.query, { user: ctx.user });
     audit(ctx, 'EXPORT_CSV', 'reports', report.month);
     const rows = report.products.map((p) => ({
       product: p.productName,

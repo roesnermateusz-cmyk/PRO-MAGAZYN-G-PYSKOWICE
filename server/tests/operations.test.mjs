@@ -376,7 +376,7 @@ test('regresja: raport miesięczny z filtrem magazynu domyka bilans', () => {
 
   const main = db.get('SELECT id FROM warehouses WHERE is_default = 1');
   ops.createOperation(operationInput({
-    operationDate: '2026-06-10', quantity: 40, warehouseTo: 'Magazyn RiC Zabrze',
+    operationDate: '2026-06-10', quantity: 40, warehouseTo: 'RiC Zabrze',
   }), ctx);
   ops.createOperation(operationInput({
     operationDate: '2026-06-11', quantity: 25, warehouseTo: 'Plac Zapasowy',
@@ -403,7 +403,7 @@ test('regresja: raport miesięczny z filtrem magazynu domyka bilans', () => {
 
 test('regresja: przywrócenie korekty cofa również zmianę magazynu', () => {
   const { operation } = ops.createOperation(operationInput({
-    operationDate: '2026-06-20', quantity: 12, warehouseTo: 'Magazyn RiC Zabrze',
+    operationDate: '2026-06-20', quantity: 12, warehouseTo: 'RiC Zabrze',
   }), ctx);
   const originalWarehouse = operation.warehouseTo;
 
@@ -431,7 +431,7 @@ test('regresja: odpowiedź zapisu zawiera komplet pól dokumentu', () => {
     'createdBy', 'createdAt', 'revision', 'haulageNoteNo', 'carrierName', 'transportCost']) {
     assert.ok(operation[key] !== undefined, `brak pola ${key} w odpowiedzi zapisu`);
   }
-  assert.equal(operation.warehouseTo, 'Magazyn RiC Zabrze', 'nazwa magazynu ze złączenia');
+  assert.equal(operation.warehouseTo, 'RiC Zabrze', 'nazwa magazynu ze złączenia');
   assert.equal(operation.factors.m3ToMp, 4);
 });
 
@@ -520,7 +520,7 @@ test('regresja: literówka w nazwie magazynu jest odrzucana, nie zakładana', ()
   const before = db.value('SELECT COUNT(*) FROM warehouses');
   assert.throws(
     () => ops.createOperation(operationInput({
-      operationDate: '2026-07-06', quantity: 20, warehouseTo: 'Magazyn RiC Zabzre',
+      operationDate: '2026-07-06', quantity: 20, warehouseTo: 'RiC Zabzre',
     }), ctx),
     (err) => /Nie ma magazynu o nazwie/.test(err.message)
       || err.details?.some((d) => /Nie ma magazynu o nazwie/.test(d.message)),
@@ -701,12 +701,12 @@ test('model odczytu: saldo zgadza się z ruchami po korekcie i po stornie', () =
 test('model odczytu: przesunięcie MM zeruje się między magazynami', () => {
   ops.createOperation(operationInput({
     operationDate: '2026-05-06', quantity: 80, unit: 'MP', productName: 'Zrębka Przesunięcie',
-    warehouseTo: 'Magazyn RiC Zabrze',
+    warehouseTo: 'RiC Zabrze',
   }), ctx);
   ops.createOperation(operationInput({
     type: 'MM', operationDate: '2026-05-07', quantity: 20, unit: 'MP',
     productName: 'Zrębka Przesunięcie',
-    warehouseFrom: 'Magazyn RiC Zabrze', warehouseTo: 'Plac Zapasowy', supplierName: undefined,
+    warehouseFrom: 'RiC Zabrze', warehouseTo: 'Plac Zapasowy', supplierName: undefined,
   }), ctx);
 
   assertBalancesConsistent('przesunięciu MM');
@@ -719,7 +719,12 @@ test('model odczytu: przesunięcie MM zeruje się między magazynami', () => {
       WHERE p.name = :name ORDER BY w.name`,
     { name: 'Zrębka Przesunięcie' },
   );
-  assert.deepEqual(perWarehouse.map((r) => r.qty_mp), [60, 20], 'towar rozdzielony na dwa magazyny');
+  // Porównanie po nazwie, nie po pozycji: kolejność alfabetyczna magazynów
+  // zmienia się przy każdej zmianie nazewnictwa placów i nie ma nic wspólnego
+  // z tym, co ten test sprawdza.
+  const byName = Object.fromEntries(perWarehouse.map((r) => [r.name, r.qty_mp]));
+  assert.deepEqual(byName, { 'RiC Zabrze': 60, 'Plac Zapasowy': 20 },
+    'towar rozdzielony na dwa magazyny');
 });
 
 test('ruch magazynowy jest niezmienny — próba zmiany jest odrzucana', () => {

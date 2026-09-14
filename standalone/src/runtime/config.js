@@ -72,7 +72,7 @@ export const config = Object.freeze({
     // dane demonstracyjne rozpoznają magazyn startowy po nazwie i pomijają go.
     // Rozjazd kończył się próbą założenia drugiego magazynu z tym samym kodem
     // „MAG-GLOWNY” i naruszeniem unikalności.
-    defaultWarehouse: 'Magazyn RiC Zabrze',
+    defaultWarehouse: 'RiC Zabrze',
   }),
 
   webDir: '/',

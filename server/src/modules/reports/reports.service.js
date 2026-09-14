@@ -16,6 +16,7 @@ import { validate } from '../../lib/validate.js';
 import { roundQty, roundMoney } from '../../domain/units.js';
 import { endOfMonth, periodStatus } from '../periods/periods.service.js';
 import { currentStock, negativeStock } from '../stock/stock.service.js';
+import { warehouseScope, scopeCondition, assertWarehouseAccess } from '../catalog/warehouse-access.service.js';
 import { cache, keyFor, TAG } from '../../lib/cache.js';
 
 const MONTH_NAMES = [
@@ -176,10 +177,10 @@ function buildBalance(month) {
 /* ----------------------------- Pulpit -------------------------------- */
 
 /** Zestaw wskaźników dla ekranu głównego. */
-function computeDashboard({ month, months } = {}) {
+function computeDashboard({ month, months } = {}, { scope = null } = {}) {
   const m = /^\d{4}-\d{2}$/.test(month || '') ? month : currentMonth();
   const window = Math.min(36, Math.max(3, Number.parseInt(months, 10) || 12));
-  const stock = currentStock();
+  const stock = currentStock({}, { scope });
 
   const turnover = db.get(
     `SELECT
@@ -269,15 +270,15 @@ function computeDashboard({ month, months } = {}) {
     trend: buildTrend(m, window),
     balance: buildBalance(m),
     production: lastProductionDay ? productionDay({ date: lastProductionDay }) : null,
-    alerts: buildAlerts(),
+    alerts: buildAlerts(scope),
     recent,
   };
 }
 
 /** Sygnały wymagające reakcji — pokazywane na pulpicie. */
-function buildAlerts() {
+function buildAlerts(scope = null) {
   const alerts = [];
-  for (const n of negativeStock()) {
+  for (const n of negativeStock({ scope })) {
     alerts.push({
       level: 'warning',
       message: `Stan ujemny: ${n.productName} w ${n.warehouseName} — ${n.qtyMp.toFixed(3)} MP. Sprawdź brakujący dokument przyjęcia.`,
@@ -761,11 +762,20 @@ function computeCertificationReport(query) {
  * @param {Function} compute właściwa implementacja
  */
 function cached(name, tagsOf, compute) {
-  return (query = {}, ...rest) => cache.wrap(
-    keyFor(name, typeof query === 'object' ? query : { value: query }),
-    { tags: tagsOf(query) },
-    () => compute(query, ...rest),
-  );
+  return (query = {}, options = {}) => {
+    const scope = warehouseScope(options.user ?? null);
+    if (options.user && typeof query === 'object' && query?.warehouseId) {
+      assertWarehouseAccess(options.user, query.warehouseId, 'warehouseId');
+    }
+    // Zakres magazynów wchodzi do klucza. Bez tego raport policzony dla
+    // magazyniera z jednego placu trafiłby do kierownika widzącego wszystkie.
+    const params = typeof query === 'object' ? { ...query } : { value: query };
+    return cache.wrap(
+      keyFor(name, { ...params, __scope: scope ? scope.join(',') : 'all' }),
+      { tags: tagsOf(query) },
+      () => compute(query, { scope }),
+    );
+  };
 }
 
 /** Wspólny zestaw dla raportów liczonych z ruchów i dokumentów. */

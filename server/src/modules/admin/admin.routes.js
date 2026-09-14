@@ -7,6 +7,9 @@ import { guard, requireAuth, requirePermission } from '../../middleware/auth.js'
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { listAudit } from '../../middleware/audit.js';
 import * as users from '../users/users.service.js';
+import {
+  grantedWarehouseIds, setUserWarehouses,
+} from '../catalog/warehouse-access.service.js';
 import { getAllSettings, updateSettings } from '../settings/settings.service.js';
 import { listPeriods, closePeriod, reopenPeriod } from '../periods/periods.service.js';
 import * as backup from '../backup/backup.service.js';
@@ -29,6 +32,14 @@ export function adminRoutes(prefix) {
   });
   r.patch('/users/:id', requireAuth, requirePermission('users:write'),
     (ctx) => users.updateUser(ctx.params.id, ctx.body, ctx));
+
+  /* --- Magazyny przypisane do konta --- */
+  r.get('/users/:id/warehouses', ...guard('users:read'), (ctx) => {
+    const ids = grantedWarehouseIds(ctx.params.id);
+    return { warehouseIds: ids, unrestricted: ids.length === 0 };
+  });
+  r.put('/users/:id/warehouses', requireAuth, requirePermission('users:write'),
+    (ctx) => setUserWarehouses(ctx.params.id, ctx.body?.warehouseIds ?? [], ctx));
 
   /* --- Diagnostyka wydajności ---
      Odpowiada na pytanie „dlaczego wolno działa” liczbami zamiast domysłów:

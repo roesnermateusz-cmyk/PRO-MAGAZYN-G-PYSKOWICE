@@ -13,13 +13,14 @@
 import db from '../../db/index.js';
 import { roundQty } from '../../domain/units.js';
 import { validate } from '../../lib/validate.js';
+import { warehouseScope, scopeCondition, assertWarehouseAccess } from '../catalog/warehouse-access.service.js';
 import { cache, keyFor, TAG } from '../../lib/cache.js';
 
 /**
  * Stan magazynowy na dzień (domyślnie: bieżący).
  * @param {{date?:string, warehouseId?:string, productId?:string, includeZero?:boolean}} query
  */
-export function currentStock(query = {}) {
+export function currentStock(query = {}, { user = null, scope = undefined } = {}) {
   const f = validate(query, {
     date: { type: 'date' },
     warehouseId: { type: 'string', max: 40 },
@@ -29,8 +30,22 @@ export function currentStock(query = {}) {
 
   const where = ['1 = 1'];
   const params = {};
-  if (f.warehouseId) { where.push('s.warehouse_id = :warehouseId'); params.warehouseId = f.warehouseId; }
+  if (f.warehouseId) {
+    if (user) assertWarehouseAccess(user, f.warehouseId, 'warehouseId');
+    where.push('s.warehouse_id = :warehouseId');
+    params.warehouseId = f.warehouseId;
+  }
   if (f.productId) { where.push('s.product_id = :productId'); params.productId = f.productId; }
+
+  // Zakres magazynów użytkownika — stan placu, do którego nie ma dostępu,
+  // nie może wyjść nawet w sumie zbiorczej. Raporty podają zakres wprost
+  // (policzyły go już przy budowaniu klucza pamięci podręcznej), trasy podają
+  // użytkownika.
+  const scoped = scopeCondition(scope === undefined ? warehouseScope(user) : scope, ['s.warehouse_id']);
+  if (scoped.sql) {
+    where.push(scoped.sql);
+    Object.assign(params, scoped.params);
+  }
 
   // Bez daty czytamy gotowe saldo; z datą sumujemy ruchy do wskazanego dnia.
   // Oba zapytania oddają ten sam zestaw kolumn, więc dalszy kod ich nie różnicuje.
@@ -125,7 +140,7 @@ export function currentStock(query = {}) {
  * z odjęcia sumy okna od stanu końcowego, więc kolumna „Saldo MP” pozostaje
  * ciągła i kończy się rzeczywistym stanem magazynu.
  */
-export function stockLedger(query) {
+export function stockLedger(query, { user = null } = {}) {
   const f = validate(query, {
     productId: { type: 'string', required: true, max: 40, label: 'Produkt' },
     warehouseId: { type: 'string', max: 40 },
@@ -134,17 +149,28 @@ export function stockLedger(query) {
     limit: { type: 'int', min: 1, max: 2000, default: 500 },
   });
 
+  if (user && f.warehouseId) assertWarehouseAccess(user, f.warehouseId, 'warehouseId');
+  const scope = warehouseScope(user);
+
+  // Zakres w kluczu: kartoteka policzona dla jednego placu nie może trafić
+  // do użytkownika widzącego wszystkie.
   return cache.wrap(
-    keyFor('stock.ledger', f),
+    keyFor('stock.ledger', { ...f, scope: scope ? scope.join(',') : 'all' }),
     { tags: [TAG.STOCK, TAG.DOCUMENTS, TAG.CATALOG, TAG.warehouse(f.warehouseId)] },
-    () => buildLedger(f),
+    () => buildLedger(f, scope),
   );
 }
 
 /** Właściwe zapytania kartoteki — wywoływane wyłącznie przy chybieniu pamięci. */
-function buildLedger(f) {
+function buildLedger(f, scope = null) {
   const where = ['m.product_id = :productId'];
   const params = { productId: f.productId, limit: f.limit };
+
+  const scoped = scopeCondition(scope, ['m.warehouse_id']);
+  if (scoped.sql) {
+    where.push(scoped.sql);
+    Object.assign(params, scoped.params);
+  }
   if (f.warehouseId) { where.push('m.warehouse_id = :warehouseId'); params.warehouseId = f.warehouseId; }
 
   // Bilans otwarcia okresu liczony osobno, żeby stan narastający był poprawny.
@@ -215,11 +241,20 @@ function buildLedger(f) {
   };
 }
 
-/** Pozycje ze stanem ujemnym — sygnał braku dokumentu przyjęcia. */
-export function negativeStock() {
+/**
+ * Pozycje ze stanem ujemnym — sygnał braku dokumentu przyjęcia.
+ * Zawężone do zakresu magazynów: sygnał z placu, którego użytkownik nie
+ * obsługuje, byłby dla niego szumem, a przy okazji ujawniałby cudzy stan.
+ */
+export function negativeStock({ user = null, scope = undefined } = {}) {
+  const effective = scope === undefined ? warehouseScope(user) : scope;
+  const scoped = scopeCondition(effective, ['warehouse_id']);
   return db.all(
     `SELECT warehouse_name, product_name, qty_mp, qty_tonne
-       FROM v_stock_current WHERE qty_mp < -0.001 ORDER BY qty_mp`,
+       FROM v_stock_current
+      WHERE qty_mp < -0.001${scoped.sql ? ` AND ${scoped.sql}` : ''}
+      ORDER BY qty_mp`,
+    scoped.params,
   ).map((r) => ({
     warehouseName: r.warehouse_name,
     productName: r.product_name,

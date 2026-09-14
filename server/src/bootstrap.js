@@ -9,6 +9,23 @@ import logger from './lib/logger.js';
 import { uuid, hashPassword, shortId } from './lib/crypto.js';
 import { invalidateSettingsCache } from './modules/settings/settings.service.js';
 
+/**
+ * Place składowe firmy — punkt wyjścia kartoteki magazynów.
+ *
+ * Pierwszy z listy jest magazynem domyślnym: tam trafiają dokumenty, w których
+ * nie wskazano magazynu wprost. Nazwę pierwszego można nadpisać ustawieniem
+ * `COMPANY_DEFAULT_WAREHOUSE` — reszta to stała kartoteka startowa, którą
+ * administrator i tak może zmienić w interfejsie.
+ *
+ * Lista działa wyłącznie na PUSTEJ kartotece. Istniejącej instalacji nie
+ * dotyka: nazwy placów to dane firmy, nie schemat.
+ */
+const BASE_WAREHOUSES = [
+  ['MAG-ZABRZE', 'RiC Zabrze', 'ul. Gwarecka 16, 41-800 Zabrze'],
+  ['MAG-BRASZEWICE', 'RiC Brąszewice', 'Brąszewice, powiat sieradzki'],
+  ['MAG-ROKITKI', 'RiC Rokitki', 'Rokitki, gmina Chojnów'],
+];
+
 /** Produkty spotykane w obrocie biomasą leśną — punkt wyjścia kartoteki. */
 const BASE_PRODUCTS = [
   ['DREWNO-OPALOWE-LAS', 'Drewno opałowe z lasu', 'SUROWIEC', 'M3'],
@@ -36,14 +53,25 @@ export function bootstrap() {
   let bootstrapPassword = null;
 
   db.tx(() => {
-    /* Magazyn domyślny — bez niego nie da się zaksięgować żadnego dokumentu. */
+    /* Place składowe — bez magazynu domyślnego nie da się zaksięgować dokumentu. */
     if (!db.value('SELECT COUNT(*) FROM warehouses')) {
-      db.run(
-        `INSERT INTO warehouses(id, code, name, address, is_default)
-              VALUES (:id, 'MAG-GLOWNY', :name, :address, 1)`,
-        { id: uuid(), name: config.company.defaultWarehouse, address: config.company.address },
-      );
-      logger.info('Utworzono magazyn domyślny', { name: config.company.defaultWarehouse });
+      BASE_WAREHOUSES.forEach(([code, name, address], index) => {
+        db.run(
+          `INSERT INTO warehouses(id, code, name, address, is_default)
+                VALUES (:id, :code, :name, :address, :isDefault)`,
+          {
+            id: uuid(),
+            code,
+            name: index === 0 ? config.company.defaultWarehouse : name,
+            address: index === 0 ? config.company.address : address,
+            isDefault: index === 0 ? 1 : 0,
+          },
+        );
+      });
+      logger.info('Założono startową kartotekę magazynów', {
+        count: BASE_WAREHOUSES.length,
+        domyslny: config.company.defaultWarehouse,
+      });
     }
 
     /* Kartoteka produktów — startowy zestaw można później dowolnie zmienić. */

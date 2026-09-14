@@ -30,6 +30,7 @@ import {
 import { cache, keyFor, TAG, invalidateDocument } from '../../lib/cache.js';
 import { getUnitFactors, getSetting } from '../settings/settings.service.js';
 import { products, warehouses, resolvePartners, ensureDictionaries } from '../catalog/catalog.service.js';
+import { assertWarehouseAccess, warehouseScope, scopeCondition } from '../catalog/warehouse-access.service.js';
 import { assertPeriodOpen } from '../periods/periods.service.js';
 import { audit } from '../../middleware/audit.js';
 
@@ -49,7 +50,7 @@ export { OPERATION_SCHEMA, FIELD_LABELS };
  * @param {{existing?:object}} [options] edytowany dokument (wiersz bazy)
  * @returns {object} wiersz gotowy do zapisu (klucze = kolumny bazy)
  */
-function prepareRow(input, { existing = null } = {}) {
+function prepareRow(input, { existing = null, user = null } = {}) {
   const d = validate(input, OPERATION_SCHEMA, existing ? { partial: true } : {});
   const errors = [];
 
@@ -78,6 +79,14 @@ function prepareRow(input, { existing = null } = {}) {
   const problems = validateWarehouses(row);
   if (problems.length) {
     throw new ValidationError(problems[0], problems.map((m) => ({ field: 'warehouse', message: m })));
+  }
+
+  // Kontrola dostępu na samym końcu, gdy magazyny są już rozstrzygnięte —
+  // także te podstawione domyślnie. Bez tego użytkownik bez dostępu do placu
+  // domyślnego mógłby na niego zaksięgować, po prostu nie wypełniając pola.
+  if (user) {
+    assertWarehouseAccess(user, row.warehouse_from_id, 'warehouseFrom');
+    assertWarehouseAccess(user, row.warehouse_to_id, 'warehouseTo');
   }
   return row;
 }
@@ -328,7 +337,7 @@ function checkStock(row, { excludeOperationId = null } = {}) {
 export function createOperation(input, ctx) {
   const user = ctx.user;
   const result = db.tx(() => {
-    const row = prepareRow(input);
+    const row = prepareRow(input, { user });
     assertDateAllowed(row.operation_date, user);
     assertPeriodOpen(row.operation_date.slice(0, 7));
     const warnings = checkStock(row);
@@ -382,7 +391,12 @@ export function updateOperation(id, input, ctx) {
       throw new ForbiddenError('Magazynier może korygować wyłącznie własne dokumenty. Zgłoś zmianę kierownikowi.');
     }
 
-    const row = prepareRow(input, { existing });
+    // Korekta sprawdza dostęp do OBU stron: magazynu dokumentu sprzed zmiany
+    // (żeby nie dało się ruszyć cudzego placu) i tego po zmianie.
+    assertWarehouseAccess(user, existing.warehouse_from_id, 'warehouseFrom');
+    assertWarehouseAccess(user, existing.warehouse_to_id, 'warehouseTo');
+
+    const row = prepareRow(input, { existing, user });
     assertDateAllowed(row.operation_date, user);
     assertPeriodOpen(existing.operation_date.slice(0, 7));
     assertPeriodOpen(row.operation_date.slice(0, 7));
@@ -421,6 +435,8 @@ export function cancelOperation(id, { reason }, ctx) {
     const existing = db.get('SELECT * FROM operations WHERE id = :id', { id });
     if (!existing) throw new NotFoundError('Nie znaleziono dokumentu.');
     if (existing.status === 'CANCELLED') throw new ConflictError('Dokument został już anulowany.');
+    assertWarehouseAccess(user, existing.warehouse_from_id, 'warehouseFrom');
+    assertWarehouseAccess(user, existing.warehouse_to_id, 'warehouseTo');
 
     const clean = validate({ reason }, {
       reason: { type: 'string', required: true, min: 5, max: 500, label: 'Przyczyna storna' },
@@ -512,10 +528,18 @@ const LIST_SCHEMA = {
 };
 
 /** Buduje warunek WHERE i parametry na podstawie filtrów listy. */
-function buildListFilter(query) {
+function buildListFilter(query, scope = null) {
   const f = validate(query, LIST_SCHEMA);
   const where = [];
   const params = { limit: f.limit, offset: f.offset };
+
+  // Zakres magazynów użytkownika. Filtr z formularza zawęża go dodatkowo,
+  // ale nigdy nie rozszerza — najpierw wolno, potem czego szukam.
+  const scoped = scopeCondition(scope, ['o.warehouse_from_id', 'o.warehouse_to_id']);
+  if (scoped.sql) {
+    where.push(scoped.sql);
+    Object.assign(params, scoped.params);
+  }
 
   if (f.status !== 'ALL') { where.push('o.status = :status'); params.status = f.status; }
   if (f.type) { where.push('o.type = :type'); params.type = f.type; }
@@ -559,13 +583,18 @@ function buildListFilter(query) {
  *   sumy i podsumowań — używane przy stronicowanym eksporcie, gdzie te same
  *   agregaty liczyłyby się od nowa dla każdej strony.
  */
-export function listOperations(query, { withTotals = true } = {}) {
-  const { filters, params, whereSql, orderSql } = buildListFilter(query);
+export function listOperations(query, { withTotals = true, user = null } = {}) {
+  const scope = warehouseScope(user);
+  const { filters, params, whereSql, orderSql } = buildListFilter(query, scope);
 
   // Klucz budujemy z filtrów PO walidacji, nie z surowego wejścia — dwa żądania
   // różniące się tylko zapisem parametrów to ten sam odczyt i jeden wpis.
+  //
+  // Zakres magazynów MUSI wejść do klucza. Bez tego wynik policzony dla
+  // magazyniera z jednego placu trafiłby do kierownika widzącego wszystkie —
+  // i odwrotnie, co byłoby wyciekiem danych przez pamięć podręczną.
   return cache.wrap(
-    keyFor('operations.list', { ...filters, withTotals }),
+    keyFor('operations.list', { ...filters, withTotals, scope: scope ? scope.join(',') : 'all' }),
     { tags: [TAG.DOCUMENTS, TAG.CATALOG] },
     () => runList({ filters, params, whereSql, orderSql, withTotals }),
   );
@@ -607,8 +636,19 @@ function runList({ filters, params, whereSql, orderSql, withTotals }) {
  * Dokument wraz z załącznikami, liczbą korekt i pozostałymi ogniwami łańcucha.
  * Używane przez `GET /operations/:id`.
  */
-export function getOperation(id) {
+export function getOperation(id, { user = null } = {}) {
   const operation = readOperation(id);
+
+  // Podgląd dokumentu spoza zakresu użytkownika jest odmawiany tak samo, jak
+  // jego edycja. Inaczej wystarczyłoby wpisać adres dokumentu z innego placu,
+  // żeby zobaczyć cenę zakupu i kontrahenta.
+  if (user) {
+    const row = db.get(
+      'SELECT warehouse_from_id, warehouse_to_id FROM operations WHERE id = :id', { id },
+    );
+    assertWarehouseAccess(user, row?.warehouse_from_id, 'warehouseFrom');
+    assertWarehouseAccess(user, row?.warehouse_to_id, 'warehouseTo');
+  }
 
   operation.attachments = db.all(
     `SELECT id, filename, mime_type, size_bytes, kind, created_at

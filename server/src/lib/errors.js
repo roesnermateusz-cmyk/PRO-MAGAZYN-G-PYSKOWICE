@@ -49,8 +49,8 @@ export class UnauthorizedError extends AppError {
 }
 
 export class ForbiddenError extends AppError {
-  constructor(message = 'Brak uprawnień do wykonania tej operacji.') {
-    super(403, 'FORBIDDEN', message);
+  constructor(message = 'Brak uprawnień do wykonania tej operacji.', details) {
+    super(403, 'FORBIDDEN', message, details);
     this.name = 'ForbiddenError';
   }
 }
