@@ -5,6 +5,8 @@
  * z podkatalogu albo zza dowolnego proxy, bez konfiguracji przepisywania URL.
  */
 
+import { detachAll } from './dom.js';
+
 const routes = new Map();
 let notFound = null;
 let beforeEach = null;
@@ -50,6 +52,10 @@ async function resolve() {
 
   const view = document.getElementById('view');
   if (!view) return;
+
+  // Uchwyty poprzedniego widoku nie mogą przeżyć nawigacji — kontener jest
+  // wspólny dla wszystkich widoków, a selektory się między nimi powtarzają.
+  detachAll(view);
 
   const handler = routes.get(id) ?? notFound;
   if (!handler) return;

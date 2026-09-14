@@ -437,6 +437,62 @@ naraz: w sidebarze, w pasku zakładek (gdy ma `tab`) i w panelu „Więcej”.
 
 ---
 
+## 8. Jedno kliknięcie, dwa żądania
+
+Znalezione przy weryfikacji przeglądarkowej administracji magazynami.
+
+### Czym jest problem
+
+Przycisk „przywróć plac” w kartotece magazynów wysyłał **dwa** żądania
+`POST /warehouses/:id/activate`. Pierwsze wykonywało operację, drugie wracało
+z 409 („Ten magazyn jest już aktywny”). Użytkownik widział poprawny wynik,
+w konsoli zostawał błąd.
+
+Blokada po stronie serwera przypadkiem zamaskowała tu skutek. Nie każda operacja
+ma taką blokadę: przy trasie idempotentnej efekt byłby niewidoczny, ale przy
+zapisie tworzącym nowy byt — na przykład dopisaniu pozycji kartoteki — powstałyby
+**dwa wpisy z jednego kliknięcia**. Liczba powtórzeń rośnie z liczbą odświeżeń
+widoku, więc im dłużej ktoś pracuje w jednej zakładce, tym więcej duplikatów.
+
+### Dlaczego zawodzi
+
+`on()` z `core/dom.js` wieszało uchwyt na kontenerze widoku przez
+`addEventListener`, a widoki wołają `on()` przy **każdym** odświeżeniu listy.
+`view.innerHTML = …` wymienia wyłącznie dzieci — sam kontener zostaje ten sam
+węzeł, więc każde odświeżenie dokładało kolejną kopię tego samego uchwytu.
+Po `n` odświeżeniach jedno kliknięcie wywoływało uchwyt `n` razy.
+
+Wzorzec powtarzał się w sześciu widokach: `catalog`, `corrections`, `periods`,
+`reports`, `stock`, `users`. Jedynie `dashboard` zbierał funkcje odpinające
+i sprzątał po sobie.
+
+Drugi, cichszy wariant tego samego: element `#view` przeżywa nawigację między
+widokami, więc uchwyty poprzedniego widoku zostawały na żywym węźle. Selektory
+powtarzają się między widokami (`[data-tab]`, `[data-edit]`), więc uchwyt
+kartotek mógł zareagować na DOM raportów.
+
+### Naprawiony kod
+
+Zamiast poprawiać sześć widoków — i liczyć, że siódmy też o tym pamięta —
+odpowiedzialność wraca do `on()`:
+
+* rejestr uchwytów trzymany na samym węźle kontenera (klucz `Symbol`),
+* para `typ|selektor` ma na kontenerze dokładnie **jeden** uchwyt: ponowne
+  wiązanie zastępuje poprzedni,
+* `detachAll(root)` zdejmuje komplet uchwytów; router woła to przy każdej
+  zmianie widoku, więc uchwyty nie przechodzą między widokami.
+
+Widok może odtąd wołać `on()` przy każdym renderze i nie musi pamiętać
+o sprzątaniu — co jest jedyną wersją tej reguły, która przeżyje dopisanie
+kolejnego widoku.
+
+### Weryfikacja
+
+Próba przeglądarkowa liczy żądania `POST` na kliknięcie: zamknięcie
+i przywrócenie placu dają po jednym żądaniu (przed poprawką: 1 i 2).
+
+---
+
 ## Sprawdzone bez zastrzeżeń: zaokrąglenia kwot
 
 Osobny skrypt porównał wartości liczone przez system z liczeniem w pełnej

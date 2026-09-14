@@ -37,24 +37,38 @@ async function refresh(view) {
 
   on(view, 'click', '[data-tab]', (el) => { state.tab = el.dataset.tab; refresh(view); });
   view.querySelector('[data-act="add"]')?.addEventListener('click', () => openUserForm(view, null));
+  on(view, 'click', '[data-wh-user]', (el) => openWarehouseForm(view, el.dataset.whUser, el.dataset.name));
   on(view, 'click', '[data-edit-user]', (el) => openUserForm(view, JSON.parse(el.dataset.user)));
 }
 
 async function accountsTab(manage) {
-  const { items } = await api.get('/users');
+  const [{ items }, { items: magazyny }] = await Promise.all([
+    api.get('/users'),
+    api.get('/warehouses'),
+  ]);
+  // Przypisania czytamy jednym przebiegiem po kontach, a nie przy każdym
+  // otwarciu okna — lista kont w firmie jest krótka, a widok ma od razu
+  // pokazywać, kto gdzie pracuje.
+  const przypisania = Object.fromEntries(await Promise.all(items.map(async (u) => {
+    const { warehouseIds } = await api.get(`/users/${u.id}/warehouses`);
+    return [u.id, warehouseIds];
+  })));
   return alertBox('info', 'Konta nie są usuwane — dezaktywacja zachowuje powiązania z dokumentami i audytem. '
     + 'Zmiana hasła lub dezaktywacja natychmiast zamyka wszystkie sesje użytkownika.')
     + `<div class="card"><div class="card-b flush">
       <div class="tbl-wrap"><table class="tbl">
-        <thead><tr><th>Użytkownik</th><th>E-mail</th><th>Rola</th><th>Ostatnie logowanie</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Użytkownik</th><th>E-mail</th><th>Rola</th><th>Magazyny</th><th>Ostatnie logowanie</th><th>Status</th><th></th></tr></thead>
         <tbody>${items.map((u) => `<tr${u.isActive ? '' : ' style="opacity:.55"'}>
           <td><b>${esc(u.fullName)}</b>${u.id === store.user?.id ? ' <span class="tag OPEN">to Ty</span>' : ''}
             ${u.mustChangePassword ? '<br><span style="font-size:11px;color:var(--gold)">wymagana zmiana hasła</span>' : ''}</td>
           <td style="font-size:12.5px">${esc(u.email)}</td>
           <td><b>${esc(u.role)}</b><br><span style="font-size:11px;color:var(--ink-3)">${esc(ROLE_HINTS[u.role] ?? '')}</span></td>
+          <td style="font-size:12px">${warehouseSummary(u, przypisania[u.id] ?? [], magazyny)}</td>
           <td style="font-size:12px">${u.lastLoginAt ? dateTime(u.lastLoginAt) : '—'}</td>
           <td>${u.isActive ? '<span class="tag OPEN">aktywne</span>' : '<span class="tag CLOSED">zablokowane</span>'}</td>
-          <td>${manage ? `<button class="icon-btn" data-edit-user="1" data-user='${esc(JSON.stringify(u))}' title="Edytuj">${ICONS.edit}</button>` : ''}</td>
+          <td>${manage ? `<button class="icon-btn" data-edit-user="1" data-user='${esc(JSON.stringify(u))}' title="Edytuj konto">${ICONS.edit}</button>
+            <button class="icon-btn" data-wh-user="${esc(u.id)}" data-name="${esc(u.fullName)}"
+                    title="Przypisz magazyny">${ICONS.warehouse}</button>` : ''}</td>
         </tr>`).join('')}</tbody>
       </table></div>
       ${items.length ? '' : empty('Brak kont')}
@@ -124,6 +138,65 @@ function openUserForm(view, user) {
         } catch (err) {
           if (err.isValidation) markFieldErrors(form, err.details);
           else toastError(err);
+        }
+      };
+    },
+  });
+}
+
+
+/* ----------------------- Przypisanie magazynów -------------------------- */
+
+/**
+ * Podsumowanie dostępu w wierszu konta.
+ *
+ * Administrator ma dostęp do wszystkiego z samej roli — pokazywanie przy nim
+ * listy magazynów sugerowałoby ograniczenie, którego nie ma.
+ */
+function warehouseSummary(user, ids, magazyny) {
+  if (user.role === 'ADMIN') return '<span style="color:var(--ink-3)">wszystkie (rola)</span>';
+  if (!ids.length) return '<span style="color:var(--ink-3)">wszystkie</span>';
+  const nazwy = ids
+    .map((id) => magazyny.find((w) => w.id === id)?.name)
+    .filter(Boolean);
+  return esc(nazwy.join(', ')) || '<span style="color:var(--ink-3)">wszystkie</span>';
+}
+
+/** Okno przypisania magazynów do konta. */
+async function openWarehouseForm(view, userId, fullName) {
+  const [{ items: magazyny }, { warehouseIds }] = await Promise.all([
+    api.get('/warehouses'),
+    api.get(`/users/${userId}/warehouses`),
+  ]);
+
+  openModal({
+    title: `Magazyny konta: ${fullName}`,
+    body: `<form id="whForm">
+      <p class="sub" style="margin-bottom:12px">
+        Brak zaznaczeń oznacza dostęp do <b>wszystkich</b> magazynów. Zaznaczenie choćby
+        jednego placu zamyka dostęp do pozostałych — także do rejestru dokumentów,
+        stanów i raportów z tamtych magazynów.
+      </p>
+      <div class="form-grid">
+        ${magazyny.map((w) => `<div class="fld wide"><label class="check">
+          <input type="checkbox" name="wh" value="${esc(w.id)}" ${warehouseIds.includes(w.id) ? 'checked' : ''}>
+          <span>${esc(w.name)}${w.isDefault ? ' · domyślny' : ''}</span></label></div>`).join('')}
+      </div>
+    </form>`,
+    footer: `<button class="btn" data-modal-close>Anuluj</button>
+             <button class="btn btn-primary" id="whSave">Zapisz przypisanie</button>`,
+    onMount(box) {
+      box.querySelector('#whSave').onclick = async () => {
+        const zaznaczone = [...box.querySelectorAll('input[name="wh"]:checked')].map((i) => i.value);
+        try {
+          const wynik = await api.put(`/users/${userId}/warehouses`, { warehouseIds: zaznaczone });
+          closeModal();
+          toast(wynik.unrestricted
+            ? 'Konto ma dostęp do wszystkich magazynów'
+            : `Przypisano magazyny: ${wynik.warehouseIds.length}`);
+          refresh(view);
+        } catch (err) {
+          toastError(err);
         }
       };
     },

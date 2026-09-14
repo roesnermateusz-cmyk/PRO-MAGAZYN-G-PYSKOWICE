@@ -59,6 +59,8 @@ async function refresh(view) {
     openForm(view, item);
   });
   on(view, 'click', '[data-deactivate]', (el) => deactivate(view, el.dataset.deactivate));
+  on(view, 'click', '[data-close-wh]', (el) => closeWarehouse(view, el.dataset.closeWh, el.dataset.name));
+  on(view, 'click', '[data-open-wh]', (el) => openWarehouse(view, el.dataset.openWh, el.dataset.name));
 }
 
 async function renderTab(tab, editable) {
@@ -110,7 +112,7 @@ async function renderTab(tab, editable) {
         <td style="font-size:12px">${esc(w.address || '—')}</td>
         <td>${w.isDefault ? '<span class="tag OPEN">domyślny</span>' : ''}</td>
         <td>${statusTag(w.isActive)}</td>
-        <td>${editable ? actionButtons(w, false) : ''}</td>
+        <td>${editable ? warehouseActions(w) : ''}</td>
       </tr>`),
       items.length,
     );
@@ -158,6 +160,21 @@ const statusTag = (active) => (active
 const actionButtons = (item, canDeactivate) => `
   <button class="icon-btn" data-edit="1" data-item='${esc(JSON.stringify(item))}' title="Edytuj">${ICONS.edit}</button>
   ${canDeactivate ? `<button class="icon-btn danger" data-deactivate="${esc(item.id)}" title="Wyłącz">${ICONS.trash}</button>` : ''}`;
+
+/**
+ * Akcje magazynu.
+ *
+ * Zamknięcie placu nie jest zwykłym „wyłącz pozycję”: sprawdza stan
+ * magazynowy, magazyn domyślny i przypisania użytkowników, więc ma osobną
+ * trasę i osobny przycisk. Plac zamknięty da się przywrócić.
+ */
+const warehouseActions = (w) => `
+  <button class="icon-btn" data-edit="1" data-item='${esc(JSON.stringify(w))}' title="Edytuj">${ICONS.edit}</button>
+  ${w.isActive
+    ? `<button class="icon-btn danger" data-close-wh="${esc(w.id)}" data-name="${esc(w.name)}"
+               title="Zamknij plac">${ICONS.lock}</button>`
+    : `<button class="icon-btn" data-open-wh="${esc(w.id)}" data-name="${esc(w.name)}"
+               title="Przywróć plac">${ICONS.refresh}</button>`}`;
 
 const table = (headers, rows, count) => `<div class="card"><div class="card-b flush">
   <div class="tbl-wrap"><table class="tbl">
@@ -226,8 +243,10 @@ const FORMS = {
           <input type="text" id="address" name="address" value="${esc(d.address ?? '')}"></div>
         <div class="fld"><label class="check">
           <input type="checkbox" name="isDefault" ${d.isDefault ? 'checked' : ''}><span>Magazyn domyślny</span></label></div>
-        <div class="fld"><label class="check">
-          <input type="checkbox" name="isActive" ${d.isActive === false ? '' : 'checked'}><span>Magazyn aktywny</span></label></div>
+        <div class="fld wide" style="font-size:12px;color:var(--ink-2)">
+          Zamknięcie i przywrócenie placu ma własne przyciski na liście —
+          wymaga kontroli stanu magazynowego, więc nie jest zwykłym polem formularza.
+        </div>
       </div>`,
   },
   pojazdy: {
@@ -295,6 +314,43 @@ async function deactivate(view, productId) {
   try {
     await api.post(`/products/${productId}/deactivate`, {});
     toast('Produkt wyłączony');
+    invalidateCatalog();
+    refresh(view);
+  } catch (err) {
+    toastError(err);
+  }
+}
+
+
+/* --------------------------- Cykl życia placu --------------------------- */
+
+async function closeWarehouse(view, id, name) {
+  const confirmed = await confirmDialog({
+    title: `Zamknięcie placu „${name}”`,
+    message: 'Plac zniknie z list wyboru i z przełącznika magazynu, ale pozostanie '
+      + 'w dokumentach historycznych. Zamknięcie jest możliwe tylko przy zerowym stanie '
+      + 'magazynowym i nie dotyczy magazynu domyślnego. Przypisania użytkowników do tego '
+      + 'placu zostaną zdjęte.',
+    confirmLabel: 'Zamknij plac',
+    danger: true,
+  });
+  if (confirmed === null) return;
+  try {
+    const wynik = await api.post(`/warehouses/${id}/deactivate`, {});
+    toast(wynik.releasedUsers
+      ? `Plac zamknięty · zdjęto ${wynik.releasedUsers} przypisań`
+      : 'Plac zamknięty');
+    invalidateCatalog();
+    refresh(view);
+  } catch (err) {
+    toastError(err);
+  }
+}
+
+async function openWarehouse(view, id, name) {
+  try {
+    await api.post(`/warehouses/${id}/activate`, {});
+    toast(`Plac „${name}” przywrócony`);
     invalidateCatalog();
     refresh(view);
   } catch (err) {

@@ -161,7 +161,10 @@ Data z przyszłości jest odrzucana dla każdej roli, z tolerancją jednego dnia
 `web/src/` ładuje się jako moduły ESM wprost z dysku. Konwencje:
 
 * widoki budują HTML jako tekst; **każda wartość przechodzi przez `esc()`**,
-* interaktywność przez delegację zdarzeń po `data-*` (`on()` z `core/dom.js`),
+* interaktywność przez delegację zdarzeń po `data-*` (`on()` z `core/dom.js`);
+  wiązanie jest **idempotentne** — para typ+selektor ma na kontenerze jeden
+  uchwyt, więc widok może wołać `on()` przy każdym renderze i nie sprząta po
+  sobie (router woła `detachAll()` przy zmianie widoku),
 * router hash-owy (`#/operacje/123?tab=x`) — działa z podkatalogu i zza proxy,
 * widok trzyma instancję komponentu w zmiennej modułu i woła `destroy()` na starcie
   kolejnego renderu (wzorzec z `views/operations.js`),

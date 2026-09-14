@@ -19,16 +19,58 @@ export const $$ = (selector, root = document) => [...root.querySelectorAll(selec
 
 
 /**
+ * Rejestr uchwytów delegowanych, trzymany na samym węźle kontenera.
+ *
+ * Powód jest praktyczny. Widoki wiążą uchwyty przy KAŻDYM odświeżeniu listy,
+ * a `innerHTML` wymienia wyłącznie dzieci — kontener zostaje ten sam i zbiera
+ * kolejne kopie tego samego uchwytu. Skutek jest cichy i groźny: po drugim
+ * odświeżeniu jedno kliknięcie wysyła dwa żądania. Wyszło to na przywracaniu
+ * zamkniętego placu — drugie żądanie wracało z 409 „magazyn jest już aktywny”,
+ * a przy operacji bez takiej blokady powstałby po prostu podwójny zapis.
+ */
+const DELEGATES = Symbol('uchwyty delegowane');
+
+/**
  * Delegacja zdarzeń: `on(root, 'click', '[data-act="edit"]', (el, ev) => …)`.
+ *
+ * Para `typ|selektor` ma na danym kontenerze dokładnie JEDEN uchwyt: ponowne
+ * wiązanie zastępuje poprzedni, więc widok może wołać `on()` przy każdym
+ * renderze i nie musi pamiętać o sprzątaniu.
+ *
  * Zwraca funkcję odpinającą — przydatną przy przełączaniu widoków.
  */
 export function on(root, type, selector, handler) {
+  const rejestr = (root[DELEGATES] ??= new Map());
+  const klucz = `${type}|${selector}`;
+  rejestr.get(klucz)?.();
+
   const listener = (ev) => {
     const el = ev.target.closest(selector);
     if (el && root.contains(el)) handler(el, ev);
   };
   root.addEventListener(type, listener);
-  return () => root.removeEventListener(type, listener);
+
+  const off = () => {
+    root.removeEventListener(type, listener);
+    if (rejestr.get(klucz) === off) rejestr.delete(klucz);
+  };
+  rejestr.set(klucz, off);
+  return off;
+}
+
+/**
+ * Zdejmuje wszystkie uchwyty delegowane z kontenera.
+ *
+ * Woła to router przy zmianie widoku: element `#view` przeżywa nawigację,
+ * więc bez tego uchwyty poprzedniego widoku zostawałyby na żywym węźle
+ * i reagowały na cudzy DOM przy zbieżnych selektorach (`[data-tab]`,
+ * `[data-edit]` powtarzają się w kilku widokach).
+ */
+export function detachAll(root) {
+  const rejestr = root?.[DELEGATES];
+  if (!rejestr) return;
+  for (const off of [...rejestr.values()]) off();
+  rejestr.clear();
 }
 
 /** Odczytuje wartości formularza jako obiekt (checkbox → boolean, number → liczba). */

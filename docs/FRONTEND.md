@@ -136,6 +136,28 @@ Dzięki temu ta sama lista obsługuje rejestr operacji, kartoteki i korekty.
 Widok rejestru operacji po migracji **deklaruje** kolumny i filtry zamiast
 budować HTML. Kod przeszedł z pisania znaczników na opisywanie danych.
 
+### 4.3 Uchwyty zdarzeń: wiązanie jest idempotentne
+
+Widoki wołają `on(view, 'click', '[data-x]', …)` przy **każdym** odświeżeniu
+listy, bo po `view.innerHTML = …` znikają dzieci, nie kontener. Gdyby `on()`
+było zwykłym `addEventListener`, uchwyty nawarstwiałyby się i jedno kliknięcie
+wywoływałoby akcję tyle razy, ile było odświeżeń (usterka 8 w `DEBUGGING.md`).
+
+Kontrakt jest więc taki:
+
+* para **typ + selektor** ma na danym kontenerze dokładnie **jeden** uchwyt —
+  ponowne wiązanie zastępuje poprzedni,
+* widok **nie musi** sprzątać po sobie ani pamiętać funkcji odpinających,
+* `detachAll(root)` zdejmuje komplet uchwytów; woła to router przy zmianie
+  widoku, bo `#view` jest wspólny dla wszystkich widoków i przeżywa nawigację.
+
+Bezpośrednie `element.addEventListener` na węźle **wewnątrz** widoku jest
+nadal w porządku — taki węzeł ginie razem z uchwytem przy najbliższym
+`innerHTML`. Problem dotyczy wyłącznie kontenera, który zostaje.
+
+Dwa uchwyty na ten sam typ i selektor w jednym kontenerze są odtąd niemożliwe.
+Jeśli widok naprawdę potrzebuje dwóch reakcji, składa je w jednym uchwycie.
+
 ---
 
 ## 5. Projektowanie propsów

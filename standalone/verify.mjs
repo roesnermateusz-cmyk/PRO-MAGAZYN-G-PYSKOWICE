@@ -102,7 +102,7 @@ if (!chromium) {
     'Brak pakietu Playwright. Kontrola zgodności uruchamia prawdziwą przeglądarkę,\n'
     + 'więc wymaga go w środowisku deweloperskim (do pakietu instalacyjnego nie wchodzi):\n'
     + '  npm install --no-save playwright\n'
-    + 'albo wskazanie istniejącej instalacji: NODE_PATH=<katalog>/node_modules node standalone/verify.mjs',
+    + 'albo wskazanie istniejącej instalacji: PLAYWRIGHT_PATH=<katalog>/node_modules node standalone/verify.mjs',
   );
   process.exit(2);
 }
