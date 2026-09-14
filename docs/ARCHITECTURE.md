@@ -209,6 +209,37 @@ dokument  +  ruchy magazynowe  +  wpis korekty  +  wpis audytu
 | Wyciek błędów | Stos wyjątku nigdy nie trafia do odpowiedzi w trybie produkcyjnym |
 | Dane wrażliwe w logach | Lista pól maskowanych w `lib/logger.js` |
 | Audyt | `audit_log` — logowania, zapisy, storno, eksporty, zamknięcia okresów |
+| Hasła w dzienniku | Do `audit_log` idzie sam FAKT zmiany hasła, nigdy skrót ani wartość |
+
+---
+
+## 6a. Ślad zmiany: kto, kiedy, co — i jak było przedtem
+
+Wpis „Kowalski edytował kartotekę o 14:32” nie odpowiada na pytanie, które
+zadaje kontrola. Dlatego `auditChange()` zapisuje **wartość przed i po**, a nie
+listę nazw pól. Zmienione pola idą do dziennika jako `{pole: {przed, po}}`;
+pola przysłane bez zmiany są pomijane, bo zrzut całego obiektu przy każdej
+edycji zamienia dziennik w ścianę szumu, przez którą nikt nie przebrnie.
+
+**Zapis robi warstwa serwisowa, nie trasa.** To rozstrzygnięcie kosztowało
+wcześniej dwie kartoteki: pojazdy i nadleśnictwa nie miały w trasach wywołania
+`audit()` i przez to nie zostawiały żadnego śladu. Odkąd robi to fabryka
+`createCatalog`, nowa kartoteka jest audytowana z chwilą powstania i nie ma
+miejsca, w którym dałoby się o tym zapomnieć.
+
+Kontekst żądania (`ctx`) wędruje w głąb aż do miejsc, które zakładają pozycje
+„przy okazji” — kontrahenta, pojazdu czy nadleśnictwa wpisanego wprost
+w dokument. Taka pozycja jest zmianą kartoteki jak każda inna i ma w dzienniku
+swojego autora.
+
+Dwa wyjątki od reguły „porównaj stany”:
+
+* **Dokumenty** mają własny, bogatszy rejestr korekt (`corrections`) z osobnym
+  powodem zmiany — dziennik audytu notuje tam sam fakt.
+* **Hasło** nie jest porównywane po wartości. Do dziennika trafia wyłącznie
+  fakt zmiany (`haslo: poprzednie → nowe`), i to **wewnątrz** porównania stanów,
+  nie obok niego: reset hasła bywa jedyną zmianą w żądaniu, a wpis bez zmian
+  jest pomijany — dopisek obok zniknąłby razem z nim.
 
 ---
 

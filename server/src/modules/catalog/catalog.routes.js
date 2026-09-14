@@ -1,7 +1,9 @@
 /** Trasy kartotek: /api/v1/{warehouses,products,partners,vehicles,forest,loading-places,catalog} */
 import { Router } from '../../lib/http.js';
 import { guard, requireAuth } from '../../middleware/auth.js';
-import { audit, auditChange } from '../../middleware/audit.js';
+// Wpisy do dziennika audytu robi warstwa serwisowa — trasa tylko podaje jej
+// kontekst żądania. Inaczej każda nowa kartoteka wymagałaby pamiętania o tym
+// w dwóch miejscach naraz, a pojazdy i nadleśnictwa wypadły właśnie tak.
 import {
   warehousesForUser, deactivateWarehouse, activateWarehouse,
 } from './warehouse-access.service.js';
@@ -24,17 +26,11 @@ export function catalogRoutes(prefix) {
   /** Place, w których zalogowany może pracować — źródło przełącznika magazynu. */
   r.get('/warehouses/mine', requireAuth, (ctx) => ({ items: warehousesForUser(ctx.user) }));
   r.post('/warehouses', ...guard('catalog:write'), (ctx) => {
-    const item = warehouses.create(ctx.body);
-    audit(ctx, 'CREATE', 'warehouses', item.id, { name: item.name });
     ctx.status(201);
-    return item;
+    return warehouses.create(ctx.body, ctx);
   });
-  r.patch('/warehouses/:id', ...guard('catalog:write'), (ctx) => {
-    const before = warehouses.get(ctx.params.id);
-    const item = warehouses.update(ctx.params.id, ctx.body);
-    auditChange(ctx, 'UPDATE', 'warehouses', item.id, before, item, { magazyn: item.name });
-    return item;
-  });
+  r.patch('/warehouses/:id', ...guard('catalog:write'),
+    (ctx) => warehouses.update(ctx.params.id, ctx.body, ctx));
   r.post('/warehouses/:id/deactivate', ...guard('catalog:write'),
     (ctx) => deactivateWarehouse(ctx.params.id, ctx));
   r.post('/warehouses/:id/activate', ...guard('catalog:write'),
@@ -49,21 +45,13 @@ export function catalogRoutes(prefix) {
   }));
   r.get('/products/:id', ...guard('catalog:read'), (ctx) => products.get(ctx.params.id));
   r.post('/products', ...guard('catalog:write'), (ctx) => {
-    const item = products.create(ctx.body);
-    audit(ctx, 'CREATE', 'products', item.id, { name: item.name });
     ctx.status(201);
-    return item;
+    return products.create(ctx.body, ctx);
   });
-  r.patch('/products/:id', ...guard('catalog:write'), (ctx) => {
-    const item = products.update(ctx.params.id, ctx.body);
-    audit(ctx, 'UPDATE', 'products', item.id);
-    return item;
-  });
-  r.post('/products/:id/deactivate', ...guard('catalog:write'), (ctx) => {
-    const item = products.deactivate(ctx.params.id);
-    audit(ctx, 'DEACTIVATE', 'products', item.id);
-    return item;
-  });
+  r.patch('/products/:id', ...guard('catalog:write'),
+    (ctx) => products.update(ctx.params.id, ctx.body, ctx));
+  r.post('/products/:id/deactivate', ...guard('catalog:write'),
+    (ctx) => products.deactivate(ctx.params.id, ctx));
 
   /* --- Kontrahenci --- */
   r.get('/partners', ...guard('catalog:read'), (ctx) => ({
@@ -75,37 +63,33 @@ export function catalogRoutes(prefix) {
   }));
   r.get('/partners/:id', ...guard('catalog:read'), (ctx) => partners.get(ctx.params.id));
   r.post('/partners', ...guard('catalog:write'), (ctx) => {
-    const item = partners.create(ctx.body);
-    audit(ctx, 'CREATE', 'partners', item.id, { name: item.name });
     ctx.status(201);
-    return item;
+    return partners.create(ctx.body, ctx);
   });
-  r.patch('/partners/:id', ...guard('catalog:write'), (ctx) => {
-    const item = partners.update(ctx.params.id, ctx.body);
-    audit(ctx, 'UPDATE', 'partners', item.id);
-    return item;
-  });
+  r.patch('/partners/:id', ...guard('catalog:write'),
+    (ctx) => partners.update(ctx.params.id, ctx.body, ctx));
 
   /* --- Pojazdy --- */
   r.get('/vehicles', ...guard('catalog:read'),
     (ctx) => ({ items: vehicles.listWithCarrier({ includeInactive: asBool(ctx.query.includeInactive) }) }));
   r.post('/vehicles', ...guard('catalog:write'), (ctx) => {
     ctx.status(201);
-    return vehicles.create(ctx.body);
+    return vehicles.create(ctx.body, ctx);
   });
-  r.patch('/vehicles/:id', ...guard('catalog:write'), (ctx) => vehicles.update(ctx.params.id, ctx.body));
+  r.patch('/vehicles/:id', ...guard('catalog:write'),
+    (ctx) => vehicles.update(ctx.params.id, ctx.body, ctx));
 
   /* --- Nadleśnictwa i leśnictwa --- */
   r.get('/forest/districts', ...guard('catalog:read'), () => ({ items: forest.listDistricts() }));
   r.post('/forest/districts', ...guard('catalog:write'), (ctx) => {
     ctx.status(201);
-    return forest.createDistrict(ctx.body);
+    return forest.createDistrict(ctx.body, ctx);
   });
   r.get('/forest/ranges', ...guard('catalog:read'),
     (ctx) => ({ items: forest.listRanges({ districtId: ctx.query.districtId || '' }) }));
   r.post('/forest/ranges', ...guard('catalog:write'), (ctx) => {
     ctx.status(201);
-    return forest.createRange(ctx.body);
+    return forest.createRange(ctx.body, ctx);
   });
 
   /* --- Miejsca załadunku --- */

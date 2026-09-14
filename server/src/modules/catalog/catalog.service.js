@@ -18,6 +18,7 @@ import { cache, TAG } from '../../lib/cache.js';
 import { uuid } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../lib/errors.js';
+import { auditChange } from '../../middleware/audit.js';
 
 /* ============================ Narzędzia wspólne ========================= */
 
@@ -67,6 +68,17 @@ function applyPatch(table, id, patch) {
   db.run(`UPDATE ${table} SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = :id`, params);
 }
 
+/**
+ * Stan pozycji w formie trafiającej do dziennika audytu.
+ *
+ * Identyfikator pomijamy — siedzi już w kolumnie `entity_id`, a powtórzony
+ * w treści zmiany byłby tylko szumem.
+ */
+const auditable = (item) => {
+  const { id, ...reszta } = item ?? {};
+  return reszta;
+};
+
 /* ========================= Fabryka kartoteki ============================ */
 
 /**
@@ -85,6 +97,11 @@ function applyPatch(table, id, patch) {
  *   których schemat nie wypełnia (np. `is_active`)
  * @param {(data:object)=>void} [spec.beforeWrite] dodatkowa walidacja przed zapisem
  * @param {(data:object, id:string|null)=>void} [spec.onWrite] efekt uboczny w transakcji zapisu
+ *
+ * Zapis do dziennika audytu robi sama fabryka — z wartością PRZED i PO. Gdyby
+ * robiły to trasy, każda nowa kartoteka byłaby okazją, żeby o tym zapomnieć;
+ * pojazdy i nadleśnictwa właśnie tak wypadły z dziennika. Kontekst żądania
+ * (`ctx`) jest opcjonalny: wołania z seeda i migracji audytu nie potrzebują.
  */
 function createCatalog(spec) {
   const {
@@ -138,7 +155,12 @@ function createCatalog(spec) {
       return db.get(`SELECT * FROM ${table} WHERE ${keyColumn} = :value COLLATE NOCASE`, { value }) ?? null;
     },
 
-    create(input) {
+    /**
+     * @param {object} input dane pozycji
+     * @param {object|null} [ctx] kontekst żądania — bez niego wpis audytu
+     *   powstaje bez autora (zapis z wiersza poleceń, dane demonstracyjne)
+     */
+    create(input, ctx = null) {
       const d = validate(input, schema);
       if (db.get(`SELECT 1 AS x FROM ${table} WHERE ${keyColumn} = :value COLLATE NOCASE`, { value: d[naturalKey] })) {
         throw new ConflictError(`Pozycja „${d[naturalKey]}” już istnieje w kartotece.`);
@@ -162,11 +184,23 @@ function createCatalog(spec) {
           values,
         );
       });
-      return api.get(id);
+
+      const item = api.get(id);
+      auditChange(ctx, 'CREATE', table, id, {}, auditable(item), { pozycja: item[naturalKey] });
+      return item;
     },
 
-    update(id, input) {
-      api.get(id);
+    /**
+     * @param {string} id
+     * @param {object} input pola do zmiany (pominięte zostają bez zmian)
+     * @param {object|null} [ctx] kontekst żądania
+     * @param {string} [action] etykieta akcji w dzienniku — `deactivate`
+     *   podmienia ją na DEACTIVATE, żeby dało się filtrować wyłączenia
+     */
+    update(id, input, ctx = null, action = 'UPDATE') {
+      // Odczyt sprzed zmiany służy podwójnie: sprawdza istnienie pozycji
+      // i daje stan PRZED do dziennika — bez dodatkowego zapytania.
+      const before = api.get(id);
       const d = validate(input, schema, { partial: true });
       beforeWrite?.(d);
 
@@ -178,13 +212,21 @@ function createCatalog(spec) {
         spec.onWrite?.(d, id);
         applyPatch(table, id, patch);
       });
-      return api.get(id);
+
+      const after = api.get(id);
+      auditChange(ctx, action, table, id, auditable(before), auditable(after),
+        { pozycja: after[naturalKey] });
+      return after;
     },
 
-    /** Zakłada pozycję, jeśli nie istnieje (wprowadzanie dokumentu, import). */
-    ensure(value, defaults = {}) {
+    /**
+     * Zakłada pozycję, jeśli nie istnieje (wprowadzanie dokumentu, import).
+     * Pozycja założona „przy okazji” dokumentu też jest zmianą kartoteki,
+     * więc `ctx` idzie dalej i trafia do dziennika razem z autorem.
+     */
+    ensure(value, defaults = {}, ctx = null) {
       if (!value) return null;
-      return api.findByName(value) ?? api.create({ [naturalKey]: value, ...defaults });
+      return api.findByName(value) ?? api.create({ [naturalKey]: value, ...defaults }, ctx);
     },
   };
   return api;
@@ -262,14 +304,14 @@ export const products = createCatalog({
 });
 
 /** Blokuje dezaktywację produktu z niezerowym stanem magazynowym. */
-products.deactivate = (id) => {
+products.deactivate = (id, ctx = null) => {
   const stock = db.value('SELECT COALESCE(SUM(qty_mp), 0) FROM stock_moves WHERE product_id = :id', { id });
   if (Math.abs(stock) > 0.001) {
     throw new ConflictError(
       `Nie można wyłączyć produktu — na magazynie pozostaje ${stock.toFixed(3)} MP. Rozlicz stan przed dezaktywacją.`,
     );
   }
-  return products.update(id, { isActive: false });
+  return products.update(id, { isActive: false }, ctx, 'DEACTIVATE');
 };
 
 /* ============================ Kontrahenci ============================== */
@@ -386,7 +428,11 @@ export const forest = {
     }));
   },
 
-  createDistrict(input) {
+  // Nadleśnictwa, leśnictwa i miejsca załadunku nie przechodzą przez fabrykę
+  // (mają własne reguły unikalności), więc wpis do dziennika robią same.
+  // Zapisujemy wyłącznie faktyczne założenie pozycji — trafienie w istniejącą
+  // nie jest zmianą i nie ma czego odnotowywać.
+  createDistrict(input, ctx = null) {
     const d = validate(input, {
       name: { type: 'string', required: true, max: 120, label: 'Nadleśnictwo' },
       region: { type: 'string', max: 120, label: 'RDLP' },
@@ -399,10 +445,13 @@ export const forest = {
     cache.bump([TAG.CATALOG, TAG.catalog('forest_districts')]);
     db.run('INSERT INTO forest_districts(id, name, region) VALUES (:id, :name, :region)',
       { id, name: d.name, region: d.region ?? null });
-    return { id, name: d.name, region: d.region ?? null, isActive: true };
+
+    const item = { id, name: d.name, region: d.region ?? null, isActive: true };
+    auditChange(ctx, 'CREATE', 'forest_districts', id, {}, auditable(item), { pozycja: item.name });
+    return item;
   },
 
-  createRange(input) {
+  createRange(input, ctx = null) {
     const d = validate(input, {
       districtId: { type: 'string', required: true, label: 'Nadleśnictwo' },
       name: { type: 'string', required: true, max: 120, label: 'Leśnictwo' },
@@ -419,14 +468,17 @@ export const forest = {
     cache.bump([TAG.CATALOG, TAG.catalog('forest_ranges')]);
     db.run('INSERT INTO forest_ranges(id, district_id, name) VALUES (:id, :districtId, :name)',
       { id, districtId: d.districtId, name: d.name });
-    return { id, districtId: d.districtId, name: d.name, isActive: true };
+
+    const item = { id, districtId: d.districtId, name: d.name, isActive: true };
+    auditChange(ctx, 'CREATE', 'forest_ranges', id, {}, auditable(item), { pozycja: item.name });
+    return item;
   },
 
   /** Zapisuje nadleśnictwo i leśnictwo podane w dokumencie jako tekst. */
-  ensure(districtName, rangeName) {
+  ensure(districtName, rangeName, ctx = null) {
     if (!districtName) return;
-    const district = forest.createDistrict({ name: districtName });
-    if (rangeName) forest.createRange({ districtId: district.id, name: rangeName });
+    const district = forest.createDistrict({ name: districtName }, ctx);
+    if (rangeName) forest.createRange({ districtId: district.id, name: rangeName }, ctx);
   },
 };
 
@@ -439,14 +491,17 @@ export const loadingPlaces = {
     ).map((r) => ({ id: r.id, name: r.name, address: r.address, isActive: !!r.is_active }));
   },
 
-  ensure(name) {
+  ensure(name, ctx = null) {
     if (!name) return null;
     const found = db.get('SELECT * FROM loading_places WHERE name = :name COLLATE NOCASE', { name });
     if (found) return { id: found.id, name: found.name, address: found.address, isActive: !!found.is_active };
     const id = uuid();
     cache.bump([TAG.CATALOG, TAG.catalog('loading_places')]);
     db.run('INSERT INTO loading_places(id, name) VALUES (:id, :name)', { id, name });
-    return { id, name, address: null, isActive: true };
+
+    const item = { id, name, address: null, isActive: true };
+    auditChange(ctx, 'CREATE', 'loading_places', id, {}, auditable(item), { pozycja: name });
+    return item;
   },
 };
 
@@ -460,7 +515,7 @@ export const loadingPlaces = {
  * @param {Record<string,string>} kinds mapa `rola → rodzaj kontrahenta`
  * @returns {Record<string,string|null>} mapa `rola → identyfikator`
  */
-export function resolvePartners(wanted, kinds = {}) {
+export function resolvePartners(wanted, kinds = {}, ctx = null) {
   const names = [...new Set(Object.values(wanted).filter(Boolean))];
   if (!names.length) return Object.fromEntries(Object.keys(wanted).map((role) => [role, null]));
 
@@ -476,7 +531,7 @@ export function resolvePartners(wanted, kinds = {}) {
     if (!name) { out[role] = null; continue; }
     const key = name.toLowerCase();
     if (!found.has(key)) {
-      found.set(key, partners.create({ name, kind: kinds[role] ?? 'OBA' }).id);
+      found.set(key, partners.create({ name, kind: kinds[role] ?? 'OBA' }, ctx).id);
     }
     out[role] = found.get(key);
   }
@@ -492,9 +547,11 @@ export function resolvePartners(wanted, kinds = {}) {
  *
  * @param {object} row wiersz dokumentu przygotowany do zapisu
  * @param {object|null} existing dokument sprzed edycji
+ * @param {object|null} [ctx] kontekst żądania — pozycja założona przy okazji
+ *   dokumentu trafia do dziennika z autorem, a nie jako zmiana bez sprawcy
  * @returns {{supplierId:string|null, recipientId:string|null}}
  */
-export function ensureDictionaries(row, existing = null) {
+export function ensureDictionaries(row, existing = null, ctx = null) {
   const changed = (column) => !existing || existing[column] !== row[column];
 
   const ids = resolvePartners(
@@ -504,16 +561,17 @@ export function ensureDictionaries(row, existing = null) {
       carrierId: changed('carrier_name') ? row.carrier_name : null,
     },
     { supplierId: 'DOSTAWCA', recipientId: 'ODBIORCA', carrierId: 'PRZEWOZNIK' },
+    ctx,
   );
 
   if (row.vehicle_plate && changed('vehicle_plate')) {
-    vehicles.ensure(row.vehicle_plate, { carrierName: row.carrier_name });
+    vehicles.ensure(row.vehicle_plate, { carrierName: row.carrier_name }, ctx);
   }
   if (row.forest_district && (changed('forest_district') || changed('forest_range'))) {
-    forest.ensure(row.forest_district, row.forest_range);
+    forest.ensure(row.forest_district, row.forest_range, ctx);
   }
   if (row.loading_place && changed('loading_place')) {
-    loadingPlaces.ensure(row.loading_place);
+    loadingPlaces.ensure(row.loading_place, ctx);
   }
 
   return { supplierId: ids.supplierId, recipientId: ids.recipientId };

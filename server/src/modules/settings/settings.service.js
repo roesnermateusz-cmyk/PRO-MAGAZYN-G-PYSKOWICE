@@ -8,6 +8,7 @@ import db from '../../db/index.js';
 import { validate } from '../../lib/validate.js';
 import { cache as responseCache, TAG } from '../../lib/cache.js';
 import { DEFAULT_FACTORS } from '../../domain/units.js';
+import { auditChange } from '../../middleware/audit.js';
 
 const DEFAULTS = Object.freeze({
   'units.m3_to_mp': DEFAULT_FACTORS.m3ToMp,
@@ -71,11 +72,25 @@ const SCHEMA = {
 
 /**
  * Zapisuje ustawienia. Akceptuje częściowy zestaw kluczy.
+ *
+ * Zmiana przelicznika albo liczby dni księgowania wstecz zmienia zachowanie
+ * całego systemu, więc idzie do dziennika audytu z wartością przed i po.
+ * Bez tego pytanie „kto i kiedy przestawił przelicznik MP→tona” nie miałoby
+ * odpowiedzi, a dokumenty zaksięgowane po obu stronach tej zmiany różniłyby
+ * się bez widocznej przyczyny.
+ *
  * @param {object} input mapa klucz → wartość
- * @param {string} userId autor zmiany
+ * @param {object} ctx kontekst żądania (autor zmiany, adres)
  */
-export function updateSettings(input, userId) {
+export function updateSettings(input, ctx) {
   const clean = validate(input, SCHEMA, { partial: true });
+  const userId = ctx?.user?.id ?? null;
+
+  // Stan sprzed zapisu ograniczony do zmienianych kluczy — dziennik ma pokazać
+  // zmianę, nie zrzut całej konfiguracji przy każdym kliknięciu „zapisz”.
+  const before = getAllSettings();
+  const przed = Object.fromEntries(Object.keys(clean).map((k) => [k, before[k]]));
+
   db.tx(() => {
     for (const [key, value] of Object.entries(clean)) {
       db.run(
@@ -88,7 +103,11 @@ export function updateSettings(input, userId) {
     }
   });
   invalidateSettingsCache();
-  return getAllSettings();
+
+  const after = getAllSettings();
+  auditChange(ctx, 'UPDATE', 'settings', null, przed,
+    Object.fromEntries(Object.keys(clean).map((k) => [k, after[k]])));
+  return after;
 }
 
 export { DEFAULTS as SETTINGS_DEFAULTS, SCHEMA as SETTINGS_SCHEMA };

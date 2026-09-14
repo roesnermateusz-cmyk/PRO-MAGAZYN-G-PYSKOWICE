@@ -294,7 +294,7 @@ test('zamknięcie okresu wymaga zamknięcia wcześniejszych miesięcy', () => {
 });
 
 test('blokada stanów ujemnych działa po zmianie ustawienia', () => {
-  updateSettings({ 'rules.allow_negative_stock': false }, admin.id);
+  updateSettings({ 'rules.allow_negative_stock': false }, ctx);
   invalidateSettingsCache();
   assert.throws(
     () => ops.createOperation(operationInput({
@@ -303,7 +303,7 @@ test('blokada stanów ujemnych działa po zmianie ustawienia', () => {
     }), ctx),
     /poniżej zera|stany ujemne/i,
   );
-  updateSettings({ 'rules.allow_negative_stock': true }, admin.id);
+  updateSettings({ 'rules.allow_negative_stock': true }, ctx);
   invalidateSettingsCache();
 });
 
@@ -314,7 +314,7 @@ test('zmiana przeliczników nie rusza dokumentów już zaksięgowanych', () => {
   assert.equal(operation.qtyMp, 40);
   assert.equal(operation.factors.m3ToMp, 4);
 
-  updateSettings({ 'units.m3_to_mp': 3 }, admin.id);
+  updateSettings({ 'units.m3_to_mp': 3 }, ctx);
   invalidateSettingsCache();
 
   const reread = ops.getOperation(operation.id);
@@ -324,7 +324,7 @@ test('zmiana przeliczników nie rusza dokumentów już zaksięgowanych', () => {
   const fresh = ops.createOperation(operationInput({ operationDate: '2026-04-02', quantity: 10, unit: 'M3' }), ctx);
   assert.equal(fresh.operation.qtyMp, 30, 'nowy dokument używa nowego przelicznika');
 
-  updateSettings({ 'units.m3_to_mp': 4 }, admin.id);
+  updateSettings({ 'units.m3_to_mp': 4 }, ctx);
   invalidateSettingsCache();
 });
 
@@ -576,7 +576,7 @@ test('regresja: data z przyszłości jest odrzucana dla każdej roli', () => {
 });
 
 test('regresja: backdate_days = 0 zamyka księgowanie wstecz, nie kontrolę daty', () => {
-  updateSettings({ 'rules.backdate_days': 0 }, admin.id);
+  updateSettings({ 'rules.backdate_days': 0 }, ctx);
   invalidateSettingsCache();
   try {
     const magazynier = testContext({ userId: admin.id, role: 'MAGAZYNIER' });
@@ -606,7 +606,7 @@ test('regresja: backdate_days = 0 zamyka księgowanie wstecz, nie kontrolę daty
     }), magazynier);
     assert.equal(today.operation.status, 'POSTED', 'dzień bieżący pozostaje dozwolony');
   } finally {
-    updateSettings({ 'rules.backdate_days': 90 }, admin.id);
+    updateSettings({ 'rules.backdate_days': 90 }, ctx);
     invalidateSettingsCache();
   }
 });
@@ -773,13 +773,13 @@ test('pamięć podręczna: korekta odświeża kartotekę magazynową produktu', 
 
 test('pamięć podręczna: zmiana ustawień odświeża raporty', () => {
   const before = monthlyReport({ month: '2026-05' });
-  updateSettings({ 'units.tonne_to_gj': 9.1 }, admin.id);
+  updateSettings({ 'units.tonne_to_gj': 9.1 }, ctx);
   invalidateSettingsCache();
   try {
     const after = monthlyReport({ month: '2026-05' });
     assert.notEqual(before, after, 'raport policzony od nowa po zmianie przeliczników');
   } finally {
-    updateSettings({ 'units.tonne_to_gj': 8.5 }, admin.id);
+    updateSettings({ 'units.tonne_to_gj': 8.5 }, ctx);
     invalidateSettingsCache();
   }
 });

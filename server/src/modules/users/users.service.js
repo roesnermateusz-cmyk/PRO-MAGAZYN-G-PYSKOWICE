@@ -10,7 +10,21 @@ import { validate } from '../../lib/validate.js';
 import { ConflictError, NotFoundError, ValidationError, ForbiddenError } from '../../lib/errors.js';
 import { ROLES } from '../../middleware/auth.js';
 import { publicUser } from '../auth/auth.service.js';
-import { audit } from '../../middleware/audit.js';
+import { auditChange } from '../../middleware/audit.js';
+
+/**
+ * Stan konta w formie trafiającej do dziennika audytu.
+ *
+ * Przyjmuje obiekt PO `publicUser`, bo ten nie wypuszcza skrótu hasła — i to
+ * jest tutaj warunek konieczny: dziennik audytu czyta więcej osób niż tabela
+ * `users`, a jego wpisów z zasady się nie usuwa. Zmianę hasła odnotowujemy
+ * osobną flagą; fakt zmiany jest istotny dla kontroli, wartość nie jest.
+ *
+ * Odpadają też `id` (jest w kolumnie `entity_id`), `lastLoginAt` (zmienia się
+ * bez udziału edytującego) i `permissions` — te wynikają wprost z roli, więc
+ * przy zmianie roli zalałyby wpis listą uprawnień zamiast pokazać samą rolę.
+ */
+const auditableUser = ({ id, lastLoginAt, permissions, ...reszta }) => reszta;
 
 const USER_SCHEMA = {
   email: { type: 'email', required: true, label: 'E-mail' },
@@ -62,8 +76,9 @@ export function createUser(input, ctx) {
       mustChange: d.mustChangePassword,
     },
   );
-  audit(ctx, 'CREATE', 'users', id, { email: d.email, role: d.role });
-  return getUser(id);
+  const item = getUser(id);
+  auditChange(ctx, 'CREATE', 'users', id, {}, auditableUser(item), { konto: item.email });
+  return item;
 }
 
 export function updateUser(id, input, ctx) {
@@ -115,8 +130,23 @@ export function updateUser(id, input, ctx) {
       }
     });
   }
-  audit(ctx, 'UPDATE', 'users', id, { fields: Object.keys(patch) });
-  return getUser(id);
+  const after = getUser(id);
+  const przed = auditableUser(publicUser(existing));
+  const po = auditableUser(after);
+
+  // Fakt zmiany hasła musi być CZĘŚCIĄ porównania stanów, a nie dopiskiem obok.
+  // Reset hasła bywa jedyną zmianą w żądaniu (wymuszenie zmiany przy następnym
+  // logowaniu jest wtedy już włączone), więc porównanie pozostałych pól wychodzi
+  // puste — a wpis bez zmian jest pomijany jako szum. Dopisek obok zniknąłby
+  // razem z nim i reset hasła nie zostawiłby w dzienniku żadnego śladu.
+  // Do dziennika idzie sam fakt, nigdy wartość ani skrót.
+  if (patch.password_hash) {
+    przed.haslo = 'poprzednie';
+    po.haslo = 'nowe';
+  }
+
+  auditChange(ctx, 'UPDATE', 'users', id, przed, po, { konto: after.email });
+  return after;
 }
 
 /** Lista aktywnych sesji użytkownika (kontrola dostępu). */

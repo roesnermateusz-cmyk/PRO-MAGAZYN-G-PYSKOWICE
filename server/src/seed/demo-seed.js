@@ -83,19 +83,19 @@ export function seedDatabase(seed, { reset = false, ctx, log = () => {} } = {}) 
 
   log('Kartoteki…');
   for (const w of seed.magazyny) {
-    if (!db.get('SELECT 1 AS x FROM warehouses WHERE name = :name', { name: w.name })) warehouses.create(w);
+    if (!db.get('SELECT 1 AS x FROM warehouses WHERE name = :name', { name: w.name })) warehouses.create(w, ctx);
   }
   for (const p of seed.kontrahenci) {
-    if (!partners.findByName(p.name)) partners.create(p);
+    if (!partners.findByName(p.name)) partners.create(p, ctx);
   }
   for (const v of seed.pojazdy) {
-    if (!db.get('SELECT 1 AS x FROM vehicles WHERE plate = :plate', { plate: v.plate })) vehicles.create(v);
+    if (!db.get('SELECT 1 AS x FROM vehicles WHERE plate = :plate', { plate: v.plate })) vehicles.create(v, ctx);
   }
   for (const d of seed.nadlesnictwa) {
-    const district = forest.createDistrict({ name: d.name, region: d.region });
-    for (const range of d.lesnictwa) forest.createRange({ districtId: district.id, name: range });
+    const district = forest.createDistrict({ name: d.name, region: d.region }, ctx);
+    for (const range of d.lesnictwa) forest.createRange({ districtId: district.id, name: range }, ctx);
   }
-  for (const place of seed.miejscaZaladunku) loadingPlaces.ensure(place);
+  for (const place of seed.miejscaZaladunku) loadingPlaces.ensure(place, ctx);
 
   /* ------------------------------ Dokumenty ----------------------------- */
 

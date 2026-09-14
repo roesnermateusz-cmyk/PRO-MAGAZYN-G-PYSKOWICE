@@ -50,12 +50,12 @@ export { OPERATION_SCHEMA, FIELD_LABELS };
  * @param {{existing?:object}} [options] edytowany dokument (wiersz bazy)
  * @returns {object} wiersz gotowy do zapisu (klucze = kolumny bazy)
  */
-function prepareRow(input, { existing = null, user = null } = {}) {
+function prepareRow(input, { existing = null, user = null, ctx = null } = {}) {
   const d = validate(input, OPERATION_SCHEMA, existing ? { partial: true } : {});
   const errors = [];
 
   const type = carry(d, existing, 'type');
-  const product = resolveProduct(d, existing, errors);
+  const product = resolveProduct(d, existing, errors, ctx);
   const quantities = computeAmounts(d, existing, product);
   const places = resolveWarehouses(d, existing, type, errors);
   const signature = String(carry(d, existing, 'signature') ?? '').trim();
@@ -72,7 +72,7 @@ function prepareRow(input, { existing = null, user = null } = {}) {
 
   // Uzupełnienie kartotek pomocniczych na podstawie gotowego wiersza —
   // wyłącznie dla wartości, które faktycznie się zmieniły.
-  const partners = ensureDictionaries(row, existing);
+  const partners = ensureDictionaries(row, existing, ctx);
   row.partner_from_id = partners.supplierId;
   row.partner_to_id = partners.recipientId;
 
@@ -92,11 +92,14 @@ function prepareRow(input, { existing = null, user = null } = {}) {
 }
 
 /** Krok 1 — produkt: z kartoteki po kluczu, po nazwie, albo zakładany w locie. */
-function resolveProduct(d, existing, errors) {
+function resolveProduct(d, existing, errors, ctx = null) {
   if (d.productId) return products.getRaw(d.productId);
   if (d.productName) {
+    // Produkt założony „w locie” jest zmianą kartoteki jak każda inna — z ctx
+    // trafia do dziennika z autorem, a nie jako pozycja bez sprawcy.
     return products.findRowByName(d.productName)
-      ?? products.getRaw(products.create({ name: d.productName, category: guessCategory(d.productName) }).id);
+      ?? products.getRaw(
+        products.create({ name: d.productName, category: guessCategory(d.productName) }, ctx).id);
   }
   if (existing) return products.getRaw(existing.product_id);
   errors.push({ field: 'productName', message: 'Wskaż produkt z kartoteki lub podaj jego nazwę.' });
@@ -337,7 +340,7 @@ function checkStock(row, { excludeOperationId = null } = {}) {
 export function createOperation(input, ctx) {
   const user = ctx.user;
   const result = db.tx(() => {
-    const row = prepareRow(input, { user });
+    const row = prepareRow(input, { user, ctx });
     assertDateAllowed(row.operation_date, user);
     assertPeriodOpen(row.operation_date.slice(0, 7));
     const warnings = checkStock(row);
@@ -396,7 +399,7 @@ export function updateOperation(id, input, ctx) {
     assertWarehouseAccess(user, existing.warehouse_from_id, 'warehouseFrom');
     assertWarehouseAccess(user, existing.warehouse_to_id, 'warehouseTo');
 
-    const row = prepareRow(input, { existing, user });
+    const row = prepareRow(input, { existing, user, ctx });
     assertDateAllowed(row.operation_date, user);
     assertPeriodOpen(existing.operation_date.slice(0, 7));
     assertPeriodOpen(row.operation_date.slice(0, 7));

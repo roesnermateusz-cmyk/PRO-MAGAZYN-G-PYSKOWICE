@@ -121,6 +121,22 @@ mapowanie wiersza na API i etykiety w historii korekt.
 **Dodanie pola do dokumentu = edycja tego jednego pliku.** Jeśli łapiesz się na
 dopisywaniu nazwy pola w drugim miejscu, coś poszło nie tak.
 
+### Dziennik audytu — porównanie stanów, nie lista pól
+
+`auditChange()` z `middleware/audit.js` zapisuje **wartość przed i po**
+(`{pole: {przed, po}}`), pomijając pola przysłane bez zmiany. Zapis robi
+**warstwa serwisowa**, nie trasa — fabryka `createCatalog` audytuje każdą
+kartotekę sama, więc nowa kartoteka nie może wypaść z dziennika przez
+przeoczenie w trasie (pojazdy i nadleśnictwa wypadły dokładnie tak).
+
+Kontekst żądania (`ctx`) przekazuj w głąb aż do miejsc zakładających pozycje
+„przy okazji” dokumentu (`ensure`, `ensureDictionaries`) — taka pozycja ma
+mieć w dzienniku autora.
+
+**Skrót hasła nie ma prawa trafić do dziennika.** Notowany jest sam fakt zmiany
+(`haslo: poprzednie → nowe`) i musi siedzieć **wewnątrz** porównania stanów:
+wpis bez żadnej zmiany jest pomijany, więc dopisek obok zniknąłby razem z nim.
+
 ### Warstwa dostępu do bazy
 
 `server/src/db/index.js` eksportuje fasadę `db.all / get / value / run / tx / exec`.

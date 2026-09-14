@@ -53,7 +53,7 @@ export function adminRoutes(prefix) {
 
   /* --- Ustawienia --- */
   r.get('/settings', ...guard('settings:read'), () => getAllSettings());
-  r.put('/settings', ...guard('settings:write'), (ctx) => updateSettings(ctx.body, ctx.user.id));
+  r.put('/settings', ...guard('settings:write'), (ctx) => updateSettings(ctx.body, ctx));
 
   /* --- Okresy rozliczeniowe --- */
   r.get('/periods', ...guard('periods:read'), () => ({ items: listPeriods() }));
