@@ -32,6 +32,7 @@ import { mountFs, preload, release } from './runtime/fs.js';
 import { requestPersistence } from './runtime/storage.js';
 import logger from '../../server/src/lib/logger.js';
 import { installDemoData, hasAnyDocument } from './runtime/demo.js';
+import { applyWarehouse } from '../../web/src/core/warehouse.js';
 
 const OPERATOR_KEY = 'resinvest.operator';
 
@@ -351,7 +352,8 @@ export { persist as saveNow, exportBytes, downloadBytes };
 /* ------------------------------ Interfejs ------------------------------- */
 
 export const api = {
-  get: (path, query) => request(path, { query }),
+  // Patrz `web/src/core/api.js` — ten sam filtr aktywnego magazynu.
+  get: (path, query) => request(path, { query: applyWarehouse(path, query) }),
   post: (path, body) => request(path, { method: 'POST', body }),
   patch: (path, body) => request(path, { method: 'PATCH', body }),
   put: (path, body) => request(path, { method: 'PUT', body }),

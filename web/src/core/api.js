@@ -7,6 +7,8 @@
  * krótki czas życia zmniejsza skutki ewentualnego wycieku.
  */
 
+import { applyWarehouse } from './warehouse.js';
+
 const BASE = '/api/v1';
 const REFRESH_KEY = 'resinvest.refresh';
 
@@ -132,7 +134,11 @@ export async function request(path, options = {}) {
 }
 
 export const api = {
-  get: (path, query) => request(path, { query }),
+  // Filtr aktywnego magazynu dokłada się tutaj, a nie w każdym widoku z osobna:
+  // widok, w którym ktoś zapomniałby go dodać, pokazywałby obrót z cudzego
+  // placu. Ta sama linia stoi w kliencie wersji jednoplikowej
+  // (`standalone/src/api-local.js`) — logika mieszka w `core/warehouse.js`.
+  get: (path, query) => request(path, { query: applyWarehouse(path, query) }),
   post: (path, body) => request(path, { method: 'POST', body }),
   patch: (path, body) => request(path, { method: 'PATCH', body }),
   put: (path, body) => request(path, { method: 'PUT', body }),

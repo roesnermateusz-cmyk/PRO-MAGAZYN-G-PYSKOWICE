@@ -6,6 +6,7 @@ import { esc } from '../core/dom.js';
 import { ICONS, iconSprite } from './icons.js';
 import { store, can } from '../core/store.js';
 import { initials } from '../core/format.js';
+import { availableWarehouses, activeWarehouseId } from '../core/warehouse.js';
 
 /**
  * Definicja nawigacji.
@@ -54,7 +55,10 @@ export function renderLayout(root) {
         <div class="logo">ResInvest <em>ERP</em></div>
         <div class="m-sub">Magazyn biomasy</div>
       </div>
-      <div style="font-family:var(--font-mono);font-size:11px;color:#A9CFB6">${esc(store.user?.role ?? '')}</div>
+      <div class="m-context">
+        <span class="m-wh">${esc(activeWarehouseLabel())}</span>
+        <span class="m-role">${esc(store.user?.role ?? '')}</span>
+      </div>
     </div>
 
     <div class="app">
@@ -63,6 +67,7 @@ export function renderLayout(root) {
           <div class="logo">ResInvest <em>Commodities</em></div>
           <div class="sub">ERP · Magazyn biomasy</div>
         </div>
+        ${warehousePicker()}
         <nav class="menu" id="menu">
           ${items.map((item) => (item.group
             ? `<div class="menu-sep">${esc(item.group)}</div>`
@@ -116,4 +121,43 @@ export function setActiveNav(routeId) {
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.classList.toggle('active', el.dataset.nav === routeId);
   });
+}
+
+
+/* --------------------------- Kontekst pracy ---------------------------- */
+
+/** Nazwa aktywnego magazynu — skrót pokazywany na telefonie. */
+function activeWarehouseLabel() {
+  const lista = availableWarehouses();
+  const aktywny = lista.find((w) => w.id === activeWarehouseId());
+  if (aktywny) return aktywny.name;
+  return lista.length > 1 ? 'Wszystkie magazyny' : (lista[0]?.name ?? '');
+}
+
+/**
+ * Przełącznik magazynu.
+ *
+ * Przy jednym dostępnym placu nie ma czego przełączać — pokazujemy samą nazwę,
+ * żeby użytkownik wiedział, gdzie księguje, ale bez pola wyboru udającego
+ * decyzję, której nie ma.
+ */
+function warehousePicker() {
+  const lista = availableWarehouses();
+  if (!lista.length) return '';
+
+  if (lista.length === 1) {
+    return `<div class="wh-picker single">
+      <span class="wh-label">Magazyn</span>
+      <b class="wh-name">${esc(lista[0].name)}</b>
+    </div>`;
+  }
+
+  const aktywny = activeWarehouseId() ?? '';
+  return `<div class="wh-picker">
+    <label class="wh-label" for="whPick">Magazyn</label>
+    <select id="whPick" data-tool="warehouse" aria-label="Wybierz magazyn">
+      <option value=""${aktywny === '' ? ' selected' : ''}>Wszystkie magazyny</option>
+      ${lista.map((w) => `<option value="${esc(w.id)}"${w.id === aktywny ? ' selected' : ''}>${esc(w.name)}</option>`).join('')}
+    </select>
+  </div>`;
 }

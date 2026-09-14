@@ -5,8 +5,12 @@
  * aplikacja), montaż szkieletu i rejestrację tras.
  */
 import { onUnauthorized } from './core/api.js';
+import api from './core/api.js';
 import { store, loadMeta, restoreSession, logout, can } from './core/store.js';
-import { route, setNotFound, setGuard, startRouter, navigate, parseHash } from './core/router.js';
+import { loadWarehouses, setActiveWarehouse, clearWarehouseContext } from './core/warehouse.js';
+import {
+  route, setNotFound, setGuard, startRouter, navigate, parseHash, reload,
+} from './core/router.js';
 import { renderLayout, setActiveNav, NAV } from './components/layout.js';
 import { toast, empty, pageHead, closeModal } from './core/ui.js';
 
@@ -43,7 +47,7 @@ function registerRoutes() {
   // wracamy na ustawienia i odbudowujemy układ aplikacji.
   route('zmiana-hasla', () => renderPasswordChange(root, () => {
     window.location.hash = '#/ustawienia';
-    startApp();
+    void startApp();
   }));
 
   setNotFound((view) => {
@@ -71,13 +75,23 @@ function registerRoutes() {
 /* ---------------------------- Cykl życia ------------------------------ */
 
 /** Montuje pełną aplikację dla zalogowanego użytkownika. */
-function startApp() {
+async function startApp() {
   if (store.user?.mustChangePassword) {
     renderPasswordChange(root, () => {
       store.user.mustChangePassword = false;
-      startApp();
+      void startApp();
     });
     return;
+  }
+
+  // Kontekst pracy musi być znany PRZED pierwszym renderem: przełącznik stoi
+  // w szkielecie, a filtr magazynu dokłada się do każdego żądania listy.
+  try {
+    await loadWarehouses(api);
+  } catch {
+    // Brak listy magazynów nie może zablokować wejścia do systemu — aplikacja
+    // zachowa się wtedy jak przed wprowadzeniem kontekstu, czyli bez filtra.
+    clearWarehouseContext();
   }
 
   renderLayout(root);
@@ -95,7 +109,7 @@ function startApp() {
 
 /** Ekran logowania. */
 function showLogin() {
-  renderLogin(root, () => startApp());
+  renderLogin(root, () => { void startApp(); });
 }
 
 function bindGlobalTools() {
@@ -103,7 +117,17 @@ function bindGlobalTools() {
   root.querySelector('[data-tool="print"]')?.addEventListener('click', () => window.print());
   root.querySelector('[data-tool="logout"]')?.addEventListener('click', async () => {
     await logout();
+    clearWarehouseContext();
     showLogin();
+  });
+
+  // Zmiana magazynu przeładowuje bieżący widok — dane pod spodem zmieniają się
+  // wszystkie naraz, więc odświeżenie w miejscu byłoby myleniem oka.
+  root.querySelector('[data-tool="warehouse"]')?.addEventListener('change', (ev) => {
+    setActiveWarehouse(ev.target.value);
+    renderLayout(root);
+    bindGlobalTools();
+    reload();
   });
   bindMoreSheet();
 }
@@ -159,7 +183,7 @@ async function boot() {
   }
 
   const user = await restoreSession();
-  if (user) startApp();
+  if (user) await startApp();
   else showLogin();
 }
 
