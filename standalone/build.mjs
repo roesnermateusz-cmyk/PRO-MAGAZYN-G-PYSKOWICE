@@ -316,6 +316,32 @@ function demoSource() {
     + `export const DEMO = ${readFileSync(file, 'utf8')};\nexport default DEMO;\n`;
 }
 
+/**
+ * Wstawia pliki krojów wprost do arkusza jako `data:`.
+ *
+ * Wersja jednoplikowa nie ma obok siebie żadnych plików — kopiuje się ją na
+ * pendrive'a i klika dwa razy. Odwołanie `url('fonts/…')` wskazywałoby wtedy
+ * w pustkę i interfejs spadłby na kroje systemowe, choć obiecujemy wygląd
+ * identyczny z wersją sieciową.
+ *
+ * Ten sam plik potrafi być podstawiony pod kilka reguł (Inter jest krojem
+ * zmiennym), więc kodujemy go RAZ i podstawiamy ten sam ciąg — inaczej
+ * jeden krój ważyłby w wyniku pięć razy tyle.
+ */
+function wbudujKroje(css) {
+  const zakodowane = new Map();
+  return css.replace(/url\('fonts\/([^']+)'\)/g, (_, nazwa) => {
+    if (!zakodowane.has(nazwa)) {
+      const bajty = readFileSync(p('web/assets/fonts', nazwa));
+      if (bajty.subarray(0, 4).toString('latin1') !== 'wOF2') {
+        throw new Error(`web/assets/fonts/${nazwa} nie jest plikiem woff2.`);
+      }
+      zakodowane.set(nazwa, `url(data:font/woff2;base64,${bajty.toString('base64')})`);
+    }
+    return zakodowane.get(nazwa);
+  });
+}
+
 function build() {
   virtualSources.set('virtual:migrations', migrationsSource());
   virtualSources.set('virtual:demo-data', demoSource());
@@ -382,6 +408,7 @@ function __imp(id) {
     `__imp(${JSON.stringify(entry)});`].join('\n');
 
   const css = [
+    wbudujKroje(readFileSync(p('web/assets/fonts.css'), 'utf8')),
     readFileSync(p('web/assets/app.css'), 'utf8'),
     readFileSync(p('web/assets/viz.css'), 'utf8'),
     readFileSync(p('standalone/src/styles.css'), 'utf8'),
@@ -403,9 +430,6 @@ function __imp(id) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#F5F8F6">
 <title>ResInvest ERP · Magazyn Biomasy (wersja jednoplikowa)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 ${css}
 </style>

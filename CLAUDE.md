@@ -36,6 +36,7 @@ npm test                   # 119 testów (node:test)
 npm run check              # kontrola składni bez uruchamiania
 npm run build:installer    # ikona .ico + pakiet dist/ResInvest-ERP-<wersja>.zip
 npm run build:html         # wersja jednoplikowa → dist/ResInvestERP.html
+npm run vendor:fonts       # ponowne pobranie krojów do web/assets/fonts/
 ```
 
 **Pojedynczy plik testowy albo pojedynczy test:**
@@ -64,9 +65,16 @@ pierwszeństwo. Kluczowe: `DB_FILE`, `PORT`, `AUTH_SECRET`, `ATTACHMENTS_DIR`,
    `node:test`. Front nie ma kroku budowania — przeglądarka ładuje moduły ESM wprost.
    Powód: pakiet instaluje się na komputerze bez dostępu do rejestru npm.
    **Nie dodawaj zależności**, dopisz brakującą funkcję do `server/src/lib/`.
-2. **SQL ma zostać przenośny.** Baza to SQLite (WAL), ale zapytania mają przejść na
+2. **Zero odwołań do sieci w czasie pracy.** Ta sama zasada po stronie klienta:
+   żadnego CDN-u, czcionek z Google, skryptów ani obrazów z zewnątrz. Wszystko,
+   czego potrzebuje przeglądarka, leży w repozytorium (kroje w `web/assets/fonts/`
+   — SIL OFL 1.1, wendorowane przez `npm run vendor:fonts`).
+   Wagi pośrednie `650`/`680` w arkuszu **muszą** zaokrąglać się do 700 — dlatego
+   Inter, mimo że jest krojem zmiennym, ma **pięć reguł `@font-face` po jednej
+   wadze**, a nie jedną z zakresem. Szczegóły: `web/assets/fonts/README.md`.
+3. **SQL ma zostać przenośny.** Baza to SQLite (WAL), ale zapytania mają przejść na
    PostgreSQL bez przepisywania — bez `sqlite_*`, bez `rowid` w logice domenowej.
-3. **Historia jest niezmienna.** Przeliczniki użyte przy księgowaniu zapisują się
+4. **Historia jest niezmienna.** Przeliczniki użyte przy księgowaniu zapisują się
    w dokumencie (kolumny `factor_*`). Zmiana ustawień nigdy nie przelicza dokumentów
    już zaksięgowanych.
 

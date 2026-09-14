@@ -493,6 +493,64 @@ i przywrócenie placu dają po jednym żądaniu (przed poprawką: 1 i 2).
 
 ---
 
+## 9. Program obiecywał pracę bez sieci i sięgał po kroje do Google
+
+Znalezione przy weryfikacji przeglądarkowej administracji magazynami —
+w konsoli, obok właściwej usterki: `ERR_CONNECTION_RESET` przy
+`fonts.googleapis.com`.
+
+### Czym jest problem
+
+`web/index.html` oraz generator wersji jednoplikowej linkowały Inter
+i IBM Plex Mono z `fonts.googleapis.com`. Dwa skutki, oba niedobre:
+
+* **Bez internetu** interfejs spadał na kroje systemowe. To nie jest sama
+  estetyka: inne szerokości znaków zmieniają rytm tabel i szerokości kolumn
+  liczb, a system wdraża się na komputerze w firmie, który wcale nie musi mieć
+  sieci. Wersja jednoplikowa obiecywała działanie bez sieci **wprost**,
+  we własnej dokumentacji.
+* **Z internetem** program wysyłał adres IP firmy do Google przy każdym
+  otwarciu, bez żadnej korzyści dla użytkownika.
+
+### Dlaczego zawodzi
+
+Odwołanie do CDN-u jest wygodne przy aplikacji webowej i zostało przeniesione
+z prototypu bez zastanowienia, czy pasuje do wdrożenia on-premise. Reguła
+„zero zależności produkcyjnych” była pilnowana po stronie serwera (`node_modules`)
+i przeoczona po stronie klienta, choć jej powód — instalacja na komputerze
+odciętym od świata — dotyczy obu warstw tak samo.
+
+### Naprawiony kod
+
+Kroje wendorowane do `web/assets/fonts/` skryptem `tools/vendor-fonts.mjs`
+(`npm run vendor:fonts`), oba na licencji SIL OFL 1.1, z treścią licencji obok
+plików. Wersja jednoplikowa wkleja je jako `data:`.
+
+Dwie decyzje warte zapamiętania, bo obie łatwo zepsuć przy aktualizacji:
+
+1. **Pięć reguł `@font-face` na jeden plik.** Inter jest krojem zmiennym.
+   Arkusz używa wag pośrednich (650, 680), które przy regułach jednowagowych
+   zaokrąglają się do 700 — i tak wyglądały dotąd. Jedna reguła z zakresem
+   `font-weight: 400 800` narysowałaby je dosłownie i zmieniła typografię.
+2. **Tylko podzbiory `latin` i `latin-ext`.** Polskie znaki diakrytyczne
+   mieszczą się w tych dwóch; cyrylica, greka i wietnamski byłyby balastem,
+   w wersji jednoplikowej dodatkowo spuchniętym przez base64.
+
+Skrypt odsiewa duplikaty po skrócie treści (Google oddaje ten sam plik pod
+pięcioma regułami) — bez tego same kroje ważyłyby 708 kB zamiast 187 kB.
+
+### Weryfikacja
+
+Wersja jednoplikowa uruchomiona z `file://` przy **całkowicie odciętej sieci**
+(tryb offline przeglądarki plus przerywanie każdego żądania spoza `file://`):
+zero prób wyjścia na zewnątrz, wszystkie siedem wag dostępnych, polski tekst
+mierzony w Interze, a nie w kroju zapasowym (261,34 px wobec 252,86 px).
+Wagi 650 i 680 dają szerokość identyczną z 700 — typografia bez zmian.
+Metryki siedmiu próbek tekstu zgodne co do setnej piksela między wersją
+sieciową a jednoplikową.
+
+---
+
 ## Sprawdzone bez zastrzeżeń: zaokrąglenia kwot
 
 Osobny skrypt porównał wartości liczone przez system z liczeniem w pełnej

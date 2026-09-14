@@ -21,6 +21,7 @@
     "test:watch": "node --disable-warning=ExperimentalWarning --test --watch \"server/tests/*.test.mjs\"",
     "build:icon": "node desktop/make-icon.mjs",
     "build:html": "node standalone/build.mjs",
+    "vendor:fonts": "node tools/vendor-fonts.mjs",
     "build:installer": "node desktop/make-icon.mjs && node desktop/build-zip.mjs",
     "check": "node --check server/src/index.js"
   }

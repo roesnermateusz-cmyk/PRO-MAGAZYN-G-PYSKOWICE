@@ -58,8 +58,11 @@ Rozważana alternatywa — przepisanie księgowania dokumentów i raportów nad
 tablicami JavaScriptu — została odrzucona świadomie. Dwa silniki liczące te same
 salda rozjeżdżają się prędzej czy później, a rozjazd w systemie magazynowym
 oznacza dwa różne stany magazynu i żadnego sposobu, żeby rozstrzygnąć, który
-jest prawdziwy. Cena tej decyzji to 1,5 MB pliku zamiast 350 kB oraz jeden
+jest prawdziwy. Cena tej decyzji to 2,5 MB pliku zamiast 350 kB oraz jeden
 składnik zewnętrzny (sql.js, licencja MIT). Uznaliśmy ją za tanią.
+
+Na te 2,5 MB składa się silnik SQLite w base64 (859 kB), kod aplikacji
+i 187 kB krojów pisma wklejonych jako `data:` — plik nie sięga po nic z sieci.
 
 ```
                     wspólne (bez zmian)
@@ -213,9 +216,14 @@ bazy zmienia wynik — i jest błędem blokującym wydanie.
 | Jedna karta naraz | jedna baza = jedno połączenie | aplikacja mówi wprost, gdy magazyn jest zajęty |
 | Brak logowania | patrz punkt 5 | szyfrowanie dysku + kopie zapasowe |
 | Kopie nie są widoczne w aplikacji | pobrany plik trafia tam, gdzie przeglądarka zapisuje pobrania | lista kopii jest pusta i nie udaje, że jest inaczej |
-| Rozmiar pliku 1,5 MB | silnik SQLite wklejony w base64 | świadoma cena za jeden silnik zamiast dwóch |
+| Rozmiar pliku 2,5 MB | silnik SQLite i kroje pisma wklejone w base64 | świadoma cena za jeden silnik zamiast dwóch i za wygląd bez sieci |
 | Pierwsze uruchomienie trwa chwilę | kompilacja WebAssembly | kolejne są natychmiastowe |
-| Kroje pisma z sieci | plik linkuje Inter i IBM Plex Mono | bez sieci system podstawia własny krój; układ się nie zmienia |
+
+Kroje pisma **nie są** już na tej liście. Do wersji 1.0 plik linkował Inter
+i IBM Plex Mono z `fonts.googleapis.com`, co przeczyło jego własnej obietnicy:
+bez sieci interfejs spadał na kroje systemowe, a z siecią wysyłał adres IP
+firmy do Google przy każdym otwarciu. Oba kroje (SIL OFL 1.1) leżą teraz
+w `web/assets/fonts/` i wchodzą do pliku jako `data:`.
 
 ---
 

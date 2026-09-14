@@ -483,3 +483,15 @@ Każdy plik testowy pracuje na własnej bazie w katalogu tymczasowym.
 MIT — patrz [LICENSE](LICENSE).
 
 © 2026 Mateusz Roesner / ResInvest Commodities PL
+
+### Składniki zewnętrzne
+
+System nie ma zależności produkcyjnych z npm ani nie sięga do sieci podczas
+pracy. Trzy składniki zewnętrzne leżą wprost w repozytorium, razem z treścią
+swoich licencji:
+
+| Składnik | Rola | Licencja | Gdzie |
+|---|---|---|---|
+| Inter | krój tekstu interfejsu | SIL OFL 1.1 | `web/assets/fonts/OFL-Inter.txt` |
+| IBM Plex Mono | krój liczb, kodów i znaczników | SIL OFL 1.1 | `web/assets/fonts/OFL-IBM-Plex.txt` |
+| sql.js | SQLite w WebAssembly — tylko wersja jednoplikowa | MIT | `standalone/vendor/LICENSE-sql.js.txt` |

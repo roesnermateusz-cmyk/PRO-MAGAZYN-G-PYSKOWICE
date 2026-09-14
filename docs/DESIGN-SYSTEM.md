@@ -214,6 +214,24 @@ Jeden kierunkowy wypełniacz, wyłącznie pod kątem 45° i lustrzanym 135°, w 
 własnej rampy. Uruchamia go ustawienie dostępności, wydruk albo tryb wymuszonych
 kolorów. **Nigdy nie jest włączona domyślnie i nigdy nie jest ozdobą.**
 
+### 2.9a Skąd biorą się kroje
+
+Inter (tekst) i IBM Plex Mono (liczby, kody, znaczniki) leżą **w repozytorium**,
+w `web/assets/fonts/`, na licencji SIL OFL 1.1. Nie ma odwołania do
+`fonts.googleapis.com` ani do żadnego innego serwera: program pracuje na
+komputerze w firmie i musi wyglądać tak samo bez internetu.
+
+Jedna rzecz jest tu nieoczywista i łatwo ją zepsuć. Inter jest krojem
+**zmiennym**, ale arkusz opisuje go **pięcioma regułami `@font-face`**, po
+jednej na wagę (400, 500, 600, 700, 800). To celowe: interfejs używa miejscami
+wag pośrednich (`650`, `680`), a przeglądarka dobiera do nich regułę
+o najbliższej dostępnej wadze — czyli 700, i tak je rysuje. Zwinięcie tego
+w jedną regułę z zakresem `font-weight: 400 800` sprawiłoby, że krój zmienny
+narysowałby 650 i 680 dosłownie, i **typografia całego systemu by się zmieniła**.
+
+Aktualizacja krojów: `npm run vendor:fonts`, potem `npm run build:html`.
+Szczegóły i treść licencji: `web/assets/fonts/README.md`.
+
 ### 2.10 Typografia liczb
 
 Wszystko — z liczbą wiodącą włącznie — stoi w Interze, tym samym, co reszta
