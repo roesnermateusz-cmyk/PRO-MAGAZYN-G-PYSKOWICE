@@ -19,6 +19,7 @@ import { uuid } from '../../lib/crypto.js';
 import { validate } from '../../lib/validate.js';
 import { NotFoundError, ConflictError, ValidationError } from '../../lib/errors.js';
 import { auditChange } from '../../middleware/audit.js';
+import { registerLabels } from '../../domain/field-labels.js';
 
 /* ============================ Narzędzia wspólne ========================= */
 
@@ -108,6 +109,11 @@ function createCatalog(spec) {
     table, label, schema, columns, toApi, naturalKey = 'name',
     codePrefix = '', orderBy = 'name', insertDefaults = {}, beforeWrite,
   } = spec;
+
+  // Polskie nazwy pól idą do wspólnego rejestru, żeby historia zmian pokazała
+  // „Przelicznik MP → tona”, a nie `mpToTonne`. Robi to fabryka, więc nowa
+  // kartoteka jest czytelna w dzienniku bez dopisywania czegokolwiek.
+  registerLabels(table, schema, { isActive: 'Aktywny' });
   const keyColumn = columns[naturalKey] ?? naturalKey;
   const hasCode = 'code' in columns;
 
@@ -408,6 +414,16 @@ vehicles.listWithCarrier = ({ includeInactive = false } = {}) => db.all(
 }));
 
 /* ==================== Nadleśnictwa i leśnictwa ========================= */
+
+registerLabels('forest_districts', {}, {
+  name: 'Nadleśnictwo', region: 'RDLP', isActive: 'Aktywny',
+});
+registerLabels('forest_ranges', {}, {
+  name: 'Leśnictwo', districtId: 'Nadleśnictwo', isActive: 'Aktywny',
+});
+registerLabels('loading_places', {}, {
+  name: 'Miejsce załadunku', address: 'Adres', isActive: 'Aktywny',
+});
 
 export const forest = {
   listDistricts({ includeInactive = false } = {}) {

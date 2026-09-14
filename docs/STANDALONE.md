@@ -225,6 +225,20 @@ bez sieci interfejs spadał na kroje systemowe, a z siecią wysyłał adres IP
 firmy do Google przy każdym otwarciu. Oba kroje (SIL OFL 1.1) leżą teraz
 w `web/assets/fonts/` i wchodzą do pliku jako `data:`.
 
+### Archiwalne prototypy w `legacy/`
+
+`legacy/standalone-v8.html` i `legacy/standalone-v9.html` to poprzednicy tej
+wersji, sprzed obecnej architektury. Zostają w repozytorium w **niezmienionym,
+historycznym stanie** — jako zapis tego, skąd wyszedł projekt.
+
+Nie stosują się do nich dzisiejsze zasady: mają własny, odrębny silnik liczący
+(to właśnie od niego odeszliśmy) i sięgają po kroje pisma do
+`fonts.googleapis.com`. Nie są budowane, serwowane ani pakowane do instalatora.
+Poprawianie ich pod aktualne wymagania mijałoby się z celem — archiwum, które
+się retuszuje, przestaje być archiwum.
+
+Jedyna obowiązująca wersja jednoplikowa to `dist/ResInvestERP.html`.
+
 ---
 
 ## 10. Usterki wykryte przy budowie tej wersji

@@ -53,6 +53,8 @@ export const ICONS = {
   logout: icon('logout', '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'),
   clip: icon('clip', '<path d="M21.4 11.05 12.2 20.3a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/>'),
   calendar: icon('calendar', '<rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M3 10h18M8 2.5v4M16 2.5v4"/>'),
+  // Zegar ze strzałką cofania — historia zmian.
+  history: icon('history', '<path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v5h5"/><path d="M12 8v4.5l3 1.8"/>'),
   truck: icon('truck', '<path d="M2 16V6a1 1 0 0 1 1-1h11v11"/><path d="M14 9h4l3 3.5V16h-2"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/>'),
   file: icon('file', '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/>'),
   tree: icon('tree', '<path d="M12 3 6.5 11h3L5 17h14l-4.5-6h3L12 3Z"/><path d="M12 17v4"/>'),

@@ -11,6 +11,7 @@ import { ConflictError, NotFoundError, ValidationError, ForbiddenError } from '.
 import { ROLES } from '../../middleware/auth.js';
 import { publicUser } from '../auth/auth.service.js';
 import { auditChange } from '../../middleware/audit.js';
+import { registerLabels } from '../../domain/field-labels.js';
 
 /**
  * Stan konta w formie trafiającej do dziennika audytu.
@@ -35,6 +36,10 @@ const USER_SCHEMA = {
   isActive: { type: 'bool', default: true, label: 'Aktywny' },
   mustChangePassword: { type: 'bool', default: true, label: 'Wymuś zmianę hasła' },
 };
+
+// `haslo` nie jest polem schematu — do dziennika trafia sam fakt zmiany
+// (patrz `updateUser`), więc etykietę trzeba ogłosić osobno.
+registerLabels('users', USER_SCHEMA, { haslo: 'Hasło' });
 
 export function listUsers({ includeInactive = true } = {}) {
   const rows = db.all(

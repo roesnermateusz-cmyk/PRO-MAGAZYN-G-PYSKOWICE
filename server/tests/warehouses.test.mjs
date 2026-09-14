@@ -247,8 +247,10 @@ test('zmiana przypisania trafia do audytu z wartością przed i po', () => {
   const wpis = listAudit({ entity: 'user_warehouses', limit: 5 }).items[0];
   assert.equal(wpis.action, 'UPDATE');
   assert.equal(wpis.entityId, rokitkiUser.id);
-  assert.deepEqual(wpis.detail.zmiany.magazyny.przed, ['RiC Rokitki']);
-  assert.deepEqual(wpis.detail.zmiany.magazyny.po, ['RiC Brąszewice', 'RiC Rokitki']);
+  const magazyny = wpis.changes.find((c) => c.field === 'magazyny');
+  assert.deepEqual(magazyny.before, ['RiC Rokitki']);
+  assert.deepEqual(magazyny.after, ['RiC Brąszewice', 'RiC Rokitki']);
+  assert.equal(magazyny.label, 'Magazyny konta', 'historia ma być czytelna bez znajomości kluczy API');
   assert.ok(wpis.timestamp, 'wpis ma znacznik czasu');
   assert.equal(wpis.user, adminCtx.user.email, 'wpis wskazuje, kto zmienił');
 
@@ -259,7 +261,10 @@ test('zamknięcie placu trafia do audytu', () => {
   access.deactivateWarehouse(braszewice.id, adminCtx);
   const wpis = listAudit({ entity: 'warehouses', limit: 5 }).items[0];
   assert.equal(wpis.action, 'DEACTIVATE');
-  assert.deepEqual(wpis.detail.zmiany.aktywny, { przed: true, po: false });
+  assert.deepEqual(
+    wpis.changes.find((c) => c.field === 'aktywny'),
+    { field: 'aktywny', label: 'Aktywny', before: true, after: false },
+  );
   assert.equal(wpis.detail.magazyn, 'RiC Brąszewice');
   access.activateWarehouse(braszewice.id, adminCtx);
 });

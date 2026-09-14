@@ -158,6 +158,53 @@ nadal w porządku — taki węzeł ginie razem z uchwytem przy najbliższym
 Dwa uchwyty na ten sam typ i selektor w jednym kontenerze są odtąd niemożliwe.
 Jeśli widok naprawdę potrzebuje dwóch reakcji, składa je w jednym uchwycie.
 
+### 4.4 Wydruk: kartka musi bronić się sama
+
+Pięć zestawień wychodzi na papier i do PDF: **historia zmian, rejestr
+dokumentów, pojedynczy dokument, stany magazynowe, kwit produkcji dnia**.
+
+Każde z nich renderuje `printHeader({ title, scope, note })` z `core/ui.js` —
+blok niewidoczny na ekranie (`.print-head { display: none }`), pokazywany
+dopiero w `@media print`. Niesie nazwę i adres firmy, tytuł zestawienia, **opis
+zakresu słowami** (okres, magazyn, filtry), datę wydruku i kto go sporządził.
+
+Powód jest prozaiczny: wydruk stanu magazynu bez tego nagłówka to anonimowa
+tabela liczb. Nie wiadomo, czyja, na jaki dzień, z którego placu ani kto ją
+wyciągnął — a właśnie taka kartka trafia do segregatora i do kontroli.
+
+Opis zakresu musi być zdaniem, nie zrzutem obiektu filtrów. „okres: pełny
+rejestr · magazyn: RiC Zabrze · tylko zaksięgowane” czyta każdy; `{"status":
+"POSTED"}` nie czyta nikt.
+
+Arkusz wydruku dokłada rzeczy, o których łatwo zapomnieć: `thead` powtarzany
+na każdej stronie (`display: table-header-group`), zakaz łamania wierszy
+w poprzek stron, marginesy `@page` i klasę `.no-print` dla podpowiedzi, które
+na papierze są szumem.
+
+Numeracja stron zostaje po stronie przeglądarki — liczniki w polach
+marginesowych `@page` nie są w Chrome wspierane, a udawanie ich JavaScriptem
+dałoby numery rozjeżdżające się z rzeczywistym łamaniem.
+
+### 4.5 Próba obchodząca wszystkie trasy
+
+Front nie ma kroku budowania ani sprawdzania typów, więc **nie ma etapu, na
+którym błąd wykonania ma prawo wyjść przed użytkownikiem**. Podgląd dokumentu
+był z tego powodu niedostępny przez trzy wersje (usterka 10 w `DEBUGGING.md`):
+migracja zgubiła `on` z importu, składnia została poprawna, a widok wywracał
+się dopiero przy kliknięciu.
+
+Przed wydaniem obchodzimy więc **wszystkie trasy** — łącznie z widokami
+szczegółowymi (`#/operacje/:id`, `#/nowa?id=…`), zakładkami kartotek
+i zakładkami raportów — i żądamy, żeby każda:
+
+* wyrenderowała treść (nie sam komunikat błędu widoku),
+* nie zostawiła **ani jednego** wpisu w konsoli błędów.
+
+Próba jest pisana doraźnie w katalogu roboczym sesji (Playwright,
+`executablePath: '/opt/pw-browsers/chromium'`), zgodnie z zasadą, że testów
+przeglądarkowych nie trzymamy w repozytorium. Statyczną połowę problemu —
+import nazwy, której moduł nie eksportuje — łapie `npm run check`.
+
 ---
 
 ## 5. Projektowanie propsów

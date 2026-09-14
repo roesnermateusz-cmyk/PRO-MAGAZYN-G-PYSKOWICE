@@ -1,4 +1,9 @@
-/** Zarządzanie kontami użytkowników i podgląd dziennika audytu. */
+/**
+ * Zarządzanie kontami: role, stan konta i przypisanie do magazynów.
+ *
+ * Historia zmian ma własny widok (`views/history.js`) — czytają ją także
+ * audytor i księgowość, czyli role bez wglądu w kartotekę kont.
+ */
 import api from '../core/api.js';
 import { esc, on, options, formValues, markFieldErrors } from '../core/dom.js';
 import { dateTime } from '../core/format.js';
@@ -16,8 +21,6 @@ const ROLE_HINTS = {
   AUDYTOR: 'Wyłącznie odczyt — kontrola i certyfikacja.',
 };
 
-const state = { tab: 'konta' };
-
 export async function renderUsers(view) {
   view.innerHTML = loading('Wczytywanie kont…');
   await refresh(view);
@@ -25,17 +28,16 @@ export async function renderUsers(view) {
 
 async function refresh(view) {
   const manage = can('users:write');
-  const head = pageHead('Użytkownicy', 'Konta, role i dziennik audytu',
-    manage ? `<button class="btn btn-primary" data-act="add">${ICONS.plus} Nowe konto</button>` : '')
-    + `<div class="chips">
-        <button data-tab="konta" class="${state.tab === 'konta' ? 'on' : ''}">Konta</button>
-        <button data-tab="audyt" class="${state.tab === 'audyt' ? 'on' : ''}">Dziennik audytu</button>
-      </div>`;
+  // Dziennik audytu miał tu kiedyś własną zakładkę, która wypisywała surowy
+  // JSON w jednej komórce. Zastąpił ją pełny widok „Historia zmian”
+  // z filtrami, porównaniem przed/po i wydrukiem — drugi, gorszy widok tych
+  // samych danych tylko dzieliłby uwagę i rozjeżdżał się z tamtym.
+  const head = pageHead('Użytkownicy', 'Konta i role',
+    manage ? `<button class="btn btn-primary" data-act="add">${ICONS.plus} Nowe konto</button>` : '');
 
   view.innerHTML = head + loading();
-  view.innerHTML = head + (state.tab === 'konta' ? await accountsTab(manage) : await auditTab());
+  view.innerHTML = head + await accountsTab(manage);
 
-  on(view, 'click', '[data-tab]', (el) => { state.tab = el.dataset.tab; refresh(view); });
   view.querySelector('[data-act="add"]')?.addEventListener('click', () => openUserForm(view, null));
   on(view, 'click', '[data-wh-user]', (el) => openWarehouseForm(view, el.dataset.whUser, el.dataset.name));
   on(view, 'click', '[data-edit-user]', (el) => openUserForm(view, JSON.parse(el.dataset.user)));
@@ -73,24 +75,6 @@ async function accountsTab(manage) {
       </table></div>
       ${items.length ? '' : empty('Brak kont')}
     </div></div>`;
-}
-
-async function auditTab() {
-  const { items, total } = await api.get('/audit', { limit: 200 });
-  return `<div class="card">
-    <div class="card-h"><h2>Dziennik audytu</h2><span class="sub">${total} zdarzeń · pokazano ostatnie ${items.length}</span></div>
-    <div class="card-b flush"><div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th>Czas</th><th>Użytkownik</th><th>Akcja</th><th>Obiekt</th><th>Adres IP</th><th>Szczegóły</th></tr></thead>
-      <tbody>${items.map((a) => `<tr>
-        <td style="white-space:nowrap;font-size:12px">${dateTime(a.timestamp)}</td>
-        <td style="font-size:12px">${esc(a.user || 'system')}</td>
-        <td><span class="tag ${/FAILED|CANCEL|DELETE/.test(a.action) ? 'CANCELLED' : 'OPEN'}">${esc(a.action)}</span></td>
-        <td style="font-size:12px">${esc(a.entity)}</td>
-        <td style="font-family:var(--font-mono);font-size:11px">${esc(a.ip || '—')}</td>
-        <td class="ellip" style="font-size:11px;color:var(--ink-2)">${esc(a.detail ? JSON.stringify(a.detail) : '')}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>${items.length ? '' : empty('Dziennik jest pusty')}</div>
-  </div>`;
 }
 
 function openUserForm(view, user) {

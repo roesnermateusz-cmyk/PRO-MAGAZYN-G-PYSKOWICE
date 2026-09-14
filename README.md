@@ -355,6 +355,14 @@ PRO-MAGAZYN-G-PYSKOWICE/
 └── data/                       runtime: baza, skany, kopie, logi (poza repo)
 ```
 
+> **`legacy/` to archiwum, nie część systemu.** Leżą tam prototypy sprzed
+> obecnej architektury (`standalone-v8.html`, `standalone-v9.html`), zachowane
+> w niezmienionym, historycznym stanie. Nie są budowane, serwowane ani pakowane
+> do instalatora i **nie obowiązują ich dzisiejsze zasady projektu** — potrafią
+> zawierać dawne zależności zewnętrzne, w tym kroje pisma z `fonts.googleapis.com`.
+> Nie otwieraj ich w celach roboczych; aktualna wersja jednoplikowa to
+> `dist/ResInvestERP.html`.
+
 ---
 
 ## 8. Konfiguracja

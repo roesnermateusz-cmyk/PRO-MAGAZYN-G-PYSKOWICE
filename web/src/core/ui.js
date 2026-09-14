@@ -1,6 +1,10 @@
 /** Wspólne elementy interfejsu: powiadomienia, modale, nagłówki, tabele. */
 import { esc, $ } from './dom.js';
 import { ICONS } from '../components/icons.js';
+// Główka wydruku potrzebuje nazwy firmy i zalogowanego użytkownika.
+// Kierunek importu jest bezpieczny: `store` zależy od `api`, a `api` od
+// `warehouse` — żaden z nich nie sięga z powrotem po warstwę interfejsu.
+import { store } from './store.js';
 
 /* ---------------------------- Powiadomienia --------------------------- */
 
@@ -118,6 +122,47 @@ export function pageHead(title, crumb, actions = '') {
   return `<div class="page-head">
     <div><div class="crumb">${esc(crumb)}</div><h1>${esc(title)}</h1></div>
     <div class="page-actions">${actions}</div>
+  </div>`;
+}
+
+/**
+ * Główka wydruku — widoczna WYŁĄCZNIE na papierze i w PDF.
+ *
+ * Kartka wyjęta z drukarki musi bronić się sama. Bez tego nagłówka wydruk
+ * stanu magazynu to anonimowa tabela liczb: nie wiadomo, czyja, na jaki
+ * dzień, z jakiego magazynu ani kto ją wyciągnął — a właśnie taka kartka
+ * trafia do segregatora i do kontroli.
+ *
+ * Data wydruku jest zapisywana w chwili renderowania widoku, nie w chwili
+ * naciśnięcia „Drukuj”. Różnica to sekundy i nie ma znaczenia praktycznego,
+ * a pozwala trzymać nagłówek zwykłym HTML-em zamiast dopisywać go do drzewa
+ * tuż przed `window.print()`.
+ *
+ * @param {object} opts
+ * @param {string} opts.title nazwa wydruku („Stany magazynowe”)
+ * @param {string} [opts.scope] zakres: okres, magazyn, filtry
+ * @param {string} [opts.note] dodatkowy wiersz (np. numer dokumentu)
+ */
+export function printHeader({ title, scope = '', note = '' }) {
+  const firma = store.meta?.company ?? {};
+  const kto = store.user?.fullName || store.user?.email || '—';
+  const kiedy = new Date().toLocaleString('pl-PL', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+  return `<div class="print-head">
+    <div class="ph-top">
+      <div>
+        <div class="ph-firma">${esc(firma.name ?? 'ResInvest Commodities')}</div>
+        ${firma.address ? `<div class="ph-adres">${esc(firma.address)}</div>` : ''}
+      </div>
+      <div class="ph-meta">
+        <div>Wydruk: ${esc(kiedy)}</div>
+        <div>Sporządził: ${esc(kto)}</div>
+      </div>
+    </div>
+    <h2 class="ph-tytul">${esc(title)}</h2>
+    ${scope ? `<div class="ph-zakres">${esc(scope)}</div>` : ''}
+    ${note ? `<div class="ph-zakres">${esc(note)}</div>` : ''}
   </div>`;
 }
 

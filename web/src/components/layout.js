@@ -29,6 +29,7 @@ export const NAV = [
   { group: 'Kartoteki i kontrola' },
   { id: 'kartoteki', label: 'Kartoteki', icon: 'book', perm: 'catalog:read' },
   { id: 'korekty', label: 'Korekty', icon: 'edit', perm: 'corrections:read' },
+  { id: 'historia', label: 'Historia zmian', icon: 'history', perm: 'audit:read' },
   { id: 'okresy', label: 'Okresy', icon: 'calendar', perm: 'periods:read' },
   { group: 'System' },
   { id: 'uzytkownicy', label: 'Użytkownicy', icon: 'users', perm: 'users:read' },

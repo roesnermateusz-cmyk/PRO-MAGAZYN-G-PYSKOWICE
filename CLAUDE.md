@@ -33,7 +33,7 @@ npm run seed:reset         # czyści rejestr i generuje od nowa
 npm run user:create        # konto użytkownika z wiersza poleceń
 npm run backup             # kopia zapasowa bazy
 npm test                   # 119 testów (node:test)
-npm run check              # kontrola składni bez uruchamiania
+npm run check              # składnia serwera + zgodność importów frontu
 npm run build:installer    # ikona .ico + pakiet dist/ResInvest-ERP-<wersja>.zip
 npm run build:html         # wersja jednoplikowa → dist/ResInvestERP.html
 npm run vendor:fonts       # ponowne pobranie krojów do web/assets/fonts/
@@ -144,6 +144,23 @@ mieć w dzienniku autora.
 **Skrót hasła nie ma prawa trafić do dziennika.** Notowany jest sam fakt zmiany
 (`haslo: poprzednie → nowe`) i musi siedzieć **wewnątrz** porównania stanów:
 wpis bez żadnej zmiany jest pomijany, więc dopisek obok zniknąłby razem z nim.
+
+### Historia zmian i wydruki
+
+Widok `web/src/views/history.js` (`#/historia`, uprawnienie `audit:read`)
+pokazuje cały dziennik z porównaniem przed/po. **Etykiety pól przychodzą
+z serwera** — `listAudit` rozwija `zmiany` w `changes: [{field, label,
+before, after}]`, a `label` bierze się z `domain/field-labels.js`, zasilanego
+schematami walidacji. Widok nie ma własnego słownika nazw pól i mieć nie ma.
+
+`audit:read` jest osobne od `users:read`: historię czytają audytor
+i księgowość, które kartoteki kont nie widzą.
+
+Pięć wydruków (historia, rejestr, dokument, stany, kwit produkcji) używa
+`printHeader()` z `core/ui.js` — bloku widocznego **wyłącznie** na papierze,
+z nazwą firmy, zakresem opisanym słowami, datą i autorem wydruku.
+Dokładając szósty wydruk, dołóż i główkę: kartka bez niej to anonimowa tabela
+liczb. Szczegóły: `docs/FRONTEND.md`, punkty 4.4 i 4.5.
 
 ### Warstwa dostępu do bazy
 

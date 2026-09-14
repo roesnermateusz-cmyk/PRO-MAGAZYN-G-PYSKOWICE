@@ -551,6 +551,61 @@ sieciową a jednoplikową.
 
 ---
 
+## 10. Podgląd dokumentu niedostępny od trzech wersji
+
+Znalezione przy budowaniu wydruku dokumentu — jednego z pięciu wymaganych.
+
+### Czym jest problem
+
+Kliknięcie „Podgląd dokumentu” w rejestrze kończyło się komunikatem
+**„Nie udało się otworzyć widoku — on is not defined”**. Nie działało nic, co
+za tym stoi: podgląd danych dokumentu, lista załączników, wydruk, storno
+z poziomu dokumentu. Usterka siedziała w repozytorium od commitu 17c796b,
+czyli od migracji widoków na komponenty.
+
+### Dlaczego zawodzi
+
+Migracja przepisała `renderOperations` na `createListScreen` i przy okazji
+przycięła import:
+
+```js
+import { esc } from '../core/dom.js';        // było: { esc, on }
+```
+
+`renderOperationDetail` — funkcja w TYM SAMYM pliku, nietknięta migracją —
+woła `on(view, 'click', '[data-att]', …)` przy podpinaniu podglądu załączników.
+Składnia pozostała poprawna, więc `node --check` niczego nie zauważył. Testy
+serwerowe nie dotykają przeglądarki, a testów przeglądarkowych dla tej ścieżki
+nie było.
+
+To najdroższa cecha frontu bez kroku budowania: **nie ma etapu, na którym taki
+błąd ma prawo wyjść** przed użytkownikiem.
+
+### Naprawiony kod
+
+Import przywrócony. Ale sama poprawka nie zamyka sprawy — zamyka ją to, że
+usterka zostałaby wykryta następnym razem:
+
+* `npm run check` obejmuje teraz `tools/check-frontend.mjs`, który sprawdza
+  zgodność **importów z eksportami** i istnienie plików źródłowych. Kontrola
+  celowo NIE zgaduje, czy użyta nazwa jest zadeklarowana — to wymaga analizy
+  zakresów, a wyrażeniami regularnymi wychodzi z tego sito mylące treść
+  szablonów HTML z kodem. Narzędzie, które krzyczy fałszywie, przestaje być
+  czytane;
+* właściwym miejscem na błędy WYKONANIA jest próba przeglądarkowa obchodząca
+  wszystkie trasy aplikacji i pilnująca pustej konsoli. Osiemnaście tras plus
+  zakładki raportów — dokładnie ta próba pokazała usterkę i ona pilnuje, żeby
+  nie wróciła.
+
+### Wniosek szerszy
+
+Migracja, która przepisuje jedną funkcję w pliku i zostawia drugą, jest dokładnie
+tym momentem, w którym import przestaje pasować do treści. Warto po takiej
+zmianie przejść widoki ręcznie albo automatem — a nie zakładać, że zielone testy
+serwera cokolwiek mówią o przeglądarce.
+
+---
+
 ## Sprawdzone bez zastrzeżeń: zaokrąglenia kwot
 
 Osobny skrypt porównał wartości liczone przez system z liczeniem w pełnej

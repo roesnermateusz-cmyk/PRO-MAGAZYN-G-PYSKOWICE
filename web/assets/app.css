@@ -342,6 +342,37 @@ table.tbl tr.cancelled td { opacity: .55; text-decoration: line-through; }
   margin-left: auto; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2);
   background: var(--surface); border: 1px solid var(--line); border-radius: 99px; padding: 5px 12px;
 }
+/* Etykieta przyklejona do pola w pasku narzędzi („od [data]”, „do [data]”). */
+.fld-inline {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-2);
+}
+.fld-inline input { min-width: 0; }
+
+/* --------------------- Historia zmian: przed → po --------------------- */
+
+/* Kolumna „co się zmieniło” bywa kilkuwierszowa, a przy wielu polach naraz
+   musi zostać czytelna także na papierze — stąd siatka zamiast zdania. */
+.zmiany { display: flex; flex-direction: column; gap: 3px; }
+/* Wiersz zmiany trzyma się kupy: etykieta ma stałą kolumnę, żeby pola pod
+   sobą się wyrównały, ale wartości nie rozjeżdżają się na całą szerokość —
+   „przed” i „po” mają stać obok siebie, bo czyta się je jako jedną parę. */
+.zmiana {
+  display: grid; grid-template-columns: minmax(80px, max-content) auto auto auto;
+  justify-content: start; gap: 4px 8px; align-items: baseline; font-size: 11.5px;
+}
+.zmiana .z-pole { font-weight: 600; color: var(--ink-2); }
+.zmiana .z-przed { color: var(--neg); text-decoration: line-through; text-decoration-thickness: 1px; }
+.zmiana .z-strzalka { color: var(--ink-3); }
+.zmiana .z-po { color: var(--pos); font-weight: 600; }
+
+/* Odsyłacz w tabeli: wygląda jak odnośnik, zachowuje się jak przycisk. */
+.btn-link {
+  background: none; border: 0; padding: 0; font: inherit; font-size: 11.5px;
+  color: var(--spruce); text-decoration: underline; cursor: pointer;
+}
+.btn-link:hover { color: var(--moss); }
+
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .chips button {
   padding: 6px 13px; border-radius: 99px; border: 1px solid var(--line-2);
@@ -532,6 +563,10 @@ table.tbl tr.cancelled td { opacity: .55; text-decoration: line-through; }
 
 /* ------------------------------ Wydruk -------------------------------- */
 
+/* Główka wydruku istnieje w drzewie zawsze, ale na ekranie jest zbędna —
+   pokazuje ją dopiero `@media print`. */
+.print-head { display: none; }
+
 @media print {
   .sidebar, .tabbar, .tab-more, .sheet, .sheet-back, .mobile-top, .app-tools, .fab,
   .page-actions, .toolbar, .chips, .pager, .dt-cards { display: none !important; }
@@ -545,6 +580,26 @@ table.tbl tr.cancelled td { opacity: .55; text-decoration: line-through; }
   .calc-strip .l { color: #555; }
   .calc-strip .v { color: #111; }
   a { text-decoration: none; color: inherit; }
+
+  /* Kartka ma bronić się sama: czyja, co, na kiedy i kto ją sporządził. */
+  .print-head { display: block; margin-bottom: 14px; border-bottom: 2px solid #222; padding-bottom: 8px; }
+  .print-head .ph-top { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+  .print-head .ph-firma { font-weight: 700; font-size: 13px; }
+  .print-head .ph-adres { font-size: 10.5px; color: #444; }
+  .print-head .ph-meta { text-align: right; font-size: 10px; color: #444; white-space: nowrap; }
+  .print-head .ph-tytul { font-size: 16px; font-weight: 700; margin: 10px 0 2px; }
+  .print-head .ph-zakres { font-size: 10.5px; color: #333; }
+
+  /* Nagłówek tabeli powtarza się na każdej stronie — bez tego druga kartka
+     wydruku rejestru to kolumny liczb bez opisu. */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Sekcja, której nie warto drukować (podpowiedzi, przyciski w treści). */
+  .no-print { display: none !important; }
+
+  @page { margin: 14mm 12mm; }
 }
 
 /* ----------------------------- Responsywność -------------------------- */

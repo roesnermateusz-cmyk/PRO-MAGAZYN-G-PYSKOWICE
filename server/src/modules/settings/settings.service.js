@@ -9,6 +9,7 @@ import { validate } from '../../lib/validate.js';
 import { cache as responseCache, TAG } from '../../lib/cache.js';
 import { DEFAULT_FACTORS } from '../../domain/units.js';
 import { auditChange } from '../../middleware/audit.js';
+import { registerLabels } from '../../domain/field-labels.js';
 
 const DEFAULTS = Object.freeze({
   'units.m3_to_mp': DEFAULT_FACTORS.m3ToMp,
@@ -109,5 +110,7 @@ export function updateSettings(input, ctx) {
     Object.fromEntries(Object.keys(clean).map((k) => [k, after[k]])));
   return after;
 }
+
+registerLabels('settings', SCHEMA);
 
 export { DEFAULTS as SETTINGS_DEFAULTS, SCHEMA as SETTINGS_SCHEMA };

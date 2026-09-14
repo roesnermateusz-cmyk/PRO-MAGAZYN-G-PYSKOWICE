@@ -2,7 +2,9 @@
 import api from '../core/api.js';
 import { esc, on, options } from '../core/dom.js';
 import { qty, qty2, int, date, today } from '../core/format.js';
-import { pageHead, empty, loading, toast, toastError, docStamp, typeTag, alertBox, pileGauge } from '../core/ui.js';
+import {
+  pageHead, empty, loading, toast, toastError, docStamp, typeTag, alertBox, pileGauge, printHeader,
+} from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
 import { loadCatalog } from '../core/store.js';
 import { downloadHandler } from './_shared.js';
@@ -30,6 +32,14 @@ async function refresh(view, catalog) {
     `<button class="btn" data-act="csv">${ICONS.download} CSV</button>
      <button class="btn" data-act="print">${ICONS.print} Drukuj</button>`,
   )
+  + printHeader({
+    title: 'Stany magazynowe',
+    scope: `${state.warehouseId
+      ? `magazyn: ${catalog.warehouses.find((w) => w.id === state.warehouseId)?.name ?? state.warehouseId}`
+      : 'magazyny: wszystkie dostępne'}`
+      + ` · stan na dzień: ${state.date ? date(state.date) : date(today())}`,
+    note: `Pozycji: ${data.items.length} · razem ${qty(data.totals.qtyMp)} MP`,
+  })
   + (negative.length ? alertBox('warning',
       `Stany ujemne (${negative.length}): ${negative.map((n) => `${n.productName} ${qty(n.qtyMp)} MP`).join(', ')}. `
       + 'Sprawdź, czy nie brakuje dokumentu przyjęcia.') : '')

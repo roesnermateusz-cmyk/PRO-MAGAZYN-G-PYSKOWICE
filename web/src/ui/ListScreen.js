@@ -36,11 +36,14 @@ import { createPager } from './Pager.js';
  * @param {(data:any)=>{rows:any[], page?:object, status?:string, extra?:any}} spec.select
  *        wyciąga z odpowiedzi to, czego potrzebują komponenty
  * @param {(view:HTMLElement)=>void} [spec.onMount] dodatkowe podpięcia
+ * @param {(data:any, view:HTMLElement)=>void} [spec.onData] wołane po każdym
+ *   udanym pobraniu — dla fragmentów zależnych od danych i filtrów, które
+ *   nie należą do tabeli (np. główka wydruku)
  */
 export function createListScreen(spec) {
   const {
     title, subtitle = '', headerActions = '', filters, fields = [],
-    table, load, select, onMount = null,
+    table, load, select, onMount = null, onData = null,
   } = spec;
 
   let toolbar = null;
@@ -61,6 +64,11 @@ export function createListScreen(spec) {
       table.setRows(rows, extra);
       if (status !== undefined) toolbar?.setStatus(status);
       if (page) pager?.update(page);
+      // Zaczep po udanym pobraniu — dla fragmentów ekranu, które zależą od
+      // danych i od bieżących filtrów, a nie należą do samej tabeli
+      // (główka wydruku z opisem zakresu). `select` ma pozostać czystym
+      // przekształceniem, więc efekty uboczne mają własne miejsce.
+      onData?.(data, host);
     } catch (err) {
       if (mine !== token) return;
       table.setRows([]);

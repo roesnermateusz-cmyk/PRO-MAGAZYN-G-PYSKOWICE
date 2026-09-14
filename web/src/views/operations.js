@@ -7,10 +7,10 @@
  * komputerze i kartę na telefonie — bez drugiego szablonu.
  */
 import api from '../core/api.js';
-import { esc } from '../core/dom.js';
+import { esc, on } from '../core/dom.js';
 import { qty, qty2, money, moneyShort, date, dateTime, monthLabel } from '../core/format.js';
 import {
-  pageHead, loading, docStamp, typeTag,
+  pageHead, loading, docStamp, typeTag, printHeader,
   openModal, closeModal, confirmDialog, toast, toastError, showLightbox, alertBox,
 } from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
@@ -129,6 +129,7 @@ export async function renderOperations(view, params = {}) {
     title: 'Rejestr operacji',
     subtitle: 'Dokumenty PZ · WZ · PW · RW · MM · BO',
     headerActions: `<button class="btn" data-act="csv">${ICONS.download} Eksport CSV</button>`
+      + `<button class="btn" data-act="print">${ICONS.print} Drukuj</button>`
       + (can('operations:write') ? `<a href="#/nowa" class="btn btn-primary">${ICONS.plus} Dodaj</a>` : ''),
     filters,
     fields: [
@@ -161,7 +162,21 @@ export async function renderOperations(view, params = {}) {
       status: `${data.page.total} dokument(ów)`,
       extra: data.totals,
     }),
+    // Główka wydruku przeliczana przy każdym pobraniu — opis zakresu musi
+    // odpowiadać filtrom, z którymi wydruk faktycznie wychodzi na papier.
+    onData: (data, root) => {
+      root.querySelector('[data-print-head]').innerHTML = printHeader({
+        title: 'Rejestr dokumentów magazynowych',
+        scope: opisFiltrow(catalog),
+        note: `Dokumentów w zestawieniu: ${data.items.length} z ${data.page.total}`,
+      });
+    },
     onMount: (root) => {
+      // Miejsce na główkę tuż pod nagłówkiem strony, przed filtrami —
+      // na wydruku filtry i tak znikają, więc główka ląduje na samej górze.
+      root.querySelector('[data-ls-filters]')
+        .insertAdjacentHTML('beforebegin', '<div data-print-head></div>');
+      root.querySelector('[data-act="print"]').addEventListener('click', () => window.print());
       root.querySelector('[data-act="csv"]').addEventListener('click', downloadHandler(
         '/operations/export.csv', () => filters, 'rejestr-operacji.csv', 'Plik CSV został pobrany',
       ));
@@ -174,6 +189,24 @@ export async function renderOperations(view, params = {}) {
   });
 
   await screen.mount(view);
+}
+
+/**
+ * Filtry rejestru wypisane słowami — trafiają na wydruk, więc kartka musi
+ * tłumaczyć się sama: czego dotyczy zestawienie i czego w nim NIE ma.
+ */
+function opisFiltrow(catalog) {
+  const nazwa = (lista, id) => lista.find((x) => x.id === id)?.name ?? id;
+  const czesci = [];
+  czesci.push(filters.month ? `miesiąc: ${filters.month}` : 'okres: pełny rejestr');
+  if (filters.type) czesci.push(`typ: ${filters.type}`);
+  if (filters.productId) czesci.push(`produkt: ${nazwa(catalog.products, filters.productId)}`);
+  if (filters.warehouseId) czesci.push(`magazyn: ${nazwa(catalog.warehouses, filters.warehouseId)}`);
+  if (filters.chainRef) czesci.push(`łańcuch: ${filters.chainRef}`);
+  if (filters.q) czesci.push(`szukane: „${filters.q}”`);
+  const status = { POSTED: 'tylko zaksięgowane', CANCELLED: 'tylko anulowane', ALL: 'zaksięgowane i anulowane' };
+  czesci.push(status[filters.status] ?? filters.status);
+  return czesci.join(' · ');
 }
 
 /** Storno dokumentu — zawsze z uzasadnieniem trafiającym do audytu. */
@@ -211,6 +244,14 @@ export async function renderOperationDetail(view, id) {
      ${can('operations:cancel') && op.status === 'POSTED' ? '<button class="btn btn-danger" data-act="cancel">Storno</button>' : ''}
      <a class="btn btn-ghost" href="#/operacje">Powrót</a>`,
   )
+  + printHeader({
+    title: `Dokument magazynowy ${op.docNo}`,
+    scope: `${op.type} · data operacji: ${date(op.operationDate)}`
+      + ` · ${op.status === 'CANCELLED' ? 'DOKUMENT ANULOWANY' : 'zaksięgowany'}`,
+    // Numer rewizji na papierze jest istotny: dokument po korekcie wygląda
+    // inaczej niż wydruk sprzed niej, a oba mogą leżeć w tym samym segregatorze.
+    note: `Rewizja ${op.revision}`,
+  })
   + (op.status === 'CANCELLED' ? alertBox('danger', `Dokument anulowany ${dateTime(op.cancelledAt)} — ${op.cancelReason || 'bez podanej przyczyny'}`) : '')
   + `<div class="calc-strip">
       <div class="ci"><div class="l">Metry przestrzenne</div><div class="v">${qty(op.qtyMp)} <small>MP</small></div></div>

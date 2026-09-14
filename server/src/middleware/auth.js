@@ -26,7 +26,7 @@ const PERMISSIONS = Object.freeze({
     'attachments:read', 'attachments:write',
     'backup:export', 'backup:import',
     'settings:read', 'settings:write',
-    'users:read',
+    'users:read', 'audit:read',
   ],
   MAGAZYNIER: [
     'operations:read', 'operations:write',
@@ -40,10 +40,16 @@ const PERMISSIONS = Object.freeze({
     'operations:read', 'reports:read', 'stock:read', 'corrections:read',
     'catalog:read', 'periods:read', 'attachments:read',
     'backup:export', 'settings:read',
+    // Kontrola skarbowa pyta księgowość, kto i kiedy poprawiał dokument.
+    'audit:read',
   ],
   AUDYTOR: [
     'operations:read', 'reports:read', 'stock:read', 'corrections:read',
     'catalog:read', 'periods:read', 'attachments:read', 'settings:read',
+    // Rola istnieje po to, żeby czytać historię zmian. Wcześniej dziennik
+    // stał za uprawnieniem `users:read`, którego audytor nie ma — więc
+    // jedyna rola powołana do audytu nie miała do niego dostępu.
+    'audit:read',
   ],
 });
 

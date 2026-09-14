@@ -54,6 +54,12 @@ z podsumowaniem całego wyniku filtrowania — nie tylko bieżącej strony.
 | `settings:write` | ✔ | ✔ | – | – | – |
 | `users:read` | ✔ | ✔ | – | – | – |
 | `users:write` | ✔ | – | – | – | – |
+| `audit:read` | ✔ | ✔ | – | ✔ | ✔ |
+
+`audit:read` jest celowo oddzielone od `users:read`. Historię zmian czytają role
+powołane do kontroli — audytor i księgowość — a żadna z nich nie ma i nie powinna
+mieć wglądu w kartotekę kont. Wcześniej dziennik stał za `users:read`, więc jedyna
+rola stworzona po to, żeby go czytać, nie miała do niego dostępu.
 
 ---
 
@@ -325,12 +331,50 @@ Aplikacja kliencka zmniejsza zdjęcia do 1600 px przed wysyłką.
 | GET/POST | `/users` | `users:read` / `users:write` |
 | PATCH | `/users/:id` | `users:write` |
 | GET | `/users/:id/sessions` | `users:read` |
-| GET | `/audit` | `users:read` |
+| GET | `/audit` | `audit:read` |
+| GET | `/audit/filters` | `audit:read` |
 | GET | `/metrics` | `settings:read` |
 | GET | `/backup/list` | `backup:export` |
 | POST | `/backup/create` | `backup:export` |
 | GET | `/backup/export.json` | `backup:export` |
 | POST | `/backup/import` | `backup:import` |
+
+### Historia zmian — `GET /audit`
+
+Filtry: `entity`, `entityId`, `userEmail`, `action`, `q` (szukanie w treści
+zmiany, koncie i identyfikatorze), `from`, `to`, `limit`, `offset`.
+
+Każdy wpis wraca z **rozwiniętym** porównaniem stanów:
+
+```json
+{
+  "timestamp": "2026-09-14 11:20:06",
+  "user": "admin@resinvest.local",
+  "action": "UPDATE",
+  "entity": "products",
+  "entityId": "…",
+  "ip": "127.0.0.1",
+  "changes": [
+    { "field": "mpToTonne", "label": "Przelicznik MP → tona", "before": 0.35, "after": 0.38 }
+  ],
+  "detail": { "pozycja": "Zrębka Produkcyjna Leśna" }
+}
+```
+
+`label` przychodzi z serwera, a nie z interfejsu: etykiety pól biorą się
+z rejestru zasilanego **schematami walidacji** (`domain/field-labels.js`), więc
+nowe pole kartoteki jest czytelne w historii od pierwszego dnia i nie wymaga
+pamiętania o drugim miejscu.
+
+`changes` bywa puste — nie każde zdarzenie jest porównaniem stanów. Logowanie,
+eksport, zamknięcie okresu czy zaksięgowanie dokumentu niosą własne pola
+w `detail`.
+
+`GET /audit/filters` zwraca `{ users, actions, entities }` — wartości występujące
+w dzienniku, do zbudowania list wyboru. Osobny punkt, a nie lista kont z `/users`,
+bo historię czyta także audytor, który kartoteki kont nie widzi.
+
+---
 
 Import (`{ mode: "merge" \| "replace", payload }`) zawsze poprzedza automatyczna
 kopia bieżącej bazy. W trybie `merge` dokumenty o istniejących numerach są

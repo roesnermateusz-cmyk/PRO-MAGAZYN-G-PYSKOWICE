@@ -22,6 +22,7 @@ import { renderStock } from './views/stock.js';
 import { renderProduction } from './views/production.js';
 import { renderReports } from './views/reports.js';
 import { renderCorrections } from './views/corrections.js';
+import { renderHistory } from './views/history.js';
 import { renderCatalog } from './views/catalog.js';
 import { renderPeriods } from './views/periods.js';
 import { renderUsers } from './views/users.js';
@@ -39,6 +40,7 @@ function registerRoutes() {
   route('produkcja', renderProduction);
   route('raporty', renderReports);
   route('korekty', renderCorrections);
+  route('historia', renderHistory);
   route('kartoteki', renderCatalog);
   route('okresy', renderPeriods);
   route('uzytkownicy', renderUsers);

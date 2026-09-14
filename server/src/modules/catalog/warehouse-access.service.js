@@ -22,6 +22,7 @@ import {
   ForbiddenError, NotFoundError, ValidationError, ConflictError,
 } from '../../lib/errors.js';
 import { cache, TAG } from '../../lib/cache.js';
+import { registerLabels } from '../../domain/field-labels.js';
 import { auditChange } from '../../middleware/audit.js';
 
 /** Role widzące cały obrót firmy niezależnie od przypisań. */
@@ -41,6 +42,11 @@ function memoKey() {
 }
 
 /** Klucze magazynów przypisanych użytkownikowi (bez interpretacji). */
+registerLabels('warehouses', {}, { aktywny: 'Aktywny' });
+registerLabels('user_warehouses', {}, {
+  magazyny: 'Magazyny konta', zakres: 'Zakres dostępu',
+});
+
 export function grantedWarehouseIds(userId) {
   return db.all(
     'SELECT warehouse_id FROM user_warehouses WHERE user_id = :userId ORDER BY warehouse_id',

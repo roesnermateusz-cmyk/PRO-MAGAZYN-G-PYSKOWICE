@@ -23,6 +23,7 @@
     "build:html": "node standalone/build.mjs",
     "vendor:fonts": "node tools/vendor-fonts.mjs",
     "build:installer": "node desktop/make-icon.mjs && node desktop/build-zip.mjs",
-    "check": "node --check server/src/index.js"
+    "check:web": "node tools/check-frontend.mjs",
+    "check": "node --check server/src/index.js && node tools/check-frontend.mjs"
   }
 }

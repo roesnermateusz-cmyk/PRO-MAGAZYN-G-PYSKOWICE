@@ -5,7 +5,7 @@
 import { Router } from '../../lib/http.js';
 import { guard, requireAuth, requirePermission } from '../../middleware/auth.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
-import { listAudit } from '../../middleware/audit.js';
+import { listAudit, auditFilters } from '../../middleware/audit.js';
 import * as users from '../users/users.service.js';
 import {
   grantedWarehouseIds, setUserWarehouses,
@@ -81,7 +81,10 @@ export function adminRoutes(prefix) {
   });
 
   /* --- Dziennik audytu --- */
-  r.get('/audit', requireAuth, requirePermission('users:read'), (ctx) => listAudit(ctx.query));
+  /* Historia zmian stoi za własnym uprawnieniem, nie za `users:read`.
+     Czytają ją audytor i księgowość — role bez wglądu w kartotekę kont. */
+  r.get('/audit', ...guard('audit:read'), (ctx) => listAudit(ctx.query));
+  r.get('/audit/filters', ...guard('audit:read'), () => auditFilters());
 
   /* --- Załączniki (dostęp po identyfikatorze) --- */
   r.get('/attachments/:id', ...guard('attachments:read'),

@@ -2,7 +2,7 @@
 import api from '../core/api.js';
 import { esc } from '../core/dom.js';
 import { qty, qty2, int, money, date, today } from '../core/format.js';
-import { pageHead, kpi, empty, loading, docStamp, alertBox } from '../core/ui.js';
+import { pageHead, kpi, empty, loading, docStamp, alertBox, printHeader } from '../core/ui.js';
 import { ICONS } from '../components/icons.js';
 import { store } from '../core/store.js';
 
@@ -18,6 +18,13 @@ export async function renderProduction(view, params = {}) {
     `Kwit produkcyjny · ${date(selected)}`,
     `<button class="btn" data-act="print">${ICONS.print} Drukuj kwit</button>`,
   )
+  + printHeader({
+    title: 'Kwit produkcji dnia',
+    scope: `dzień produkcji: ${date(selected)}`,
+    note: report.count
+      ? `Dokumentów produkcyjnych: ${report.count} · wyprodukowano ${qty(report.totals.qtyMp)} MP`
+      : 'Brak dokumentów produkcyjnych w tym dniu',
+  })
   + `<div class="toolbar">
       <select id="dayPick" aria-label="Dzień produkcji">
         ${days.length
