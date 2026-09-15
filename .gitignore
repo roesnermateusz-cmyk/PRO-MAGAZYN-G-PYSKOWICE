@@ -1,0 +1,18 @@
+# Pliki tymczasowe budowania
+*.tmp.xlsx
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Excel
+~$*.xlsm
+~$*.xlsx
+*.xlk
+
+# Wynik instalatora
+installer/wyjscie/
+
+# System
+.DS_Store
+Thumbs.db

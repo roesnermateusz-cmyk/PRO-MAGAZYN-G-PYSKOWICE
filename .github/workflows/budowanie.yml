@@ -1,0 +1,43 @@
+name: Budowanie i kontrola
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  budowanie:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalacja zależności
+        run: pip install openpyxl oletools
+
+      - name: Testy kompilatora VBA
+        run: python3 tools/test_vbabuild.py
+
+      - name: Statyczna kontrola źródeł VBA
+        run: python3 tools/lint_vba.py src/vba
+
+      - name: Budowa skoroszytu
+        run: python3 build/build_workbook.py
+
+      - name: Kontrola gotowego pliku
+        run: python3 tools/sprawdz_skoroszyt.py dist/PRO-MAGAZYN.xlsm
+
+      - name: Budowa wariantu demonstracyjnego
+        run: |
+          python3 build/build_workbook.py \
+            --dane data/dane_przykladowe.csv \
+            --wyjscie dist/PRO-MAGAZYN-DEMO.xlsm
+          python3 tools/sprawdz_skoroszyt.py dist/PRO-MAGAZYN-DEMO.xlsm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRO-MAGAZYN
+          path: dist/*.xlsm

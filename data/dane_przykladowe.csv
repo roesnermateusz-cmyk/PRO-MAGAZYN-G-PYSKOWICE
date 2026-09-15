@@ -1,0 +1,11 @@
+Data załadunku;Miejsce załadunku;Data operacji;Dostawca;Typ operacji;Nr WZ;Czy magazynowane;Deklaracja/KZR;Volumen;Jednostka miary;Cena zakupu/produkcji;Wartość;Cena sprzedaży;Produkt;Rodzaj zrębki;Rąbanie (kto);Koszt rąbania;Przewoźnik;Nr rejestracyjny;Odległość km;Stawka zł/km;Koszt transportu;Odbiorca;Miejsce pochodzenia;Uwagi;Utworzył;Data dodania wpisu;ID operacji;ID powiązania;Status
+2026-03-02;Chrzanów;2026-03-02;NDL Chrzanów, Leśnictwo Płoki;ZAKUP;PZ/1001;TAK;KZR;120;MP;78;9360;;Drewno opałowe z lasu;;;;własny (Wilczak);SK 7J884;64;5;320;Magazyn Zabrze;Chrzanów;;Roesner Mateusz;;OP-TEST-00001;;AKTYWNY
+;;2026-03-03;Magazyn Zabrze;PRODUKCJA;PZ/1002;TAK;;110;MP;;;;Zrębka Produkcyjna Leśna;B;własne;10;;;;;;Magazyn Zabrze;;Produkcja z surowca zakupionego w tej samej operacji;Marcin Kwiatkowski;;OP-TEST-00002;PW-TEST-0001;AKTYWNY
+;;2026-03-03;Magazyn Zabrze;ZUŻYCIE;PZ/1002;TAK;;120;MP;;;;Drewno opałowe z lasu;;;;;;;;;Magazyn Zabrze;;Automatyczne zużycie surowca do produkcji;Marcin Kwiatkowski;;OP-TEST-00003;PW-TEST-0001;AKTYWNY
+;;2026-03-05;Magazyn Zabrze;SPRZEDAŻ;WZ/0501;TAK;;35;TON;;10325;295;Zrębka Produkcyjna Leśna;;;;Nowatrans;WND 3546F;42;6;252;Re Alloys, Łaziska;;;Roesner Mateusz;;OP-TEST-00004;;AKTYWNY
+;Magazyn Zabrze;2026-03-06;Magazyn Zabrze;MM;MM/0012;TAK;;60;MP;;;;Zrębka Produkcyjna Leśna;;;;własny (Kretek);SK 7J885;18;5;90;Magazyn Pyskowice;Magazyn Zabrze;;Roesner Mateusz;;OP-TEST-00005;;AKTYWNY
+;;2026-03-07;Magazyn Zabrze;TRANSPORT;TR/0031;NIE;;;;;750;;;;;;własny (Chrzan);SK 5L809;150;5;750;Magazyn Pyskowice;;Kurs pusty - powrót po rozładunku;Marcin Kwiatkowski;;OP-TEST-00006;;AKTYWNY
+;Głubczyce;2026-03-08;Walber;ZAKUP;PZ/1003;TAK;Deklaracja;25;M3;310;7750;;Drewno przemysłowe z wycinek inwest.;;;;;;;;;Magazyn Zabrze;Głubczyce;;Roesner Mateusz;;OP-TEST-00007;;AKTYWNY
+;;2026-03-09;Grandpol;ZAKUP;PZ/1004;TAK;;40;MP;82;3280;;Zrębka towar;;;;;;;;;Magazyn Zabrze;;;Roesner Mateusz;;OP-TEST-00008;;SKORYGOWANY
+;;2026-03-09;Grandpol;ZAKUP;PZ/1004;TAK;;-40;MP;82;-3280;;Zrębka towar;;;;;;;;;Magazyn Zabrze;;KOREKTA (storno) wpisu OP-TEST-00008. Powód: błędny wolumen;Roesner Mateusz;;OP-TEST-00009;OP-TEST-00008;KOREKTA
+;;2026-03-09;Grandpol;ZAKUP;PZ/1005;TAK;;45;MP;82;3690;;Zrębka towar;;;;;;;;;Magazyn Zabrze;;;Roesner Mateusz;;OP-TEST-00010;;AKTYWNY
