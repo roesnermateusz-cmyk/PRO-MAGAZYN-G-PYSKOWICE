@@ -1,0 +1,56 @@
+name: Aplikacja Windows
+
+# Buduje gotowy plik .exe, instalator i wersję przenośną na runnerze Windows.
+# Wynik pobiera się z zakładki Actions -> wybrany przebieg -> Artifacts.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "desktop/**"
+      - "installer/PRO-MAGAZYN-APP.iss"
+      - ".github/workflows/aplikacja-windows.yml"
+  workflow_dispatch:
+
+jobs:
+  budowanie:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalacja zależności
+        run: python -m pip install -r desktop/requirements.txt
+
+      - name: Testy rdzenia aplikacji
+        run: python desktop/testy/test_promagazyn.py
+
+      - name: Budowa programu i wersji przenośnej
+        run: python desktop/build_windows.py
+
+      - name: Budowa instalatora
+        run: |
+          curl -L -o innosetup.exe https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe
+          Start-Process -FilePath .\innosetup.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\PRO-MAGAZYN-APP.iss
+        shell: pwsh
+
+      - name: Spakowanie wersji przenośnej
+        run: Compress-Archive -Path dist\PRO-MAGAZYN-portable\* -DestinationPath dist\PRO-MAGAZYN-portable.zip
+        shell: pwsh
+
+      - name: Instalator
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRO-MAGAZYN-instalator
+          path: installer/wyjscie/*.exe
+
+      - name: Wersja przenośna
+        uses: actions/upload-artifact@v4
+        with:
+          name: PRO-MAGAZYN-portable
+          path: dist/PRO-MAGAZYN-portable.zip

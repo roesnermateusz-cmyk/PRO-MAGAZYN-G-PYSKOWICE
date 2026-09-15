@@ -277,3 +277,51 @@ NAGLOWKI_RAPORT = [
 ]
 
 NAGLOWKI_HISTORIA = ["LP", "Data i godzina", "Użytkownik", "Zdarzenie", "Typ operacji", "ID operacji", "Opis"]
+
+# Mapowanie kolumn kartoteki (1-30) na pola modelu Operacja.
+# Kolejnosc musi odpowiadac KOLUMNY_DANE - to jedyne miejsce, gdzie
+# uklad arkusza spotyka sie z modelem domenowym.
+POLA_OPERACJI = [
+    "data_zaladunku",
+    "miejsce_zaladunku",
+    "data_operacji",
+    "dostawca",
+    "typ",
+    "nr_wz",
+    "czy_magazynowane",
+    "deklaracja",
+    "volumen",
+    "jednostka",
+    "cena_zakupu",
+    "wartosc",
+    "cena_sprzedazy",
+    "produkt",
+    "rodzaj_zrebki",
+    "rabanie",
+    "koszt_rabania",
+    "przewoznik",
+    "nr_rejestracyjny",
+    "odleglosc",
+    "stawka_km",
+    "koszt_transportu",
+    "odbiorca",
+    "miejsce_pochodzenia",
+    "uwagi",
+    "utworzyl",
+    "data_dodania",
+    "id_operacji",
+    "id_powiazania",
+    "status",
+]
+
+assert len(POLA_OPERACJI) == len(KOLUMNY_DANE), (
+    "POLA_OPERACJI musi odpowiadac KOLUMNY_DANE co do liczby i kolejnosci"
+)
+
+# Pola zapisywane jako liczby, daty i wartosci logiczne.
+POLA_LICZBOWE = {
+    "volumen", "cena_zakupu", "wartosc", "cena_sprzedazy", "koszt_rabania",
+    "odleglosc", "stawka_km", "koszt_transportu",
+}
+POLA_DATY = {"data_zaladunku", "data_operacji"}
+POLA_DATY_CZASU = {"data_dodania"}

@@ -16,3 +16,9 @@ installer/wyjscie/
 # System
 .DS_Store
 Thumbs.db
+
+# Wyniki budowania aplikacji desktopowej
+build/pyinstaller/
+dist/PRO-MAGAZYN/
+dist/PRO-MAGAZYN-portable/
+dist/*.zip

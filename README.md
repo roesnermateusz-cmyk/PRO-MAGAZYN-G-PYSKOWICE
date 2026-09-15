@@ -5,6 +5,17 @@ pozostałości tartaczne, PKS, CNCS). Skoroszyt Excel z makrami VBA, zaprojektow
 do wieloletniej pracy produkcyjnej: pełna historia operacji, dokumenty magazynowe,
 raporty, korekty, kopie zapasowe i praca wielu użytkowników.
 
+System dostępny jest w **dwóch postaciach pracujących na tym samym pliku danych**:
+
+| | Aplikacja desktopowa | Skoroszyt z makrami |
+|---|---|---|
+| Postać | program Windows (`.exe`) | plik `.xlsm` |
+| Dane | plik Excela `.xlsx` | plik Excela `.xlsm` |
+| Wymaga Excela | **nie** | tak |
+| Instalacja | instalator albo wersja przenośna | skopiowanie pliku |
+| Praca z dysku firmowego | tak, z blokadą pliku | tak |
+
+Wersja **2.1.0** — aplikacja desktopowa.
 Wersja **2.0.0** — następca arkusza „Magazyn Zabrze”, z przebudowanym silnikiem,
 nowym typem operacji **TRANSPORT** i listami rozwijanymi we wszystkich kolumnach.
 
@@ -13,6 +24,7 @@ nowym typem operacji **TRANSPORT** i listami rozwijanymi we wszystkich kolumnach
 ## Spis treści
 
 - [Co system potrafi](#co-system-potrafi)
+- [Aplikacja desktopowa](#aplikacja-desktopowa)
 - [Instalacja](#instalacja)
 - [Pierwsze uruchomienie](#pierwsze-uruchomienie)
 - [Praca z systemem](#praca-z-systemem)
@@ -43,7 +55,38 @@ nowym typem operacji **TRANSPORT** i listami rozwijanymi we wszystkich kolumnach
 
 ---
 
+## Aplikacja desktopowa
+
+Program z własnym interfejsem, który nie wymaga Excela, a mimo to **zapisuje dane
+w formacie Excela**. Pełny opis: [`docs/APLIKACJA.md`](docs/APLIKACJA.md).
+
+### Instalacja na laptopie
+
+Uruchom `PRO-MAGAZYN-Setup-2.1.0.exe`. Program trafia do `Program Files`,
+plik danych do `Dokumenty\PRO-MAGAZYN\PRO-MAGAZYN-dane.xlsx`.
+
+### Wersja przenośna na dysk firmowy
+
+Rozpakuj `PRO-MAGAZYN-portable.zip` na dysk sieciowy i uruchom `PRO-MAGAZYN.exe` —
+bez instalacji. Plik danych i kopie zapasowe leżą w podfolderze `dane` obok programu.
+
+### Praca kilku osób
+
+Plik danych może leżeć na dysku firmowym. Pierwsze stanowisko, które go otworzy,
+zajmuje blokadę; pozostałe dostają tryb **tylko do odczytu** wraz z informacją,
+kto aktualnie edytuje. Porzucona blokada wygasa po 15 minutach.
+
+### Skąd wziąć gotowy plik `.exe`
+
+Program buduje się automatycznie na GitHubie: zakładka **Actions** → przebieg
+**Aplikacja Windows** → **Artifacts** (instalator oraz wersja przenośna).
+Budowa lokalna: `python desktop\build_windows.py` (wymaga Windows i Pythona 3.11+).
+
+---
+
 ## Instalacja
+
+*(poniższe dotyczy skoroszytu z makrami)*
 
 ### Wariant A — instalator Windows (zalecany)
 
@@ -232,6 +275,15 @@ python3 tools/test_vbabuild.py            # testy kompilatora VBA
 python3 tools/lint_vba.py src/vba         # kontrola źródeł VBA
 python3 build/build_workbook.py           # budowa dist/PRO-MAGAZYN.xlsm
 python3 tools/sprawdz_skoroszyt.py dist/PRO-MAGAZYN.xlsm   # kontrola wyniku
+```
+
+Aplikacja desktopowa:
+
+```bash
+pip install -r desktop/requirements.txt
+python3 desktop/testy/test_promagazyn.py  # testy rdzenia aplikacji
+python3 desktop/uruchom.py                # uruchomienie ze źródeł
+python desktop/build_windows.py           # paczka Windows (na Windows)
 ```
 
 Migracja danych ze starego arkusza:

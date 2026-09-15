@@ -152,12 +152,16 @@ Public Sub OdswiezStanMagazynu()
                         ZapamietajOpis ostatnie, klucz, lokalizacja, produkt, dane(wiersz, kolDataOperacji)
                     End If
 
-                    ' Rozchód z magazynu źródłowego.
+                    ' Rozchód z magazynu źródłowego. Gdy dostawca i odbiorca to
+                    ' ten sam magazyn, pomijamy ten krok - inaczej ta sama operacja
+                    ' podbiłaby stan dwukrotnie.
                     lokalizacja = Znormalizuj(dane(wiersz, kolDostawca))
                     kierunek = KierunekRuchu(CStr(dane(wiersz, kolTypOperacji)), _
                                              CStr(dane(wiersz, kolCzyMagazynowane)), _
                                              CStr(dane(wiersz, kolDostawca)), _
                                              CStr(dane(wiersz, kolOdbiorca)), lokalizacja)
+                    If KluczPorownania(dane(wiersz, kolDostawca)) = _
+                       KluczPorownania(dane(wiersz, kolOdbiorca)) Then kierunek = 0
                     If kierunek <> 0 And Len(lokalizacja) > 0 Then
                         klucz = UCase$(lokalizacja) & "|" & UCase$(produkt)
                         DodajDoSumy stanyMp, klucz, kierunek * PrzeliczNaMp(ilosc, CStr(dane(wiersz, kolJednostka)))

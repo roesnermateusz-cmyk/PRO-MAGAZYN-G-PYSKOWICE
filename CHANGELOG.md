@@ -4,6 +4,48 @@ Format według [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/).
 
 ---
 
+## [2.1.0] — 2026-09-15
+
+Aplikacja desktopowa na Windows, pracująca na tym samym pliku danych co skoroszyt.
+
+### Dodane
+
+- **Aplikacja desktopowa** (Python 3.11 + Qt 6) z własnym interfejsem —
+  nie wymaga Excela, a mimo to **zapisuje dane w formacie `.xlsx`**.
+- **Instalator Windows** oraz **wersja przenośna** działająca z dysku firmowego
+  bez instalacji (znacznik `portable.txt`, dane w podfolderze obok programu).
+- **Blokada pliku dla pracy wielostanowiskowej** — pierwsze stanowisko zajmuje
+  plik, pozostałe pracują w trybie tylko do odczytu i widzą, kto edytuje.
+  Porzucona blokada wygasa po 15 minutach.
+- **Atomowy zapis** przez plik tymczasowy — przerwany zapis nie uszkodzi ewidencji.
+- Siedem ekranów: pulpit ze wskaźnikami, formularz operacji, kartoteka z filtrami
+  i wyszukiwaniem, stan magazynowy, raporty (szczegółowy, roczny, transportowy),
+  dziennik zdarzeń, ustawienia.
+- Motyw ciemny i jasny, ikony rysowane wektorowo (bez plików graficznych),
+  skróty klawiszowe `Ctrl+N/K/M/R/S` i `F5`.
+- Listy rozwijane filtrujące po fragmencie tekstu oraz komplet podpowiedzi
+  autouzupełniania znanych ze skoroszytu.
+- Testy rdzenia aplikacji (`desktop/testy/test_promagazyn.py`) obejmujące
+  przeliczniki, walidację, operacje równoległe, stany magazynowe, korekty,
+  blokadę pliku oraz obieg danych przez pliki `.xlsx` i `.csv`.
+- Workflow GitHub Actions budujący gotowy `.exe`, instalator i wersję przenośną
+  na runnerze Windows.
+
+### Naprawione
+
+- **Podwójne liczenie stanu magazynowego**, gdy dostawca i odbiorca to ten sam
+  magazyn (266 wierszy kartoteki). Stan globalny pokazywał 43 001,7 MP zamiast
+  poprawnych 35 736,7 MP. Poprawka objęła **obie wersje** systemu — aplikację
+  i moduł `mod_Magazyn` w skoroszycie z makrami.
+
+### Zmienione
+
+- Układ arkuszy i zapis pliku `.xlsx` przeniesione do wspólnego pakietu
+  `promagazyn.dane`, z którego korzystają zarówno aplikacja, jak i generator
+  wersji z makrami — jedna definicja formatu zamiast dwóch.
+
+---
+
 ## [2.0.0] — 2026-09-15
 
 Przebudowa systemu „Magazyn Zabrze” w produkcyjny system PRO-MAGAZYN.

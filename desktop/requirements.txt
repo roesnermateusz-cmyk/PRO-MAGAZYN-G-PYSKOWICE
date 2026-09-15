@@ -1,0 +1,6 @@
+# Zależności aplikacji desktopowej PRO-MAGAZYN
+PySide6-Essentials>=6.6
+openpyxl>=3.1
+
+# Narzędzia budowania paczki Windows (niepotrzebne do samego uruchomienia)
+pyinstaller>=6.3
