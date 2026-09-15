@@ -34,6 +34,7 @@ npm run user:create        # konto użytkownika z wiersza poleceń
 npm run backup             # kopia zapasowa bazy
 npm test                   # 204 testy (node:test)
 npm run check              # składnia serwera + zgodność importów frontu
+npm run build:setup        # instalator dist/ResInvest-ERP-Setup-<wersja>.exe + .sha256
 npm run build:installer    # ikona .ico + pakiet dist/ResInvest-ERP-<wersja>.zip
 npm run build:html         # wersja jednoplikowa → dist/ResInvestERP.html
 npm run vendor:fonts       # ponowne pobranie krojów do web/assets/fonts/
@@ -329,6 +330,67 @@ zrzucie bazy (`forgetStatements` w `standalone/src/runtime/db.js`). Bez tego
 zapytanie potrafi cicho zwrócić cudzy wynik.
 
 Szczegóły: `docs/STANDALONE.md`.
+
+---
+
+## Instalator `.exe`
+
+`desktop/setup/` — jeden plik do pobrania, który niesie cały system.
+Buduje go `npm run build:setup` kompilatorem C# (`mcs` z Mono na Linuksie,
+`csc.exe` z .NET Framework na Windows). Nie ma tu żadnego frameworka
+instalatorów — NSIS czy WiX byłyby kolejną zależnością, a całość mieści się
+w dwóch plikach źródłowych.
+
+**Podział na pliki jest funkcjonalny, nie kosmetyczny:**
+
+* `Setup.cs` — logika (ładunek, konfiguracja, instalacja, odinstalowanie).
+  **Nie dotyka WinForms.**
+* `SetupGui.cs` — same okna. Zna `Setup.cs`, nie odwrotnie.
+
+Dzięki temu `/samokontrola` sprawdza logikę na maszynie budującej, bez
+pulpitu — a to jedyna część, którą da się sprawdzić automatycznie.
+Wywołuje ją `build-setup.mjs` po kompilacji i **przerywa budowanie**, gdy
+coś nie gra. Zepsuty instalator nie ma prawa powstać.
+
+Dokładając cokolwiek do instalatora, trzymaj się tej granicy: jeśli nowa
+rzecz da się sprawdzić bez okna, jej miejsce jest w `Setup.cs` i w samokontroli.
+
+### Format ładunku `RIEP1`
+
+```
+"RIEP1" | długość indeksu (uint32 LE) | indeks JSON | sklejone strumienie deflate
+```
+
+Zapisuje `build-setup.mjs` (`zlib.deflateRawSync`), czyta klasa `Ladunek`
+(`DeflateStream`). **Nie ZIP** — `ZipFile` wymagałby zestawu
+`System.IO.Compression.FileSystem` (.NET 4.5+), a `DeflateStream` jest
+w `System.dll` od 2.0. Jedna zależność mniej po stronie komputera firmy.
+
+### Tryby uruchomienia
+
+| Argument | Działanie |
+|---|---|
+| (brak) | kreator instalacji |
+| `/odinstaluj` | usuwanie — **`data\` zostaje**, chyba że użytkownik zaznaczy inaczej |
+| `/rozpakuj <katalog>` | sama zawartość, bez `.env`, rejestru i skrótów |
+| `/samokontrola` | kontrola ładunku i konfiguracji bez GUI |
+
+### Rzeczy, których nie widać z kodu
+
+* **Instalacja idzie do `%LOCALAPPDATA%`**, nie do `Program Files` — bez UAC
+  i bez uprawnień administratora. Zmiana tego wymusiłaby manifest z
+  `requireAdministrator` i podniesienie uprawnień przy każdej aktualizacji.
+* **Istniejący `.env` nigdy nie jest nadpisywany.** Nadpisanie podmieniłoby
+  klucz podpisu sesji (wylogowanie wszystkich) i hasło administratora — bez
+  uprzedzenia i bez możliwości odtworzenia.
+* **Reguła haseł jest tu powielona** (`HasloSpelniaReguly`). Świadomie:
+  instalator nie może wygenerować hasła, które serwer zaraz odrzuci, bo
+  użytkownik zostałby z kontem, do którego nie da się wejść.
+* **Plik nie jest podpisany certyfikatem** — SmartScreen pokaże ostrzeżenie.
+  Opisane w `docs/DEPLOYMENT.md` 1.3 razem ze ścieżką kliknięć.
+* **Budowa jest powtarzalna** — te same źródła dają bajt w bajt ten sam plik.
+  Jeśli kiedyś przestanie, sprawdź najpierw, czy coś nie wstawia do ładunku
+  daty budowania.
 
 ---
 

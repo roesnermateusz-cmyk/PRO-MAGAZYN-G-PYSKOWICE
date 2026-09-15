@@ -49,7 +49,11 @@ const EXECUTABLE = new Set(['instaluj.sh', 'start.sh', 'kopia-zapasowa.sh']);
 /* ----------------------------- Przygotowanie --------------------------- */
 
 console.log(`› Budowanie pakietu ${NAME}…`);
-if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
+// Czyścimy WYŁĄCZNIE własne wyniki, nie cały `dist/`. Leżą tam też instalator
+// `.exe` z sumą kontrolną i wersja jednoplikowa — skasowanie katalogu w całości
+// cicho niszczyło artefakt zbudowany chwilę wcześniej, a zauważało się to
+// dopiero przy publikowaniu wydania.
+if (existsSync(STAGE)) rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
 
 /** Kopiuje katalog rekurencyjnie, pomijając artefakty i dane runtime. */

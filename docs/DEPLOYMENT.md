@@ -7,7 +7,79 @@ dostęp przez internet.
 
 ## 1. Stanowisko desktopowe (Windows)
 
-Najprostszy wariant — jeden komputer w biurze magazynu.
+Najprostszy wariant — jeden komputer w biurze magazynu. Są dwie drogi:
+gotowy instalator (zalecana) albo pakiet `.ZIP` ze skryptami.
+
+### 1.1 Instalator `.exe` — zalecane
+
+Jeden plik do pobrania: **`ResInvest-ERP-Setup-1.0.0.exe`** (ok. 2 MB).
+Niesie w sobie serwer, interfejs, dokumentację, program uruchamiający
+i wersję jednoplikową. **Nic nie pobiera z internetu** — instaluje się
+tak samo na komputerze odciętym od sieci.
+
+1. Sprawdź sumę kontrolną pobranego pliku (patrz 1.2).
+2. Uruchom instalator dwuklikiem.
+   Windows pokaże ostrzeżenie SmartScreen — patrz 1.3, to spodziewane.
+3. Kreator przeprowadzi przez pięć ekranów: powitanie, kontrola środowiska,
+   katalog i opcje, instalacja, zakończenie.
+4. **Zapisz dane pierwszego logowania z ostatniego ekranu.**
+   Ten sam login i hasło instalator zapisuje w pliku
+   `DANE-PIERWSZEGO-LOGOWANIA.txt` w katalogu programu.
+
+Instalator domyślnie zakłada program w profilu użytkownika
+(`%LOCALAPPDATA%\ResInvest ERP`), więc **nie wymaga uprawnień administratora
+i nie wywołuje okna UAC**. Katalog można zmienić na dowolny inny.
+
+**Gdy na komputerze nie ma Node.js** — kreator to wykryje i zaproponuje
+wersję jednoplikową: cały system w jednym pliku HTML, otwierany dwuklikiem,
+działający bez instalowania czegokolwiek. Nie jest to wersja okrojona
+funkcjonalnie, ale dane zostają w tej jednej przeglądarce na tym komputerze
+(szczegóły i ograniczenia: `docs/STANDALONE.md`). Pełną wersję można
+zainstalować później, uruchamiając instalator ponownie po instalacji Node.js.
+
+**Ponowne uruchomienie instalatora aktualizuje program**, zostawiając
+`data\` i `.env` nietknięte — dokumenty, kopie zapasowe, załączniki
+i klucz sesji zostają na miejscu.
+
+**Odinstalowanie**: „Aplikacje i funkcje” w ustawieniach Windows albo
+`Odinstaluj.exe` w katalogu programu. Dane magazynowe **domyślnie zostają** —
+usunięcie ich wymaga świadomego zaznaczenia pola i potwierdzenia.
+
+### 1.2 Suma kontrolna
+
+Obok instalatora publikowany jest plik `.sha256` i gotowa instrukcja
+`SPRAWDZ-SUME-KONTROLNA-<wersja>.txt`. W PowerShell:
+
+```powershell
+Get-FileHash .\ResInvest-ERP-Setup-1.0.0.exe -Algorithm SHA256 | Format-List
+```
+
+Wynik musi zgadzać się co do znaku z zawartością pliku `.sha256`.
+Jeżeli się różni — **nie uruchamiaj pliku**: pobranie było niepełne albo
+plik został po drodze zmieniony.
+
+Budowa jest powtarzalna: te same źródła dają bajt w bajt ten sam plik
+i tę samą sumę, więc każdy może odtworzyć wydanie u siebie i porównać.
+
+### 1.3 Ostrzeżenie SmartScreen — czego się spodziewać
+
+Instalator **nie jest podpisany certyfikatem wydawcy**, więc przy pierwszym
+uruchomieniu Windows pokaże niebieskie okno „System Windows ochronił Twój
+komputer”. To nie jest oznaka, że z plikiem coś jest nie tak — tak Windows
+traktuje każdy program bez wykupionego certyfikatu podpisywania kodu.
+
+Aby kontynuować: **Więcej informacji** → **Uruchom mimo to**.
+
+Ostrzeżenie zniknie dopiero po podpisaniu pliku certyfikatem EV
+(koszt roczny, weryfikacja tożsamości firmy). Do rozważenia, jeśli
+instalator ma być rozsyłany szerzej niż na własne komputery.
+Sumę kontrolną SHA-256 sprawdzaj tak czy inaczej — ona mówi o pliku
+więcej niż podpis o wydawcy.
+
+### 1.4 Pakiet `.ZIP` — wariant bez instalatora
+
+Dla informatyka, który woli widzieć pliki przed uruchomieniem czegokolwiek,
+albo wdraża system na kilku stanowiskach naraz.
 
 1. Zainstaluj **Node.js 22 LTS** — <https://nodejs.org/pl> (opcje domyślne).
 2. Rozpakuj `ResInvest-ERP-1.0.0.zip`, np. do `C:\ResInvest-ERP`.
@@ -18,6 +90,15 @@ Najprostszy wariant — jeden komputer w biurze magazynu.
 4. **Zapisz wyświetlone dane pierwszego logowania.**
 5. Uruchom `START.bat` (albo skrót z pulpitu) — przeglądarka otworzy
    `http://localhost:4173`.
+
+Tę samą zawartość można wyjąć z instalatora bez instalowania:
+
+```
+ResInvest-ERP-Setup-1.0.0.exe /rozpakuj C:\ResInvest-ERP
+```
+
+Tryb `/rozpakuj` nie tworzy `.env`, nie dotyka rejestru i nie zakłada
+skrótów — wypakowuje samą zawartość.
 
 ### Automatyczny start z systemem
 

@@ -12,7 +12,7 @@ produkcja zrębki, stany magazynowe, raporty miesięczne, rejestr korekt oraz
 
 1. [Co system robi](#1-co-system-robi)
 2. [Szybki start](#2-szybki-start)
-3. [Instalacja desktopowa (.ZIP)](#3-instalacja-desktopowa-zip)
+3. [Instalacja na komputerze](#3-instalacja-na-komputerze)
 4. [Konta i role](#4-konta-i-role)
 5. [Jak system liczy](#5-jak-system-liczy)
 6. [Praca z systemem](#6-praca-z-systemem)
@@ -140,19 +140,51 @@ konsoli login oraz hasło. Hasło trzeba zmienić przy pierwszym logowaniu.
 
 ---
 
-## 3. Instalacja desktopowa (.ZIP)
+## 3. Instalacja na komputerze
 
-Gotowy pakiet dla stanowiska w biurze magazynu — bez konsoli i bez `git`.
+Dwie drogi: gotowy instalator `.exe` (zalecana) albo pakiet `.ZIP` ze skryptami.
+
+### 3.1 Instalator `.exe` — Windows
+
+```bash
+npm run build:setup
+# → dist/ResInvest-ERP-Setup-1.0.0.exe          (~2 MB)
+# → dist/ResInvest-ERP-Setup-1.0.0.exe.sha256
+```
+
+Jeden plik do pobrania, który niesie w sobie **wszystko**: serwer, interfejs,
+dokumentację, program uruchamiający i wersję jednoplikową. Instalacja nie
+pobiera niczego z internetu — przechodzi tak samo na komputerze odciętym
+od sieci.
+
+1. Sprawdź sumę kontrolną SHA-256 pobranego pliku.
+2. Uruchom instalator. Windows pokaże ostrzeżenie SmartScreen
+   (plik nie jest podpisany certyfikatem) — **Więcej informacji** →
+   **Uruchom mimo to**.
+3. Kreator prowadzi przez pięć ekranów i sam sprawdza, czy jest Node.js.
+4. **Zapisz dane pierwszego logowania z ostatniego ekranu** — instalator
+   zapisuje je też do pliku `DANE-PIERWSZEGO-LOGOWANIA.txt`.
+
+Program instaluje się w profilu użytkownika (`%LOCALAPPDATA%\ResInvest ERP`),
+więc **nie wymaga uprawnień administratora**. Katalog można zmienić.
+
+| Sytuacja | Co robi instalator |
+|---|---|
+| Jest Node.js 22+ | instaluje pełny system |
+| Brak Node.js | proponuje wersję jednoplikową (działa bez niczego) albo kieruje po Node.js |
+| Program już zainstalowany | aktualizuje pliki, **zostawiając `data\` i `.env`** |
+| Odinstalowanie | „Aplikacje i funkcje”; **dane zostają**, chyba że świadomie je zaznaczysz |
+
+Szczegóły, w tym suma kontrolna i SmartScreen: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+### 3.2 Pakiet `.ZIP` — Windows
+
+Dla kogoś, kto woli zobaczyć pliki przed uruchomieniem czegokolwiek.
 
 ```bash
 npm run build:installer
 # → dist/ResInvest-ERP-1.0.0.zip
 ```
-
-Archiwum zawiera serwer, aplikację kliencką, migracje, dane testowe,
-dokumentację i skrypty instalacyjne.
-
-### Windows
 
 1. Zainstaluj Node.js 22 LTS z <https://nodejs.org/pl>.
 2. Rozpakuj archiwum, np. do `C:\ResInvest-ERP` *(nie uruchamiaj plików z wnętrza ZIP-a)*.
@@ -162,6 +194,9 @@ dokumentację i skrypty instalacyjne.
    i w menu Start. Zapyta też o uruchamianie po zalogowaniu do Windows.
 4. **Zapisz wyświetlone dane pierwszego logowania.**
 5. Uruchamiaj system plikiem **`ResInvestERP.exe`** albo skrótem z pulpitu.
+
+Tę samą zawartość da się wyjąć z instalatora bez instalowania:
+`ResInvest-ERP-Setup-1.0.0.exe /rozpakuj C:\ResInvest-ERP`
 
 #### Program `ResInvestERP.exe`
 
@@ -443,7 +478,9 @@ zatwierdzone transakcje.
 | `npm run user:create -- --list` | Lista kont |
 | `npm run backup` | Kopia zapasowa (`--json` dodaje zrzut logiczny) |
 | `npm test` | Testy |
+| `npm run build:setup` | **Instalator `.exe` + suma SHA-256** |
 | `npm run build:installer` | Pakiet instalacyjny `.ZIP` |
+| `npm run build:html` | Wersja jednoplikowa (jeden plik HTML) |
 
 ---
 
