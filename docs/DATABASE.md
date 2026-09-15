@@ -162,6 +162,26 @@ RETURNING last_number;
 ### 2.9 `audit_log`, `settings`, `attachments`
 
 * `audit_log` — dopisywalny dziennik zdarzeń (logowania, zapisy, storno, eksporty).
+
+  **Indeksy**
+
+  ```sql
+  ix_audit_ts          (ts DESC)                -- zakres dat
+  ix_audit_entity      (entity, entity_id)      -- historia jednego bytu
+  ix_audit_user_email  (user_email, id DESC)    -- filtr „kto” + kolejność listy
+  ix_audit_action      (action, id DESC)        -- filtr „co zrobiono”
+  ```
+
+  Dwa ostatnie doszły w migracji 004. Kolumna `id` w indeksie nie jest ozdobą:
+  listing kończy się `ORDER BY id DESC`, więc baza czyta gotową kolejność
+  zamiast sortować odfiltrowany zbiór. Zmierzone na 200 tys. wierszy: listy
+  wartości do filtrów widoku historii 51 ms → 7,7 ms i 47 ms → 6,8 ms
+  (płacone przy każdym otwarciu widoku), a wyszukanie śladu po użytkowniku
+  o nielicznych, starych wpisach 12,1 ms → 0,1 ms.
+
+  `user_id` celowo bez indeksu — dubluje `user_email`, żaden widok po nim nie
+  filtruje, a każdy indeks kosztuje przy zapisie, który tu jest po stronie
+  gorącej (dziennik dostaje wiersz przy każdej operacji magazynowej).
 * `settings` — pary klucz/wartość JSON z pamięcią podręczną w procesie.
 * `attachments` — metadane plików; zawartość na dysku (`data/attachments/RRRR/MM/`),
   w bazie `sha256` do kontroli integralności.

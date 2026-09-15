@@ -87,7 +87,7 @@ function computeScope(user) {
 }
 
 /** Czy użytkownik może pracować we wskazanym magazynie. */
-export function canUseWarehouse(user, warehouseId) {
+function canUseWarehouse(user, warehouseId) {
   if (!warehouseId) return true;
   const scope = warehouseScope(user);
   return scope === null || scope.includes(warehouseId);
@@ -205,7 +205,7 @@ function namesOf(ids) {
 }
 
 /** Użytkownicy przypisani do magazynu — kontrola przed dezaktywacją placu. */
-export const usersOfWarehouse = (warehouseId) => db.all(
+const usersOfWarehouse = (warehouseId) => db.all(
   `SELECT u.id, u.email, u.full_name FROM user_warehouses uw
      JOIN users u ON u.id = uw.user_id
     WHERE uw.warehouse_id = :warehouseId AND u.is_active = 1

@@ -57,7 +57,7 @@ export function permissionsFor(role) {
   return PERMISSIONS[role] || [];
 }
 
-export function hasPermission(user, permission) {
+function hasPermission(user, permission) {
   if (!user) return false;
   const perms = permissionsFor(user.role);
   return perms.includes('*') || perms.includes(permission);

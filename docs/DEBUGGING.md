@@ -669,6 +669,152 @@ a dokument zachowuje wartość zapisaną przez pierwszego.
 
 ---
 
+## 12. Raport miesięczny gubił bilans otwarcia
+
+Znalezione podczas audytu przedwydaniowego, przy pisaniu pierwszych testów
+typu dokumentu BO. Do klienta nie trafiło.
+
+### Czym jest problem
+
+W miesiącu, w którym istniał **dokument BO i zwykły zakup na ten sam produkt**,
+raport miesięczny pokazywał przychód pomniejszony o całą ilość z BO. Równanie,
+na którym stoi cały raport:
+
+```
+bilans otwarcia + przychody − rozchody = bilans zamknięcia
+```
+
+przestawało się domykać. Stan zamknięcia był policzony dobrze (bierze się
+z księgi ruchów, gdzie BO jest obecny), więc różnica nie miała żadnego
+widocznego źródła — tabela po prostu się nie zgadzała.
+
+### Dlaczego zawodzi
+
+`computeMonthlyReport` grupuje obroty zapytaniem `GROUP BY o.type, o.product_id`
+i rozkłada wiersze do kubełków według typu dokumentu:
+
+```js
+const bucketByType = {
+  ZAKUP: 'purchase', PRODUKCJA: 'production', SPRZEDAZ: 'sale',
+  ZUZYCIE: 'consumption', MM: 'transfer', BO: 'purchase',
+};
+for (const r of turnover) {
+  e[bucketByType[r.type]] = { ... };   // ← przypisanie, nie sumowanie
+}
+```
+
+**Dwa typy dzielą jeden kubełek**: ZAKUP i BO to oba przychód po stronie
+`purchase`. Przy przypisaniu wiersz późniejszy kasował wcześniejszy. Zapytanie
+kończy się `ORDER BY o.type`, a `BO` wypada alfabetycznie przed `ZAKUP` — więc
+to zawsze bilans otwarcia znikał, nigdy zakup.
+
+Dwie rzeczy zrobiły z tego usterkę trudną do zauważenia:
+
+* **Cisza.** Nic się nie wywracało, nic nie trafiało do dziennika. Liczba
+  w tabeli była po prostu mniejsza.
+* **Moment.** BO księguje się przy **uruchamianiu systemu w firmie** — wtedy,
+  gdy nie ma jeszcze żadnego wcześniejszego raportu do porównania. Pierwszy
+  miesiąc pracy jest jedynym, którego nikt nie umie zweryfikować z pamięci.
+
+Usterka przetrwała, bo BO był **jedynym typem dokumentu bez choćby jednego
+testu**, a generator danych testowych też go nie tworzył. Ścieżka nie była
+sprawdzona w żadnym miejscu.
+
+### Naprawiony kod
+
+```js
+for (const r of turnover) {
+  const bucket = e[bucketByType[r.type]];
+  bucket.documents += r.documents;
+  bucket.qtyMp = roundQty(bucket.qtyMp + r.qty_mp);
+  // …pozostałe pola tak samo — sumowane, nie nadpisywane
+}
+```
+
+### Weryfikacja
+
+| Sprawdzenie | Wynik |
+|---|---|
+| Test jednostkowy przed poprawką | przychód 1816 → 1816 po zaksięgowaniu 250 MP w BO |
+| Test jednostkowy po poprawce | 400 → 650 (BO widoczne) |
+| Bilans przez API, miesiąc z BO 500 MP | 6 produktów, różnica 0,00 MP dla każdego |
+| Zgodność obu silników (`standalone/verify.mjs`) | 17 z 17 pól identycznych |
+
+Testy BO są w `server/tests/operations.test.mjs` (8 sztuk): księgowanie, brak
+wymogu dostawcy i ceny, kierunek ruchu, storno, korekta, obecność w raporcie
+i domknięcie bilansu.
+
+### Wniosek szerszy
+
+Wspólny kubełek dla dwóch typów dokumentu to konstrukcja, przy której
+przypisanie jest zawsze błędem, a wygląda niewinnie. Dokładając typ dokumentu
+do `bucketByType`, sprawdź, czy nie dzieli kubełka z innym — jeśli tak, wartości
+muszą się sumować.
+
+---
+
+## 13. Adres IP w dzienniku audytu dało się podrobić
+
+Znalezione podczas audytu przedwydaniowego. Do klienta nie trafiło.
+
+### Czym jest problem
+
+Warstwa HTTP ustalała adres klienta tak:
+
+```js
+const fwd = req.headers['x-forwarded-for'];
+if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim();
+return req.socket?.remoteAddress || '';
+```
+
+Nagłówek `X-Forwarded-For` ustawia **klient**. Zaufanie mu bezwarunkowo
+oznaczało, że o adresie zapisanym w dzienniku audytu decyduje ten, kogo ten
+dziennik ma pilnować. Sprawdzone na żywo: żądania wychodzące z `127.0.0.1`
+zapisały się jako `198.51.100.200` i `203.0.113.77`.
+
+Drugi skutek był równie konkretny: ograniczanie prób logowania liczy po adresie,
+więc **każdy zmyślony adres dostawał własny licznik**. 30 prób z 30 nagłówków
+nie zapaliło ani jednego 429.
+
+### Dlaczego to ma znaczenie akurat tutaj
+
+Dziennik audytu tego systemu nie jest dziennikiem technicznym. Jest dowodem
+przy certyfikacji KZR/SURE i przy kontroli skarbowej — a wpisów się nie usuwa.
+Adres, który każdy może sobie wybrać, obniża wiarygodność całego dziennika,
+nie tylko podrobionego wpisu.
+
+### Naprawiony kod
+
+Nagłówek jest brany pod uwagę **wyłącznie** przy jawnie włączonym
+`TRUST_PROXY=true`, domyślnie wyłączonym:
+
+```js
+function clientIp(req, trustProxy) {
+  if (trustProxy) {
+    const fwd = req.headers['x-forwarded-for'];
+    if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || '';
+}
+```
+
+Przy okazji poprawiony został przykład konfiguracji nginx w `docs/DEPLOYMENT.md`:
+popularne `$proxy_add_x_forwarded_for` **dopisuje** się do wartości przysłanej
+przez klienta, więc na początku listy — a stamtąd aplikacja bierze adres —
+lądowało to, co wpisał sam klient. Poprawnie jest `$remote_addr`, które nagłówek
+nadpisuje.
+
+### Weryfikacja
+
+| Sprawdzenie | Wynik |
+|---|---|
+| Domyślnie, z podrobionym nagłówkiem | dziennik zapisuje `127.0.0.1` |
+| `TRUST_PROXY=true`, za proxy | dziennik zapisuje adres z nagłówka |
+| 30 logowań z 30 podrobionych adresów | pierwszy 429 przy próbie nr 10 |
+| Testy | `server/tests/client-ip.test.mjs`, 3 sztuki |
+
+---
+
 ## Sprawdzone bez zastrzeżeń: zaokrąglenia kwot
 
 Osobny skrypt porównał wartości liczone przez system z liczeniem w pełnej
@@ -684,7 +830,7 @@ już zaokrąglonych, nie z iloczynów odtwarzanych na nowo.
 
 | Sprawdzenie | Wynik |
 |---|---|
-| Testy automatyczne | 96 z 96 (było 77; +19 testów regresyjnych i jednostkowych) |
+| Testy automatyczne | 204 z 204 (było 96; doszły testy współbieżności, BO, kopii zapasowych, nagłówków i adresu klienta) |
 | Cykle importów | 0 |
 | Determinizm danych testowych | 78 łańcuchów, 304 dokumenty, identyczne stany i wartości jak przed poprawkami |
 | Test przeglądarkowy (desktop 1440×900) | 6 z 6 |

@@ -147,7 +147,7 @@ export function getCorrection(id) {
 }
 
 /** Wskaźniki dla nagłówka widoku korekt. */
-export function correctionStats() {
+function correctionStats() {
   const row = db.get(`
     SELECT COUNT(*) AS total,
            COUNT(DISTINCT operation_id) AS documents,

@@ -73,10 +73,3 @@ export function metricsReport({ slowest = 15 } = {}) {
     routes: list.sort((a, b) => b.avgMs - a.avgMs).slice(0, slowest),
   };
 }
-
-/** Zeruje liczniki (testy, ręczne rozpoczęcie pomiaru). */
-export function resetMetrics() {
-  routes.clear();
-  requests = 0;
-  errors = 0;
-}

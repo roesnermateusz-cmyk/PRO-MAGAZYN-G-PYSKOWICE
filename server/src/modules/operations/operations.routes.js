@@ -4,7 +4,7 @@ import { guard } from '../../middleware/auth.js';
 import * as ops from './operations.service.js';
 import { createChain } from './chain.service.js';
 import * as attachments from '../attachments/attachments.service.js';
-import { exportOperationsCsv } from '../backup/backup.service.js';
+import { exportOperationsCsv } from './operations-csv.js';
 import { listCorrections } from '../corrections/corrections.service.js';
 import { ValidationError } from '../../lib/errors.js';
 

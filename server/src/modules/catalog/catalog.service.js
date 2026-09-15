@@ -26,7 +26,7 @@ import { registerLabels } from '../../domain/field-labels.js';
 const PL_CHARS = { ą: 'a', ć: 'c', ę: 'e', ł: 'l', ń: 'n', ó: 'o', ś: 's', ź: 'z', ż: 'z' };
 
 /** Kod z nazwy: „Zrębka Produkcyjna Leśna” → „ZREBKA-PRODUKCYJNA-LESNA”. */
-export function slugCode(name, prefix = '') {
+function slugCode(name, prefix = '') {
   const base = String(name || '')
     .toLowerCase()
     .replace(/[ąćęłńóśźż]/g, (c) => PL_CHARS[c] ?? c)

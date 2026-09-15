@@ -16,10 +16,8 @@ import config from '../../config/env.js';
 import db from '../../db/index.js';
 import { cache } from '../../lib/cache.js';
 import logger from '../../lib/logger.js';
-import { toCsv } from '../../lib/csv.js';
 import { ValidationError, ConflictError } from '../../lib/errors.js';
 import { audit } from '../../middleware/audit.js';
-import { listOperations } from '../operations/operations.service.js';
 import { bumpDocCounter, parseDocNo } from '../../domain/documents.js';
 import { deriveMoves } from '../../domain/stock.js';
 import { CONTENT_COLUMNS, DOCUMENT_COLUMNS } from '../../domain/operation-fields.js';
@@ -68,6 +66,13 @@ export function listBackups() {
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+
+/* Kolumny dokumentu przyjmowane z kopii — bez kolumn generowanych przez bazę. */
+const IMPORTABLE_COLUMNS = Object.freeze([
+  ...DOCUMENT_COLUMNS, ...CONTENT_COLUMNS,
+  'status', 'revision', 'created_at', 'created_by', 'updated_at', 'updated_by',
+  'cancelled_at', 'cancelled_by', 'cancel_reason',
+]);
 
 /* --------------------------- Eksport JSON ----------------------------- */
 
@@ -235,73 +240,3 @@ function insertOperationRaw(row, ctx) {
     );
   }
 }
-
-/* ----------------------------- Eksport CSV ---------------------------- */
-
-const CSV_COLUMNS = [
-  { key: 'operationDate', label: 'Data operacji' },
-  { key: 'docNo', label: 'Nr dokumentu' },
-  { key: 'type', label: 'Typ' },
-  { key: 'status', label: 'Status' },
-  { key: 'productName', label: 'Produkt' },
-  { key: 'grade', label: 'Rodzaj' },
-  { key: 'quantity', label: 'Wolumen' },
-  { key: 'unit', label: 'Jednostka' },
-  { key: 'qtyM3', label: 'm3' },
-  { key: 'qtyMp', label: 'MP' },
-  { key: 'qtyTonne', label: 'Tony' },
-  { key: 'energyGj', label: 'GJ' },
-  { key: 'warehouseFrom', label: 'Magazyn źródłowy' },
-  { key: 'warehouseTo', label: 'Magazyn docelowy' },
-  { key: 'supplierName', label: 'Dostawca' },
-  { key: 'recipientName', label: 'Odbiorca' },
-  { key: 'forestDistrict', label: 'Nadleśnictwo' },
-  { key: 'forestRange', label: 'Leśnictwo' },
-  { key: 'haulageNoteNo', label: 'Nr kwitu wywozowego' },
-  { key: 'loadingPlace', label: 'Miejsce załadunku' },
-  { key: 'pricePurchase', label: 'Cena zakupu' },
-  { key: 'valuePurchase', label: 'Wartość zakupu' },
-  { key: 'priceSale', label: 'Cena sprzedaży' },
-  { key: 'valueSale', label: 'Wartość sprzedaży' },
-  { key: 'chippingMode', label: 'Rąbanie' },
-  { key: 'chippingCost', label: 'Koszt rąbania' },
-  { key: 'carrierName', label: 'Przewoźnik' },
-  { key: 'vehiclePlate', label: 'Nr rejestracyjny' },
-  { key: 'distanceKm', label: 'Km' },
-  { key: 'transportCost', label: 'Koszt transportu' },
-  { key: 'certificate', label: 'Certyfikat' },
-  { key: 'isStored', label: 'Magazynowane', format: (v) => (v ? 'TAK' : 'NIE') },
-  { key: 'chainRef', label: 'Łańcuch' },
-  { key: 'signature', label: 'Podpis' },
-  { key: 'notes', label: 'Uwagi' },
-  { key: 'createdBy', label: 'Wprowadził' },
-  { key: 'createdAt', label: 'Data wprowadzenia' },
-];
-
-/* Kolumny dokumentu przyjmowane z kopii — bez kolumn generowanych przez bazę. */
-const IMPORTABLE_COLUMNS = Object.freeze([
-  ...DOCUMENT_COLUMNS, ...CONTENT_COLUMNS,
-  'status', 'revision', 'created_at', 'created_by', 'updated_at', 'updated_by',
-  'cancelled_at', 'cancelled_by', 'cancel_reason',
-]);
-
-const CSV_PAGE = 500;
-const CSV_MAX_ROWS = 200_000;
-
-/** Rejestr operacji w CSV, z uwzględnieniem filtrów z listy (stronicowanie do końca wyniku). */
-export function exportOperationsCsv(query, ctx) {
-  // Eksport widzi dokładnie to, co rejestr — łącznie z zakresem magazynów.
-  const rows = [];
-  // `withTotals: false` — suma i podsumowania liczone byłyby od nowa dla każdej
-  // strony eksportu, a wynik i tak nie jest tu do niczego potrzebny.
-  for (let offset = 0; rows.length < CSV_MAX_ROWS; offset += CSV_PAGE) {
-    const page = listOperations({ ...query, limit: CSV_PAGE, offset },
-      { withTotals: false, user: ctx?.user ?? null });
-    rows.push(...page.items);
-    if (page.items.length < CSV_PAGE) break;
-  }
-  if (ctx) audit(ctx, 'EXPORT_CSV', 'operations', null, { rows: rows.length });
-  return toCsv(CSV_COLUMNS, rows);
-}
-
-export { CSV_COLUMNS };

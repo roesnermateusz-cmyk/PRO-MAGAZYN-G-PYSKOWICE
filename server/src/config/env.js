@@ -79,6 +79,24 @@ export const config = Object.freeze({
     host: str('HOST', '127.0.0.1'),
     corsOrigins: Object.freeze(list('CORS_ORIGINS')),
     bodyLimitBytes: int('ATTACHMENTS_MAX_MB', 12) * 1024 * 1024 + 512 * 1024,
+
+    /**
+     * Czy wierzyć nagłówkowi `X-Forwarded-For`.
+     *
+     * DOMYŚLNIE NIE — i to jest istotne, nie ostrożnościowe. Nagłówek ustawia
+     * klient, więc ufanie mu bezwarunkowo oznacza, że o adresie zapisanym
+     * w dzienniku audytu decyduje ten, kogo dziennik ma pilnować. Wystarczy
+     * jeden nagłówek, żeby własne działania podpisać cudzym adresem — a ten
+     * dziennik jest dowodem przy certyfikacji KZR/SURE i kontroli skarbowej.
+     * Przy okazji rozsypuje się ograniczanie prób logowania, bo każdy
+     * zmyślony adres dostaje własny licznik.
+     *
+     * Włącz (`TRUST_PROXY=true`) WYŁĄCZNIE wtedy, gdy przed aplikacją stoi
+     * odwrotne proxy, które ten nagłówek nadpisuje własną wartością.
+     * Aplikacja wystawiona wprost do sieci z `TRUST_PROXY=true` ma dziennik
+     * audytu wart tyle, co nic.
+     */
+    trustProxy: bool('TRUST_PROXY', false),
   }),
 
   auth: Object.freeze({

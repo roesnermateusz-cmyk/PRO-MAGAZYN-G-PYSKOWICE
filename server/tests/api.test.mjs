@@ -385,3 +385,140 @@ test('limit prób logowania blokuje atak słownikowy', async () => {
   assert.ok(blocked, 'po serii prób serwer odpowiada kodem 429');
   resetRateLimits();
 });
+
+/* ==================== Wylogowanie i zmiana hasła ====================== */
+
+/*
+ * Obie trasy były bez pokrycia. To nie są trasy „kosmetyczne”: wylogowanie,
+ * które nie unieważnia sesji, i zmiana hasła, która zostawia stare czynne,
+ * wyglądają w interfejsie dokładnie tak samo jak działające.
+ */
+
+/** Zakłada konto i loguje się na nie, zwracając komplet tokenów. */
+async function noweKonto(email, password = 'Poczatkowe-Haslo-2026!') {
+  await call('/users', {
+    method: 'POST', token: adminToken,
+    body: { email, fullName: 'Konto Próbne', role: 'MAGAZYNIER', password },
+  });
+  const res = await call('/auth/login', { method: 'POST', body: { email, password } });
+  assert.equal(res.status, 200, `logowanie na ${email}: ${JSON.stringify(res.body).slice(0, 120)}`);
+  return res.body;
+}
+
+test('wylogowanie unieważnia token odświeżania', async () => {
+  resetRateLimits();
+  const konto = await noweKonto('wylogowanie@resinvest.local');
+
+  // Przed wylogowaniem token odświeżania działa.
+  const przed = await call('/auth/refresh', {
+    method: 'POST', body: { refreshToken: konto.refreshToken },
+  });
+  assert.equal(przed.status, 200);
+
+  const wylog = await call('/auth/logout', {
+    method: 'POST', token: przed.body.accessToken, body: { refreshToken: przed.body.refreshToken },
+  });
+  assert.equal(wylog.status, 200);
+
+  // Po wylogowaniu ten sam token nie ma prawa wydać nowego dostępu.
+  const po = await call('/auth/refresh', {
+    method: 'POST', body: { refreshToken: przed.body.refreshToken },
+  });
+  assert.ok(po.status >= 400, 'sesja po wylogowaniu musi być zamknięta');
+});
+
+test('wylogowanie ze wszystkich urządzeń zamyka też pozostałe sesje', async () => {
+  resetRateLimits();
+  const email = 'wszedzie@resinvest.local';
+  const haslo = 'Poczatkowe-Haslo-2026!';
+  const pierwsza = await noweKonto(email, haslo);
+  const druga = (await call('/auth/login', { method: 'POST', body: { email, password: haslo } })).body;
+
+  await call('/auth/logout', {
+    method: 'POST', token: druga.accessToken, body: { allDevices: true },
+  });
+
+  for (const [nazwa, sesja] of [['pierwsza', pierwsza], ['druga', druga]]) {
+    const res = await call('/auth/refresh', {
+      method: 'POST', body: { refreshToken: sesja.refreshToken },
+    });
+    assert.ok(res.status >= 400, `sesja ${nazwa} miała zostać zamknięta`);
+  }
+});
+
+test('zmiana hasła wymaga podania obecnego', async () => {
+  resetRateLimits();
+  const konto = await noweKonto('zmiana1@resinvest.local');
+
+  const res = await call('/auth/change-password', {
+    method: 'POST', token: konto.accessToken,
+    body: { currentPassword: 'Nie-To-Haslo-2026!', newPassword: 'Calkiem-Nowe-2026!' },
+  });
+  assert.equal(res.status, 401);
+  assert.match(res.body.error.message, /Obecne hasło/i);
+});
+
+test('nowe hasło musi spełniać wymagania i różnić się od obecnego', async () => {
+  resetRateLimits();
+  const haslo = 'Poczatkowe-Haslo-2026!';
+  const konto = await noweKonto('zmiana2@resinvest.local', haslo);
+
+  const slabe = await call('/auth/change-password', {
+    method: 'POST', token: konto.accessToken,
+    body: { currentPassword: haslo, newPassword: 'abc' },
+  });
+  assert.equal(slabe.status, 422);
+
+  const takieSamo = await call('/auth/change-password', {
+    method: 'POST', token: konto.accessToken,
+    body: { currentPassword: haslo, newPassword: haslo },
+  });
+  assert.equal(takieSamo.status, 422);
+  assert.match(takieSamo.body.error.message, /różnić się/i);
+});
+
+test('po zmianie hasła stare przestaje działać, a nowe działa', async () => {
+  resetRateLimits();
+  const email = 'zmiana3@resinvest.local';
+  const stare = 'Poczatkowe-Haslo-2026!';
+  const nowe = 'Zupelnie-Inne-2026!';
+  const konto = await noweKonto(email, stare);
+
+  const zmiana = await call('/auth/change-password', {
+    method: 'POST', token: konto.accessToken,
+    body: { currentPassword: stare, newPassword: nowe },
+  });
+  assert.equal(zmiana.status, 200);
+
+  resetRateLimits();
+  const naStare = await call('/auth/login', { method: 'POST', body: { email, password: stare } });
+  assert.equal(naStare.status, 401, 'stare hasło musi przestać działać');
+
+  const naNowe = await call('/auth/login', { method: 'POST', body: { email, password: nowe } });
+  assert.equal(naNowe.status, 200, 'nowe hasło musi działać od razu');
+});
+
+test('zmiana hasła zamyka sesje na pozostałych urządzeniach', async () => {
+  resetRateLimits();
+  const email = 'zmiana4@resinvest.local';
+  const stare = 'Poczatkowe-Haslo-2026!';
+  const inna = await noweKonto(email, stare);
+  const biezaca = (await call('/auth/login', { method: 'POST', body: { email, password: stare } })).body;
+
+  await call('/auth/change-password', {
+    method: 'POST', token: biezaca.accessToken,
+    body: { currentPassword: stare, newPassword: 'Jeszcze-Inne-2026!' },
+  });
+
+  // Zmiana hasła to zwykle reakcja na podejrzenie przejęcia konta — cudza
+  // sesja musi wtedy paść, a własna zostać.
+  const cudza = await call('/auth/refresh', {
+    method: 'POST', body: { refreshToken: inna.refreshToken },
+  });
+  assert.ok(cudza.status >= 400, 'pozostałe sesje muszą zostać zamknięte');
+
+  const wlasna = await call('/auth/refresh', {
+    method: 'POST', body: { refreshToken: biezaca.refreshToken },
+  });
+  assert.equal(wlasna.status, 200, 'sesja, z której zmieniono hasło, ma zostać czynna');
+});

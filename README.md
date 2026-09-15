@@ -374,6 +374,7 @@ PORT=4173
 HOST=127.0.0.1              # 0.0.0.0 udostępnia w sieci firmowej
 NODE_ENV=production
 AUTH_SECRET=                # WYMAGANY w produkcji, min. 32 znaki
+TRUST_PROXY=false           # `true` TYLKO za odwrotnym proxy — patrz niżej
 DB_FILE=./data/resinvest.db
 ATTACHMENTS_DIR=./data/attachments
 ATTACHMENTS_MAX_MB=12
@@ -384,6 +385,13 @@ COMPANY_DEFAULT_WAREHOUSE=Magazyn RiC Zabrze
 ```
 
 Pełna lista parametrów: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#5-konfiguracja--parametry).
+
+**`TRUST_PROXY` zostaw na `false`, jeśli aplikacja nie stoi za odwrotnym
+proxy.** Nagłówek `X-Forwarded-For` ustawia klient, więc przy `true` bez proxy
+każdy może podpisać swoje działania cudzym adresem w dzienniku audytu i obejść
+ograniczanie prób logowania. Włączając go za proxy, zadbaj, żeby proxy ten
+nagłówek **nadpisywało** — gotowa konfiguracja nginx jest w
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### Reguły księgowania (Ustawienia w aplikacji)
 

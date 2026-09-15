@@ -32,7 +32,7 @@ npm run seed               # dopisuje dane demonstracyjne
 npm run seed:reset         # czyści rejestr i generuje od nowa
 npm run user:create        # konto użytkownika z wiersza poleceń
 npm run backup             # kopia zapasowa bazy
-npm test                   # 119 testów (node:test)
+npm test                   # 204 testy (node:test)
 npm run check              # składnia serwera + zgodność importów frontu
 npm run build:installer    # ikona .ico + pakiet dist/ResInvest-ERP-<wersja>.zip
 npm run build:html         # wersja jednoplikowa → dist/ResInvestERP.html
@@ -92,6 +92,15 @@ Nie ma kolumny „stan”. `stock_moves` jest księgą tylko do dopisywania i us
 * wyzwalacz `tr_stock_moves_no_update` **odrzuca każdy UPDATE** na ruchu.
 
 Nigdy nie modyfikuj wiersza w `stock_moves`. Usuń i wstaw ponownie.
+
+### Raport miesięczny: dwa typy dokumentu dzielą jeden kubełek
+
+`bucketByType` w `reports.service.js` mapuje **ZAKUP i BO na ten sam kubełek**
+`purchase`. Zapytanie grupuje po `(typ, produkt)`, więc wiersze trzeba
+**sumować, nie przypisywać** — przypisanie kasowało bilans otwarcia i raport
+przestawał się domykać w miesiącu uruchomienia systemu (usterka 12
+w `docs/DEBUGGING.md`). Dokładając typ dokumentu, sprawdź, czy nie dzieli
+kubełka z innym.
 
 ### Model odczytu: `stock_balances` utrzymują wyzwalacze bazy, nie kod
 
@@ -187,6 +196,17 @@ r.get('/reports/dashboard', ...guard('reports:read'), (ctx) => reports.dashboard
 `guard(permission)` z `middleware/auth.js` składa uwierzytelnienie (JWT) i RBAC.
 Role: `ADMIN`, `KIEROWNIK`, `MAGAZYNIER`, `KSIEGOWY`, `AUDYTOR`. Uchwyt zwraca
 obiekt — serializacja, ETag i kody błędów są wspólne.
+
+Dwie rzeczy w tej warstwie są ustawione świadomie i nie należy ich „upraszczać”:
+
+* **`X-Forwarded-For` jest ignorowany**, dopóki nie włączy się `TRUST_PROXY`.
+  Nagłówek ustawia klient, więc zaufanie mu bezwarunkowo oddaje decyzję
+  o adresie w dzienniku audytu temu, kogo dziennik ma pilnować — i rozsypuje
+  ograniczanie prób logowania. Usterka 13 w `docs/DEBUGGING.md`.
+* **CSP jest wysyłany na każdą odpowiedź** (stała `CSP` w `lib/http.js`).
+  `style-src` ma `'unsafe-inline'`, bo kolory serii na wykresach idą atrybutem
+  `style`; `script-src` **nie ma** i mieć nie może. Trasa załączników nadpisuje
+  to własną, ostrzejszą polityką.
 
 ### Wielu użytkowników: blokada optymistyczna na dokumencie
 
@@ -297,6 +317,11 @@ npm run build:html && node standalone/verify.mjs
 
 `verify.mjs` generuje te same dane po obu stronach i porównuje liczby co do
 grosza. Rozjazd jest błędem blokującym.
+
+Pułapka generatora: **w wyrażeniach regularnych używaj `\uXXXX`, nie samych
+znaków**. Literalny myślnik w zakresie `[‐-―]` wyszedł z generatora jako
+nieprawidłowy zakres i cała wersja jednoplikowa przestawała się uruchamiać —
+przy działających testach serwera i czystym `node --check`.
 
 Pułapka sterownika: **`Database.export()` w sql.js zwalnia wszystkie
 przygotowane instrukcje**, więc bufor instrukcji trzeba porzucić po każdym

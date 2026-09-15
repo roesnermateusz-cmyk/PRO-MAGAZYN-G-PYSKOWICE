@@ -93,6 +93,7 @@ export function createApp() {
     corsOrigins: config.http.corsOrigins,
     bodyLimitBytes: config.http.bodyLimitBytes,
     isProduction: config.isProduction,
+    trustProxy: config.http.trustProxy,
     onRequest: syncCacheWithDatabase,
     onResponse: (ctx, { ms, status }) => {
       recordRequest(ctx.method, ctx.routePattern ?? ctx.path, status, ms);

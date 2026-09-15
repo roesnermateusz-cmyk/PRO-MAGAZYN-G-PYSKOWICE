@@ -112,5 +112,3 @@ export function updateSettings(input, ctx) {
 }
 
 registerLabels('settings', SCHEMA);
-
-export { DEFAULTS as SETTINGS_DEFAULTS, SCHEMA as SETTINGS_SCHEMA };

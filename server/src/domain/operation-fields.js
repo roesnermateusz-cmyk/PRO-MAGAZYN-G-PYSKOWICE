@@ -149,7 +149,7 @@ export const OPERATION_FIELDS = [
  * klienta. Magazyn wskazuje się nazwą (tak wypełnia się formularz w terenie),
  * a serwis zamienia ją na klucz kartoteki.
  */
-export const INPUT_ALIASES = Object.freeze({
+const INPUT_ALIASES = Object.freeze({
   warehouseFrom: { type: 'string', max: 120, label: 'Magazyn źródłowy' },
   warehouseTo: { type: 'string', max: 120, label: 'Magazyn docelowy' },
 });

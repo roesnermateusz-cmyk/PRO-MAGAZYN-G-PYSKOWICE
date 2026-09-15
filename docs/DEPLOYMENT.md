@@ -141,14 +141,34 @@ server {
         proxy_pass http://127.0.0.1:4173;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        # $remote_addr, NIE $proxy_add_x_forwarded_for — patrz uwaga niżej.
+        proxy_set_header X-Forwarded-For   $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
 W `.env` pozostaw `HOST=127.0.0.1` — do aplikacji ma docierać wyłącznie ruch
-z proxy. `X-Forwarded-For` jest uwzględniany przy zapisie adresu IP w audycie.
+z proxy.
+
+**Adres IP w dzienniku audytu.** Aplikacja domyślnie zapisuje adres gniazda
+i **ignoruje** `X-Forwarded-For` (`TRUST_PROXY=false`). Za proxy zapisywałby się
+wtedy adres samego proxy — żeby w dzienniku był adres pracownika, ustaw
+`TRUST_PROXY=true`, ale **wyłącznie razem z powyższą konfiguracją nginx**.
+
+Dwie rzeczy muszą zajść jednocześnie, inaczej wpis w dzienniku jest bezwartościowy:
+
+1. nginx **nadpisuje** nagłówek (`$remote_addr`). Popularne
+   `$proxy_add_x_forwarded_for` **dopisuje** się do wartości przysłanej przez
+   klienta, więc na początku listy — a stamtąd aplikacja bierze adres — ląduje
+   to, co wpisał sam klient.
+2. do aplikacji nie da się dojść z pominięciem proxy (`HOST=127.0.0.1`).
+
+Bez proxy zostaw `TRUST_PROXY=false`. Aplikacja wystawiona wprost do sieci
+z `TRUST_PROXY=true` pozwala każdemu podpisać własne działania cudzym adresem
+i rozsypuje ograniczanie prób logowania — każdy zmyślony adres dostaje własny
+licznik. Ten dziennik jest dowodem przy certyfikacji KZR/SURE i kontroli
+skarbowej.
 
 ---
 

@@ -36,10 +36,6 @@ const SCOPED = /^\/(operations|stock|reports\/(dashboard|monthly|production-day|
 /** Klucz aktywnego magazynu albo `null` dla „wszystkie moje”. */
 export const activeWarehouseId = () => stan.warehouseId ?? null;
 
-/** Aktywny magazyn jako obiekt z listy dostępnych. */
-export const activeWarehouse = () =>
-  stan.warehouses.find((w) => w.id === stan.warehouseId) ?? null;
-
 /** Magazyny, w których zalogowany może pracować. */
 export const availableWarehouses = () => stan.warehouses;
 

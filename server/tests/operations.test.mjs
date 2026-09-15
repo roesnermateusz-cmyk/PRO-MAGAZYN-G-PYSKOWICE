@@ -814,3 +814,138 @@ test('pulpit: długość okna szeregu jest ograniczona do sensownego zakresu', (
   assert.equal(dashboard({ months: '1' }).trendMonths, 3);
   assert.equal(dashboard({ months: 'abc' }).trendMonths, 12);
 });
+
+/* ======================= BO — bilans otwarcia ========================== */
+
+/*
+ * BO był jedynym typem dokumentu bez żadnego testu, a to dokument, od którego
+ * zaczyna się praca na systemie: wprowadza stan zastany na placu w dniu
+ * uruchomienia. Pomyłka tutaj przesuwa punkt odniesienia dla całej późniejszej
+ * historii i nie ma jak jej zauważyć — nie ma z czym porównać.
+ */
+
+test('BO wprowadza stan zastany i podnosi magazyn', () => {
+  const przed = stockOf('Drewno opałowe z lasu');
+
+  const { operation: bo } = ops.createOperation(operationInput({
+    type: 'BO',
+    unit: 'MP',
+    quantity: 500,
+    supplierName: undefined,
+    pricePurchase: undefined,
+    notes: 'Stan zastany przy uruchomieniu systemu',
+  }), ctx);
+
+  assert.match(bo.docNo, /^BO\//, 'BO ma własną serię numeracji');
+  assert.equal(bo.qtyMp, 500);
+  assert.equal(stockOf('Drewno opałowe z lasu'), przed + 500);
+  assert.ok(checkStockBalances().consistent);
+});
+
+test('BO nie wymaga dostawcy ani ceny — to nie jest zakup', () => {
+  // Stan zastany bierze się z inwentaryzacji, a nie od kontrahenta. Wymaganie
+  // dostawcy zmuszałoby do wpisywania fikcyjnego.
+  const { operation: bo } = ops.createOperation(operationInput({
+    type: 'BO', unit: 'MP', quantity: 10,
+    supplierName: undefined, pricePurchase: undefined,
+  }), ctx);
+
+  assert.equal(bo.supplierName ?? null, null);
+  assert.ok(!bo.valuePurchase, 'BO bez ceny nie tworzy wartości zakupu');
+});
+
+test('BO tworzy ruch przychodowy, nie rozchodowy', () => {
+  const { operation: bo } = ops.createOperation(operationInput({
+    type: 'BO', unit: 'MP', quantity: 40,
+    supplierName: undefined, pricePurchase: undefined,
+  }), ctx);
+
+  const ruchy = db.all(
+    'SELECT qty_mp, warehouse_id FROM stock_moves WHERE operation_id = :id',
+    { id: bo.id },
+  );
+  assert.equal(ruchy.length, 1, 'BO księguje się po jednej stronie');
+  assert.ok(ruchy[0].qty_mp > 0, 'ruch z BO musi być dodatni');
+});
+
+test('storno BO zdejmuje wprowadzony stan', () => {
+  const przed = stockOf('Drewno opałowe z lasu');
+  const { operation: bo } = ops.createOperation(operationInput({
+    type: 'BO', unit: 'MP', quantity: 77,
+    supplierName: undefined, pricePurchase: undefined,
+  }), ctx);
+  assert.equal(stockOf('Drewno opałowe z lasu'), przed + 77);
+
+  ops.cancelOperation(bo.id, { reason: 'Błędna inwentaryzacja' }, ctx);
+
+  assert.equal(stockOf('Drewno opałowe z lasu'), przed, 'storno BO wraca do stanu sprzed');
+  assert.equal(db.get('SELECT status FROM operations WHERE id = :id', { id: bo.id }).status, 'CANCELLED');
+  assert.ok(checkStockBalances().consistent);
+});
+
+test('korekta BO przelicza stan na nową ilość', () => {
+  const przed = stockOf('Drewno opałowe z lasu');
+  const { operation: bo } = ops.createOperation(operationInput({
+    type: 'BO', unit: 'MP', quantity: 100,
+    supplierName: undefined, pricePurchase: undefined,
+  }), ctx);
+
+  const { operation: po } = ops.updateOperation(bo.id, {
+    quantity: 160,
+    revision: bo.revision,
+    correctionReason: 'Pomiar powtórzony po przeliczeniu pryzmy',
+  }, ctx);
+
+  assert.equal(po.qtyMp, 160);
+  assert.equal(stockOf('Drewno opałowe z lasu'), przed + 160,
+    'korekta zastępuje ruch, a nie dokłada drugiego');
+  assert.ok(checkStockBalances().consistent);
+});
+
+test('BO wchodzi do raportu miesięcznego po stronie przychodu', () => {
+  const miesiac = '2026-03';
+  const produkt = 'Drewno opałowe z lasu';
+  const przed = monthlyReport({ month: miesiac })
+    .products.find((p) => p.productName === produkt)?.purchase.qtyMp ?? 0;
+
+  ops.createOperation(operationInput({
+    type: 'BO', unit: 'MP', quantity: 250, operationDate: `${miesiac}-15`,
+    supplierName: undefined, pricePurchase: undefined,
+  }), ctx);
+
+  const po = monthlyReport({ month: miesiac })
+    .products.find((p) => p.productName === produkt).purchase.qtyMp;
+
+  // BO dzieli kubełek z zakupem (`bucketByType` w reports.service.js) — stan
+  // zastany jest przychodem, tyle że bez kontrahenta.
+  assert.ok(Math.abs(po - przed - 250) < 0.01,
+    `BO ma podnieść przychód miesiąca o 250 MP: ${przed} → ${po}`);
+});
+
+test('raport miesięczny domyka się także z dokumentem BO w środku', () => {
+  const miesiac = '2026-03';
+  ops.createOperation(operationInput({
+    type: 'BO', unit: 'MP', quantity: 33, operationDate: `${miesiac}-20`,
+    supplierName: undefined, pricePurchase: undefined,
+  }), ctx);
+
+  // Równanie bilansu musi się domykać mimo dokumentu, który nie jest ani
+  // zakupem od kontrahenta, ani produkcją.
+  for (const p of monthlyReport({ month: miesiac }).products) {
+    const oczekiwane = p.opening.qtyMp + p.purchase.qtyMp + p.production.qtyMp
+      - p.sale.qtyMp - p.consumption.qtyMp;
+    assert.ok(Math.abs(oczekiwane - p.closing.qtyMp) < 0.01,
+      `bilans ${p.productName} z BO w środku: ${oczekiwane} ≠ ${p.closing.qtyMp}`);
+  }
+  assert.ok(checkStockBalances().consistent);
+});
+
+test('pulpit: bilans miesiąca domyka się mimo BO zaksięgowanego w trakcie', () => {
+  // BO w środku miesiąca nie mieści się w schemacie „otwarcie + przychody
+  // − rozchody”, więc musi go przejąć pozycja domykająca. Bez niej wykres
+  // pokazywałby stan zamknięcia, którego nie da się wyprowadzić ze słupków.
+  const { balance } = dashboard({ month: '2026-03' });
+  const suma = balance.steps.reduce((acc, krok) => acc + krok.delta, balance.opening);
+  assert.ok(Math.abs(suma - balance.closing) < 0.005,
+    `BO ${balance.opening} + kroki = ${suma}, a BZ to ${balance.closing}`);
+});

@@ -19,7 +19,7 @@ const { default: db } = await import('../src/db/index.js');
 const { bootstrap } = await import('../src/bootstrap.js');
 const { listAudit, auditFilters } = await import('../src/middleware/audit.js');
 const { permissionsFor } = await import('../src/middleware/auth.js');
-const { labelFor } = await import('../src/domain/field-labels.js');
+const { labelFor, labelsFor, registeredEntities } = await import('../src/domain/field-labels.js');
 const { products, partners, vehicles, forest } = await import('../src/modules/catalog/catalog.service.js');
 const { updateSettings } = await import('../src/modules/settings/settings.service.js');
 const users = await import('../src/modules/users/users.service.js');
@@ -256,4 +256,50 @@ test('etykiety pól biorą się ze schematów walidacji, nie z osobnej listy', (
   // nigdy pusta.
   assert.equal(labelFor('products', 'poleKtoregoNieMa'), 'poleKtoregoNieMa');
   assert.equal(labelFor('encjaKtorejNieMa', 'cokolwiek'), 'cokolwiek');
+});
+
+/* ============ Kompletność etykiet: żaden klucz API nie wycieka ========= */
+
+test('każde pole widoczne w historii ma polską etykietę', () => {
+  // Kartoteki pojazdów i nadleśnictw wypadły kiedyś z dziennika przez
+  // przeoczenie w trasie. Ten test pilnuje bliźniaczego przeoczenia: nowa
+  // kartoteka trafia do dziennika, ale bez `registerLabels`, więc kontrola
+  // ogląda `mpToTonne` zamiast „Przelicznik MP → tona”.
+  const { items } = listAudit({ limit: 1000 });
+  const surowe = new Map();
+
+  for (const wpis of items) {
+    for (const { field, label } of wpis.changes) {
+      // `labelFor` zwraca sam klucz, gdy encja nie ogłosiła etykiet.
+      if (label === field && !/^[A-ZŁŚŻŹĆÓĘĄŃ]/.test(field)) {
+        surowe.set(`${wpis.entity}.${field}`, true);
+      }
+    }
+  }
+
+  assert.deepEqual([...surowe.keys()], [],
+    'te pola pokażą się w historii jako klucz API — brakuje registerLabels albo `label` w schemacie');
+});
+
+test('rejestr etykiet obejmuje każdą encję, która trafia do dziennika', () => {
+  const zarejestrowane = new Set(registeredEntities());
+  const wDzienniku = listAudit({ limit: 1000 }).items
+    // Encje bez porównania stanów (operacje, logowania) etykiet nie potrzebują.
+    .filter((i) => i.changes.length > 0)
+    .map((i) => i.entity);
+
+  const bezEtykiet = [...new Set(wDzienniku)].filter((e) => !zarejestrowane.has(e));
+  assert.deepEqual(bezEtykiet, [],
+    'encja zapisuje zmiany pól, ale nie ogłosiła etykiet przez registerLabels');
+});
+
+test('etykiety encji są kompletne i po polsku', () => {
+  for (const encja of registeredEntities()) {
+    const etykiety = labelsFor(encja);
+    assert.ok(Object.keys(etykiety).length > 0, `${encja}: pusty zestaw etykiet`);
+    for (const [pole, etykieta] of Object.entries(etykiety)) {
+      assert.notEqual(etykieta, pole, `${encja}.${pole}: etykieta powiela klucz API`);
+      assert.ok(etykieta.trim().length > 1, `${encja}.${pole}: etykieta pusta`);
+    }
+  }
 });

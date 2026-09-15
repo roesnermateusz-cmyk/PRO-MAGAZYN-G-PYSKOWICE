@@ -803,5 +803,3 @@ function diffRows(before, after) {
   }
   return changes;
 }
-
-export { prepareRow, checkStock };

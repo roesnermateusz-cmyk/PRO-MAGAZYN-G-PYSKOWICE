@@ -385,17 +385,29 @@ function computeMonthlyReport(query) {
     ZAKUP: 'purchase', PRODUKCJA: 'production', SPRZEDAZ: 'sale',
     ZUZYCIE: 'consumption', MM: 'transfer', BO: 'purchase',
   };
+  /*
+   * Kubełki są SUMOWANE, nie nadpisywane.
+   *
+   * Zapytanie grupuje po `(typ, produkt)`, a dwa typy dzielą jeden kubełek:
+   * ZAKUP i BO oba są przychodem po stronie „purchase”. Przy przypisaniu
+   * wiersz późniejszy w kolejności kasował wcześniejszy — a że sortowanie
+   * idzie po nazwie typu, „BO” wypadało przed „ZAKUP” i ilość ze stanu
+   * zastanego znikała z raportu.
+   *
+   * Skutek był cichy i groźny: stan zamknięcia liczy się z księgi ruchów
+   * (gdzie BO jest), więc równanie „otwarcie + przychody − rozchody = BZ”
+   * przestawało się domykać dokładnie w miesiącu uruchomienia systemu.
+   */
   for (const r of turnover) {
     const e = ensure(r.product_id, r.product_name, r.category);
-    e[bucketByType[r.type]] = {
-      documents: r.documents,
-      qtyMp: roundQty(r.qty_mp),
-      qtyM3: roundQty(r.qty_m3),
-      qtyTonne: roundQty(r.qty_tonne),
-      energyGj: roundQty(r.energy_gj),
-      valuePurchase: roundMoney(r.value_purchase),
-      valueSale: roundMoney(r.value_sale),
-    };
+    const bucket = e[bucketByType[r.type]];
+    bucket.documents += r.documents;
+    bucket.qtyMp = roundQty(bucket.qtyMp + r.qty_mp);
+    bucket.qtyM3 = roundQty(bucket.qtyM3 + r.qty_m3);
+    bucket.qtyTonne = roundQty(bucket.qtyTonne + r.qty_tonne);
+    bucket.energyGj = roundQty(bucket.energyGj + r.energy_gj);
+    bucket.valuePurchase = roundMoney(bucket.valuePurchase + r.value_purchase);
+    bucket.valueSale = roundMoney(bucket.valueSale + r.value_sale);
   }
 
   const costs = db.get(

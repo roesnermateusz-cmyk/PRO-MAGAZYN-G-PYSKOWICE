@@ -111,12 +111,113 @@ function parseBody(buffer, contentType) {
   throw new BadRequestError(`Nieobsługiwany typ treści: ${type}`);
 }
 
-/** Adres klienta z uwzględnieniem odwrotnego proxy (nginx / Caddy). */
-function clientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim();
+/**
+ * Adres klienta.
+ *
+ * `X-Forwarded-For` jest brany pod uwagę WYŁĄCZNIE przy `TRUST_PROXY=true`.
+ * Nagłówek ustawia klient, więc bezwarunkowe zaufanie oznacza, że o adresie
+ * zapisanym w dzienniku audytu decyduje ten, kogo dziennik ma pilnować:
+ * wystarczy jeden nagłówek, żeby własne działania podpisać cudzym adresem.
+ * Ten dziennik jest dowodem przy certyfikacji i kontroli skarbowej, więc
+ * podrobiony adres nie jest drobiazgiem. Drugim skutkiem było rozsypanie
+ * ograniczania prób logowania — każdy zmyślony adres dostawał własny licznik.
+ *
+ * @param {import('node:http').IncomingMessage} req
+ * @param {boolean} trustProxy czy przed aplikacją stoi odwrotne proxy,
+ *   które ten nagłówek nadpisuje własną wartością
+ */
+function clientIp(req, trustProxy) {
+  if (trustProxy) {
+    const fwd = req.headers['x-forwarded-for'];
+    if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim();
+  }
   return req.socket?.remoteAddress || '';
 }
+
+/**
+ * Nazwa pliku do nagłówka `Content-Disposition`.
+ *
+ * Wcześniej szła przez `encodeURIComponent`, więc „Kwit produkcji — wrzesień.csv”
+ * zapisywał się na dysku jako `Kwit%20produkcji%20%E2%80%94%20wrzesie%C5%84.csv`.
+ * Bezpieczne, ale nie do czytania — a to są dokumenty, które księgowa wysyła
+ * dalej mailem.
+ *
+ * RFC 6266 rozwiązuje to dwoma parametrami naraz: `filename=` z wersją
+ * zubożoną do ASCII (dla czegokolwiek bardzo starego) i `filename*=` w
+ * składni RFC 5987, które każda dzisiejsza przeglądarka woli i z którego
+ * odczyta polskie znaki. Kolejność ma znaczenie — `filename*` musi być drugi.
+ *
+ * Cudzysłów i odwrotny ukośnik są usuwane, bo w wersji ASCII stoi ona
+ * w cudzysłowie; znaki sterujące i ukośniki — bo nazwa bierze się z pliku
+ * wgranego przez użytkownika i nie ma prawa wyjść poza swój katalog
+ * ani rozciąć nagłówka na dwa.
+ */
+function nazwaPliku(nazwa) {
+  const czysta = String(nazwa)
+    .replace(/[\r\n"\\/]/g, '_')
+    .replace(/[\u0000-\u001f\u007f]/g, '');
+
+  /*
+   * Transliteracja na ASCII. Zapisy `\uXXXX` zamiast samych znaków są tu
+   * konieczne, nie ozdobne: wersja jednoplikowa przepuszcza źródła przez
+   * własny generator i literalny myślnik w zakresie `[‐-―]` wychodził z niego
+   * jako nieprawidłowy zakres — cała aplikacja przestawała się uruchamiać.
+   *
+   * Polskie znaki i typografia dostają rozsądne odpowiedniki, bo myślnik
+   * i cudzysłów drukarski wchodzą do nazw raportów same, z szablonów wydruku.
+   */
+  const ascii = czysta
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0142/g, 'l').replace(/\u0141/g, 'L')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/[\u2018\u2019\u201a\u201b]/g, "'")
+    .replace(/[\u201c\u201d\u201e\u201f]/g, '"')
+    .replace(/\u2026/g, '...')
+    .replace(/[\u00a0\u2007\u2009\u202f]/g, ' ')
+    .replace(/[^\x20-\x7e]/g, '_')
+    // Na końcu, nie wcześniej: transliteracja cudzysłowu drukarskiego sama
+    // wstawia zwykły `"`, a ten stoi wewnątrz cudzysłowu i rozciąłby parametr.
+    .replace(/["\\]/g, "'");
+
+  return `filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(czysta)}`;
+}
+
+/**
+ * Polityka bezpieczeństwa treści (CSP) — druga linia obrony po `esc()`.
+ *
+ * Widoki sklejają HTML z tekstu, więc jedno pominięte `esc()` wstrzykuje
+ * znacznik. CSP nie naprawia takiej dziury, ale odbiera jej najgroźniejszy
+ * skutek: wstrzyknięty `<script>` się nie wykona, a wykradzione dane nie mają
+ * dokąd pojechać, bo `connect-src` puszcza wyłącznie własny origin.
+ *
+ * Skąd poszczególne pozycje:
+ * - `script-src 'self'` bez `unsafe-inline` i `unsafe-eval` — aplikacja ładuje
+ *   moduły ESM z dysku i nigdzie nie woła `eval` ani `new Function`;
+ * - `style-src` z `unsafe-inline` — w kodzie jest ok. 120 atrybutów `style=`,
+ *   m.in. kolory serii na wykresach liczone w locie. To świadome ustępstwo:
+ *   przy stylach chodzi o wygląd, przy skryptach o wykonanie kodu;
+ * - `img-src` z `data:` i `blob:` — podgląd załączonego zdjęcia przed wysyłką
+ *   i miniatury skanów idą przez `URL.createObjectURL`;
+ * - `font-src 'self'` — kroje leżą w `web/assets/fonts/` (zasada „zero sieci”);
+ * - `base-uri 'none'` — wstrzyknięty `<base>` przekierowałby wszystkie
+ *   względne adresy, w tym wysyłkę formularzy.
+ *
+ * Trasa załączników nadpisuje to własną, ostrzejszą polityką (`default-src
+ * 'none'`) — nagłówki podane w `writeHead` mają pierwszeństwo przed
+ * `setHeader`, więc plik od użytkownika nadal nie wykona niczego.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join('; ');
 
 /* --------------------------- Pliki statyczne -------------------------- */
 
@@ -190,6 +291,8 @@ function serveStatic(rootDir, urlPath, res, req = null) {
  * @param {string} [options.apiPrefix] prefiks tras API (żądania spoza prefiksu trafiają do SPA)
  * @param {string[]} [options.corsOrigins] dozwolone źródła CORS
  * @param {number} [options.bodyLimitBytes] maksymalny rozmiar treści żądania
+ * @param {boolean} [options.trustProxy] czy `X-Forwarded-For` ma decydować
+ *   o adresie klienta — domyślnie NIE, patrz komentarz przy `clientIp()`
  * @param {Function} [options.onRequest] hook wywoływany po dopasowaniu trasy,
  *   przed uruchomieniem handlerów (synchronizacja pamięci podręcznej)
  * @param {Function} [options.onResponse] hook wywoływany po odpowiedzi
@@ -203,6 +306,7 @@ export function createServer(options) {
     corsOrigins = [],
     bodyLimitBytes = 16 * 1024 * 1024,
     isProduction = true,
+    trustProxy = false,
     onRequest = null,
     onResponse = null,
   } = options;
@@ -217,6 +321,7 @@ export function createServer(options) {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    res.setHeader('Content-Security-Policy', CSP);
 
     /* CORS — domyślnie wyłączony (aplikacja serwuje własny front z tego samego origin). */
     const origin = req.headers.origin;
@@ -242,7 +347,7 @@ export function createServer(options) {
       query: Object.fromEntries(url.searchParams.entries()),
       params: {},
       body: {},
-      ip: clientIp(req),
+      ip: clientIp(req, trustProxy),
       userAgent: String(req.headers['user-agent'] || '').slice(0, 250),
       user: null,
       /** Ustawia nagłówek odpowiedzi. */
@@ -264,7 +369,7 @@ export function createServer(options) {
         ctx.send(200, {
           'Content-Type': mime,
           'Content-Length': Buffer.byteLength(body),
-          'Content-Disposition': `${disposition}; filename="${encodeURIComponent(filename)}"`,
+          'Content-Disposition': `${disposition}; ${nazwaPliku(filename)}`,
           ...headers,
         }, body);
       },
