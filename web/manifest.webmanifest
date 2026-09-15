@@ -1,0 +1,15 @@
+{
+  "name": "ResInvest ERP — Magazyn Biomasy",
+  "short_name": "ResInvest ERP",
+  "description": "System magazynowy biomasy: dokumenty PZ/WZ/MM, produkcja, raporty, korekty.",
+  "lang": "pl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F8F6",
+  "theme_color": "#1C5E3A",
+  "icons": [
+    { "src": "/assets/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

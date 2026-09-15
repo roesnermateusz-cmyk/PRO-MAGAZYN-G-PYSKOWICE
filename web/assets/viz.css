@@ -1,0 +1,324 @@
+/* =====================================================================
+   ResInvest ERP — warstwa wizualizacji danych
+   ---------------------------------------------------------------------
+   Instancja palety opisana w docs/DESIGN-SYSTEM.md. Wszystkie wartości
+   przeszły walidator sześciu kontroli (pasmo jasności, próg chromy,
+   rozdzielność przy protanopii i deuteranopii, próg dla widzenia pełnego,
+   kontrast do powierzchni) — osobno dla trybu jasnego i ciemnego.
+   Nie zmieniaj tych barw „na oko”: każda zmiana wymaga ponownego
+   uruchomienia walidatora, bo sloty są dobrane parami, nie pojedynczo.
+   ===================================================================== */
+
+:root {
+  /* --- Powierzchnie i tusz wykresu --- */
+  --viz-surface: #FFFFFF;
+  --viz-plane: #F1F6F2;
+  --viz-ink: #1B2B21;
+  --viz-ink-2: #66786C;
+  --viz-muted: #8D9E94;
+  --viz-grid: #EAF0EB;
+  --viz-axis: #D2DDD4;
+  --viz-dim: #B6C0B9;
+  --viz-total: #75887C;
+
+  /* --- Paleta kategorialna, motyw „Bór” (kolejność slotów jest stała) --- */
+  --viz-s1: #007e3f;  /* świerk   — przyjęcia, surowiec */
+  --viz-s2: #bf8b00;  /* bursztyn — wydania, sprzedaż */
+  --viz-s3: #006bc6;  /* stal     — produkcja */
+  --viz-s4: #dd6ca6;  /* róża */
+  --viz-s5: #6d8600;  /* oliwka */
+  --viz-s6: #0098a4;  /* morski */
+  --viz-s7: #d8463b;  /* ceglany */
+  --viz-s8: #7741b4;  /* śliwka */
+
+  /* --- Rampa sekwencyjna (świerk), 100 → 700 --- */
+  --viz-seq-100: #e0f7e5; --viz-seq-200: #b6e5c1; --viz-seq-300: #7fca94;
+  --viz-seq-400: #43aa67; --viz-seq-500: #008a45; --viz-seq-600: #006632;
+  --viz-seq-700: #00441f;
+
+  /* --- Rampa porządkowa (stopnie widoczne, jasny koniec ≥ 2:1) --- */
+  --viz-ord-1: #73bf88; --viz-ord-2: #50a96d; --viz-ord-3: #269451;
+  --viz-ord-4: #007d3e; --viz-ord-5: #006430; --viz-ord-6: #004c23;
+
+  /* --- Para rozbieżna: chłodny ↔ ciepły, neutralny środek --- */
+  --viz-pos: #006bc6;
+  --viz-neg: #d8463b;
+  --viz-mid: #e3e7e4;
+
+  /* --- Statusy (stałe, nietematyzowane, zawsze z ikoną i podpisem) --- */
+  --viz-good: #12933F;
+  --viz-warn: #E0A200;
+  --viz-serious: #E27A45;
+  --viz-critical: #CE3A2F;
+}
+
+/* Tryb ciemny — te same rodziny barw przestopniowane pod ciemną powierzchnię
+   i zwalidowane osobno. Włącza się wyłącznie jawnym przełącznikiem motywu:
+   reszta interfejsu ma dziś jeden, świadomie wybrany wygląd, więc wykres
+   nie może zciemnieć sam z siebie i rozjechać się z chromem aplikacji. */
+:root[data-theme="dark"] {
+  --viz-surface: #131A16;
+  --viz-plane: #0D120F;
+  --viz-ink: #F2F6F3;
+  --viz-ink-2: #B4C2B8;
+  --viz-muted: #8D9E94;
+  --viz-grid: #23302A;
+  --viz-axis: #35443B;
+  --viz-dim: #56655C;
+  --viz-total: #8B9E92;
+
+  --viz-s1: #007b3d; --viz-s2: #bb8800; --viz-s3: #1c7bd8; --viz-s4: #cf5f99;
+  --viz-s5: #728d00; --viz-s6: #009fac; --viz-s7: #e04d41; --viz-s8: #8f5acf;
+
+  --viz-ord-1: #006430; --viz-ord-2: #007d3e; --viz-ord-3: #269451;
+  --viz-ord-4: #50a96d; --viz-ord-5: #73bf88; --viz-ord-6: #93d5a4;
+
+  --viz-pos: #1c7bd8;
+  --viz-neg: #e04d41;
+  --viz-mid: #333634;
+}
+
+/* ------------------------------- Karta -------------------------------- */
+
+.viz-holder { min-width: 0; }
+
+.viz-card {
+  background: var(--viz-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px 14px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.viz-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.viz-titles { min-width: 0; }
+.viz-titles h2 { font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+.viz-sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.viz-tools { display: flex; gap: 6px; flex: none; }
+
+.viz-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  list-style: none;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: -2px 0 0;
+}
+.viz-legend li { display: inline-flex; align-items: center; gap: 7px; }
+
+.viz-key { flex: none; background: var(--k, var(--viz-s1)); }
+.viz-key.line { width: 14px; height: 3px; border-radius: 2px; }
+.viz-key.rect { width: 11px; height: 11px; border-radius: 3px; }
+
+.viz-body { position: relative; min-width: 0; }
+.viz-plot { min-width: 0; border-radius: var(--radius-sm); }
+.viz-plot:focus-visible { outline: 2px solid var(--spruce); outline-offset: 3px; }
+.viz-svg { display: block; width: 100%; height: auto; }
+
+/* Odświeżenie danych przygasza rysunek zamiast go usuwać — bez migotania. */
+.viz-card[aria-busy="true"] .viz-body { opacity: .45; transition: opacity .15s; }
+
+.viz-note { font-size: 11.5px; color: var(--ink-3); }
+.viz-table .tbl-wrap { max-height: 320px; overflow: auto; }
+
+/* ------------------------- Znaczniki i chrom --------------------------- */
+
+.viz-grid { stroke: var(--viz-grid); stroke-width: 1; }
+.viz-grid.zero { stroke: var(--viz-axis); }
+.viz-cross { stroke: var(--viz-axis); stroke-width: 1; }
+.viz-link { stroke: var(--viz-axis); stroke-width: 1; }
+
+.viz-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.viz-area { opacity: .10; }
+.viz-dot { stroke: var(--viz-surface); stroke-width: 2; }
+.viz-track { fill: var(--viz-plane); }
+
+.viz-bar path { transition: filter .12s ease; }
+.viz-bar.on path { filter: brightness(1.14); }
+
+.viz-tick {
+  fill: var(--viz-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.viz-barlabel, .viz-endlabel {
+  fill: var(--viz-ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.viz-rowlabel { fill: var(--viz-ink); font-size: 12.5px; }
+
+/* ----------------------------- Podpowiedź ------------------------------ */
+
+.viz-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--viz-ink);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 11px;
+  font-size: 12px;
+  line-height: 1.45;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 5;
+  box-shadow: 0 8px 24px -10px rgba(12, 30, 20, .5);
+}
+.viz-tip-h { font-weight: 650; margin-bottom: 3px; opacity: .92; }
+.viz-tip-r { display: flex; align-items: baseline; gap: 7px; }
+.viz-tip-r b { font-variant-numeric: tabular-nums; }
+.viz-tip-r span:last-child { opacity: .74; }
+.viz-tip .viz-key { align-self: center; }
+
+/* ------------------------- Figury liczbowe ----------------------------- */
+
+.viz-hero {
+  background: linear-gradient(155deg, var(--spruce-deep), #14472B 62%, #123D26);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 20px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+.hero-eyebrow { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; opacity: .72; }
+.hero-value {
+  font-size: clamp(38px, 5.4vw, 54px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.05;
+}
+.hero-value small { font-size: .38em; font-weight: 600; opacity: .74; margin-left: 8px; }
+.hero-delta { margin-top: 4px; min-height: 20px; }
+.hero-spark { margin-top: 10px; opacity: .9; }
+.hero-spark .viz-spark { width: 100%; }
+.hero-foot { font-size: 12.5px; opacity: .78; margin-top: 8px; }
+.viz-hero .viz-delta { color: #fff; background: rgba(255, 255, 255, .14); }
+.viz-hero .viz-delta.good { color: #BEEFCC; }
+.viz-hero .viz-delta.bad { color: #FFC9C2; }
+
+.stat-tile {
+  background: var(--viz-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 13px 15px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .14s, transform .14s;
+}
+a.stat-tile:hover { border-color: var(--line-2); transform: translateY(-1px); }
+.st-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-label { font-size: 12px; color: var(--ink-2); }
+.st-icon { color: var(--ink-3); display: flex; }
+.st-value {
+  font-size: 25px;
+  font-weight: 680;
+  letter-spacing: -.02em;
+  line-height: 1.14;
+  white-space: nowrap;
+}
+.st-value small { font-size: .5em; font-weight: 600; color: var(--ink-2); margin-left: 5px; }
+.st-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; min-height: 34px; }
+
+.viz-delta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.viz-delta i { font-style: normal; font-weight: 500; opacity: .74; }
+.viz-delta.good { color: #0B6B2C; background: var(--green-tint); }
+.viz-delta.bad { color: #9C2E24; background: var(--neg-soft); }
+
+.viz-spark { display: block; }
+.viz-spark-line { fill: none; stroke: var(--viz-dim); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.viz-spark-area { opacity: .13; }
+.viz-spark-dot { stroke: var(--viz-surface); stroke-width: 1.6; }
+.viz-hero .viz-spark-line { stroke: rgba(255, 255, 255, .5); }
+.viz-hero .viz-spark-area { opacity: .2; }
+.viz-hero .viz-spark-dot { stroke: none; }
+
+/* --------------------------- Siatka pulpitu ---------------------------- */
+
+.dash { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  min-width: 0;
+}
+.filterbar .fb-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.filterbar label { font-size: 11.5px; color: var(--ink-3); }
+.filterbar .fb-spacer { flex: 1 1 auto; }
+.filterbar .fb-status { font-size: 12px; color: var(--ink-2); align-self: center; }
+.fb-presets { display: inline-flex; gap: 2px; background: var(--surface-2); border-radius: 999px; padding: 3px; }
+.fb-presets button {
+  border: 0; background: transparent; border-radius: 999px;
+  padding: 5px 11px; font-size: 12.5px; font-weight: 600; color: var(--ink-2);
+}
+.fb-presets button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+.dash-lead { display: grid; grid-template-columns: minmax(260px, 1fr) 2.1fr; gap: 16px; min-width: 0; }
+.dash-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-width: 0; }
+.dash-charts { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; min-width: 0; }
+.dash-charts > * { min-width: 0; }
+.dash-wide { display: grid; grid-template-columns: 1fr; gap: 16px; min-width: 0; }
+.dash-rail { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; min-width: 0; }
+
+@media (max-width: 1180px) {
+  .dash-lead { grid-template-columns: 1fr; }
+  .dash-charts, .dash-rail { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .dash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .viz-card { padding: 14px 13px 12px; }
+  .st-value { font-size: 22px; }
+}
+@media (max-width: 420px) {
+  .dash-tiles { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------- Wydruk -------------------------------- */
+
+@media print {
+  .viz-card { box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
+  .viz-tools, .viz-tip, .filterbar { display: none !important; }
+  .viz-hero { background: none; color: var(--ink); border: 1px solid var(--line); }
+  .viz-hero .viz-delta { background: none; color: var(--ink-2); }
+  .dash-lead, .dash-charts, .dash-rail { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-tile, .viz-bar path, .viz-card[aria-busy="true"] .viz-body { transition: none; }
+}

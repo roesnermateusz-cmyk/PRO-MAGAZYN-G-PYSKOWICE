@@ -1,0 +1,45 @@
+-- =====================================================================
+-- 004 — indeksy pod filtry historii zmian
+--
+-- Widok „Historia zmian” (#/historia) filtruje dziennik po użytkowniku
+-- i po rodzaju akcji, a listę wartości do obu pól bierze z `auditFilters()`:
+--
+--   SELECT DISTINCT user_email FROM audit_log WHERE user_email IS NOT NULL
+--   SELECT DISTINCT action     FROM audit_log WHERE action     IS NOT NULL
+--
+-- Żadna z tych kolumn nie miała indeksu, więc **każde** otwarcie widoku
+-- przechodziło całą tabelę dwa razy i sortowało wynik. `audit_log` jest
+-- tabelą wyłącznie dopisywaną — rośnie z każdym zapisem w systemie i nigdy
+-- się nie kurczy. Przy dzisiejszych kilku tysiącach wierszy to niewidoczne;
+-- po dwóch latach pracy firmy będzie ich kilkaset tysięcy.
+--
+-- Zmierzone na 200 000 wierszy (dwa lata pracy) — dwa różne zyski:
+--
+--   · wypełnienie obu list rozwijanych: 51 ms → 7,7 ms i 47 ms → 6,8 ms,
+--     czyli ok. 7×. To koszt płacony przy KAŻDYM otwarciu widoku,
+--     niezależnie od tego, czy ktokolwiek czegoś szuka;
+--
+--   · sam filtr po użytkowniku: przy częstym użytkowniku bez indeksu też
+--     jest szybki (0,4 ms), bo `ORDER BY id DESC LIMIT 200` pozwala iść od
+--     najnowszego wiersza i przerwać po dwustu trafieniach. Zysk pojawia
+--     się w przypadku brzegowym: pracownik, który odszedł i zostawił
+--     40 wpisów na początku dziennika, zmusza bazę do przejścia całej
+--     tabeli — 12,1 ms bez indeksu, 0,1 ms z indeksem (147×). Im starszy
+--     ślad ktoś odtwarza, tym bardziej to boli, a przy kontroli odtwarza
+--     się właśnie stare ślady.
+--
+-- Kolumna `id` w indeksie nie jest ozdobą: listing kończy się
+-- `ORDER BY id DESC`, więc przy złożonym indeksie (kolumna, id DESC) baza
+-- czyta gotową kolejność zamiast sortować odfiltrowany zbiór.
+--
+-- Dlaczego nie indeksujemy `user_id`: dubluje `user_email` (ten sam
+-- użytkownik), a żaden widok po nim nie filtruje. Każdy indeks to koszt przy
+-- zapisie, a tu zapis jest po stronie gorącej — dziennik dostaje wiersz przy
+-- każdej operacji magazynowej.
+--
+-- `entity` indeksu nie potrzebuje: obsługuje go istniejący
+-- ix_audit_entity(entity, entity_id) po kolumnie wiodącej.
+-- =====================================================================
+
+CREATE INDEX IF NOT EXISTS ix_audit_user_email ON audit_log(user_email, id DESC);
+CREATE INDEX IF NOT EXISTS ix_audit_action     ON audit_log(action, id DESC);

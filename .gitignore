@@ -1,0 +1,23 @@
+# Środowisko
+.env
+.env.local
+
+# Dane runtime (baza, załączniki, kopie, logi)
+/data/*
+!/data/.gitkeep
+
+# Artefakty budowania instalatora
+/dist/
+*.zip
+
+# Systemowe
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Edytory
+.vscode/
+.idea/
+*.swp

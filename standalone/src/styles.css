@@ -1,0 +1,56 @@
+/* =====================================================================
+   Style wyłącznie wersji jednoplikowej.
+   Doklejane przez generator za arkuszami aplikacji, żeby app.css i viz.css
+   pozostały wspólne dla obu wersji i nie nosiły klas, których wersja
+   sieciowa nigdy nie użyje.
+   ===================================================================== */
+
+/* Wybór operatora na ekranie startowym. */
+.op-list { display: flex; flex-direction: column; gap: 8px; }
+
+.op-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+  width: 100%;
+  padding: 11px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color .14s, transform .14s, box-shadow .14s;
+}
+.op-pick:hover:not(:disabled) {
+  border-color: var(--spruce);
+  box-shadow: var(--ring);
+  transform: translateY(-1px);
+}
+.op-pick:disabled { opacity: .55; }
+
+.op-name { font-weight: 650; font-size: 14px; color: var(--ink); }
+.op-role {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.op-role .tag { flex: none; }
+
+/* Ekran startowy bywa dłuższy niż w wersji sieciowej — ostrzeżenie
+   o miejscu przechowywania danych musi się zmieścić bez przewijania karty. */
+.login-box { max-width: 460px; }
+.login-card .alert { align-items: flex-start; }
+
+/* Rola operatora nie jest typem dokumentu, więc nie dziedziczy kolorów serii
+   z `.tag.ZAKUP` i spółki — dostaje neutralną pigułkę. */
+.op-role .tag {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
