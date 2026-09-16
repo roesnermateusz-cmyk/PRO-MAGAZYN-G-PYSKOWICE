@@ -390,7 +390,7 @@ export function DocumentFormPage() {
       {docType === 'PROD' ? <Alert tone="info">{t('production.autoConsumption')}</Alert> : null}
       {docType === 'SD' ? <Alert tone="info">{t('doc.SD')}</Alert> : null}
 
-      <Card title={t('doc.summary')}>
+      <Card>
         <FormSection title={t('doc.summary')}>
           <TextInput
             label={t('doc.date')}
@@ -534,6 +534,8 @@ export function DocumentFormPage() {
           </FormSection>
         ) : null}
 
+        {/* Dane pojazdu dotyczą dostawy lub wywozu - przy produkcji nie występują. */}
+        {docType === 'PROD' ? null : (
         <FormSection title={t('transport.section')}>
           <TextInput
             label={t('transport.vehiclePlate')}
@@ -585,6 +587,7 @@ export function DocumentFormPage() {
             </>
           ) : null}
         </FormSection>
+        )}
       </Card>
 
       <Card

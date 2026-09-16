@@ -81,7 +81,10 @@ export function SettingsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">{t('settings.title')}</h1>
-          <p className="page-subtitle">{t('settings.conversionHint')}</p>
+          <p className="page-subtitle">
+            {t('settings.company')} · {t('settings.conversion')} · {t('settings.rates')} ·{' '}
+            {t('settings.stockPolicy')}
+          </p>
         </div>
       </div>
 
