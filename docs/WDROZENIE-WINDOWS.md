@@ -348,7 +348,7 @@ Pozycje oznaczone `[x]` zostały zweryfikowane podczas budowania wydania 1.1.0
 - [x] `npm run verify` kończy się powodzeniem (typecheck, lint, 84 testy, build)
 - [x] `npm run dist` tworzy jeden plik `.exe`
 - [x] Zapisano sumę SHA-256 pliku instalatora
-      (`87fd3d1db3c512850817c7e7f4813cad571109ae755b521711b0a3212f06da08`)
+      (`fdfb1d07b236f5e4165a5e86d85e1b88eb62dffaba7ceef0299abb612b94dbc1`)
 - [x] Zasób wersji pliku `.exe`, manifest aplikacji, serwer i klient
       raportują tę samą wersję (1.1.0)
 - [x] Moduł bazy danych w pakiecie jest biblioteką Windows x64 o sumie

@@ -18,6 +18,18 @@ i API pozostają zgodne z 1.0.0 — aktualizacja nie wymaga migracji danych.
   ABI Electrona, sum SHA-256 (archiwum i plik `.node`) oraz nagłówka PE.
   Niezgodność przerywa budowanie.
 - `desktop/native-prebuilds.json` — przypięte sumy kontrolne modułów natywnych.
+- `desktop/scripts/verify-package.mjs` — kontrola zawartości pakietu po każdym
+  budowaniu: jeden plik instalatora, obecność programu, migracji i aplikacji
+  klienckiej, nagłówek PE modułu natywnego oraz **sprawdzenie, z jakiego
+  katalogu rozwiązują się zależności serwera**. Kontrola nie poprzestaje na
+  tym, że `import` zadziałał — wymaga, aby pakiet pochodził z
+  `app.asar.unpacked`, bo na maszynie budującej zależność bywa znajdowana
+  w nadrzędnym `node_modules`, którego po instalacji nie ma.
+- `.github/workflows/installer.yml` — budowanie i test dymny na Windows:
+  cicha instalacja, kontrola plików, katalogu danych i reguły zapory,
+  uruchomienie zainstalowanego serwera (`/api/health`, zgodność wersji,
+  aplikacja kliencka, `401` bez tokenu, utworzenie bazy), cicha deinstalacja
+  z kontrolą zachowania danych; instalator publikowany jako artefakt.
 - Numer wersji z jednego źródła (`package.json`): zasób pliku `.exe`,
   `/api/health`, ekran logowania. Powłoka Electrona przekazuje wersję do
   serwera (`APP_VERSION`).
@@ -38,14 +50,30 @@ i API pozostają zgodne z 1.0.0 — aktualizacja nie wymaga migracji danych.
 - Wyłączone generowanie metadanych aktualizacji sieciowych i plików
   różnicowych — system ich nie używa; katalog `release` zawiera jeden plik.
 
+### Naprawione
+
+- **Zainstalowany program nie uruchamiał serwera.** Zależności serwera
+  (`express`, `helmet`, `cors`, `zod` i pozostałe — 127 pakietów) trafiały
+  do archiwum `app.asar`, podczas gdy sam serwer był rozpakowany obok.
+  Electron czyta z archiwum `asar` tylko w trybie CommonJS; serwer jest
+  modułem ESM, a resolver ESM Node.js archiwum nie widzi — po instalacji
+  proces serwera kończył się błędem
+  `ERR_MODULE_NOT_FOUND: Cannot find package 'express'`.
+  Instalator budował się przy tym poprawnie i przechodził kontrolę rozmiaru
+  oraz sum kontrolnych, więc błąd był widoczny dopiero po instalacji.
+  Naprawa: `asarUnpack` obejmuje wszystkie `node_modules`.
+  Wykryte przez test dymny na Windows (GitHub Actions).
+- `MessageBox` przy deinstalacji z `/SD IDOK` — w trybie cichym (`/S`) okno
+  nie jest pokazywane; wcześniej deinstalacja skryptowa czekałaby bez końca.
+
 ### Zweryfikowane
 
 - `npm run dist` → kod wyjścia 0; jeden plik
-  `ResInvest-ERP-Setup-1.1.0.exe` (103 856 460 B).
+  `ResInvest-ERP-Setup-1.1.0.exe` (103 864 955 B).
 - Zawartość pakietu: program PE32+ x64, moduł bazy danych PE32+ DLL o sumie
   zgodnej z przypiętą, migracje, aplikacja kliencka, wersja 1.1.0 we
   wszystkich miejscach.
-- SHA-256: `87fd3d1db3c512850817c7e7f4813cad571109ae755b521711b0a3212f06da08`.
+- SHA-256: `fdfb1d07b236f5e4165a5e86d85e1b88eb62dffaba7ceef0299abb612b94dbc1`.
 
 ### Znane ograniczenia
 

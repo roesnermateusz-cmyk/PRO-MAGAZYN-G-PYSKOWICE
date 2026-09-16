@@ -14,7 +14,8 @@
     "prepare:native": "node scripts/fetch-native.mjs",
     "rebuild:local": "electron-builder install-app-deps",
     "start": "npm run prepare:payload && npm run rebuild:local && electron .",
-    "dist": "npm run prepare:payload && npm run prepare:native && electron-builder --win --x64 --publish never",
+    "verify:package": "node scripts/verify-package.mjs",
+    "dist": "npm run prepare:payload && npm run prepare:native && electron-builder --win --x64 --publish never && npm run verify:package",
     "dist:dir": "npm run prepare:payload && npm run prepare:native && electron-builder --win --dir --publish never"
   },
   "dependencies": {

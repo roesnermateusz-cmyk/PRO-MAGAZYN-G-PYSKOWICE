@@ -179,7 +179,10 @@ jobs:
           if (Get-NetFirewallRule -DisplayName 'ResInvest ERP' -ErrorAction SilentlyContinue) { Write-Error "Reguła zapory nie została usunięta"; exit 1 }
           Write-Host "Deinstalacja poprawna: program usunięty, dane zachowane, reguła zapory usunięta."
 
+      # Artefakt publikujemy nawet przy nieudanym teście dymnym - plik jest wtedy
+      # potrzebny do analizy problemu.
       - name: Artefakt - instalator
+        if: always() && steps.artifact.outputs.name != ''
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.name }}

@@ -261,7 +261,7 @@ anulowanie po wydaniu towaru, zmiana jednostki produktu z historią ruchów.
 | Czy baza jest spójna? | **TAK** | `verifyStockIntegrity()` — brak rozbieżności |
 | Czy testy przechodzą? | **TAK** | 84/84 |
 | Czy production build przechodzi? | **TAK** | Serwer i klient |
-| Czy instalator się buduje? | **TAK** | `npm run dist` → kod 0, jeden plik, 103 856 460 B |
+| Czy instalator się buduje? | **TAK** | `npm run dist` → kod 0, jeden plik, 103 864 955 B |
 | Czy zawartość instalatora jest poprawna? | **TAK** | patrz „Weryfikacja instalatora” |
 | **Czy instalator działa na Windows?** | **DO ODBIORU** | patrz niżej — wymaga fizycznego Windows |
 
@@ -281,14 +281,42 @@ z nierozwiązanym błędem:
 | 2 | Modułu natywnego dla Windows nie da się skompilować poza Windows | Pobranie oficjalnego pliku binarnego dla ABI 146 (Electron 42) z weryfikacją SHA-256 i nagłówka PE; `npmRebuild: false` |
 | 3 | `$COMMONAPPDATA` w skrypcie NSIS — stała nie istnieje, kompilacja przerwana | Katalog danych z `%ProgramData%` (`ExpandEnvStrings`), spójnie z `main.js` |
 | 4 | Generowanie metadanych aktualizacji kończyło build błędem (`publish` bez repozytorium) | `publish: null`, `differentialPackage: false` — system nie używa aktualizacji sieciowych |
+| 5 | **Zainstalowany program nie uruchamiał serwera** — `ERR_MODULE_NOT_FOUND: Cannot find package 'express'` | `asarUnpack` obejmuje wszystkie `node_modules` (szczegóły niżej) |
+| 6 | Cicha deinstalacja (`/S`) czekała bez końca na okno komunikatu | `MessageBox ... /SD IDOK` |
 
 Ostateczne `npm run dist` kończy się kodem wyjścia **0**.
+
+### Błąd #5 — dlaczego zasługuje na osobny opis
+
+Instalator budował się poprawnie, zawierał wszystkie pliki, miał właściwy
+rozmiar, poprawne sumy kontrolne i poprawne wersje. Mimo to **zainstalowany
+program nie wystartowałby u użytkownika**.
+
+Przyczyna: archiwum `asar` jest czytelne dla Electrona wyłącznie w trybie
+CommonJS. Serwer jest modułem ESM uruchamianym z `app.asar.unpacked/server`,
+a resolver ESM Node.js archiwum nie widzi. Zależności (127 pakietów) były
+spakowane do `app.asar`, więc Node szukał ich w `app.asar.unpacked/node_modules`
+i kończył pracę błędem.
+
+Błędu tego **nie wykryłaby żadna kontrola statyczna ani kontrola artefaktu** —
+widać go dopiero po instalacji i próbie uruchomienia. Wykrył go test dymny
+na Windows (GitHub Actions), który uruchamia zainstalowany serwer dokładnie
+tak, jak robi to powłoka Electrona.
+
+Zabezpieczenie przed nawrotem: `desktop/scripts/verify-package.mjs`, wpięty
+na końcu `npm run dist`, sprawdza **z jakiego katalogu** rozwiązuje się każda
+zależność serwera. Sam fakt, że `import` się powiódł, niczego nie dowodzi —
+katalog `release` leży wewnątrz `desktop/`, więc na maszynie budującej Node
+znajduje pakiet w nadrzędnym `node_modules`, którego po instalacji nie ma.
+Kontrola wymaga, aby ścieżka wskazywała `app.asar.unpacked/node_modules`.
+Test negatywny (usunięcie pakietu z pakietu aplikacji) potwierdza, że kontrola
+kończy się kodem 1 i wskazuje pakiet rozwiązany spoza pakietu.
 
 ### Zweryfikowana zawartość
 
 | Element | Wynik |
 |---|---|
-| Liczba plików wynikowych `.exe` | **1** — `ResInvest-ERP-Setup-1.1.0.exe`, 103 856 460 B |
+| Liczba plików wynikowych `.exe` | **1** — `ResInvest-ERP-Setup-1.1.0.exe`, 103 864 955 B |
 | Typ pliku | `PE32 executable (GUI) Intel 80386, Nullsoft Installer self-extracting archive`, NSIS-3 Unicode |
 | Wbudowane komponenty (7-Zip) | `app-64.7z` (ładunek), `Uninstall ResInvest ERP.exe`, wtyczki UAC/nsExec/WinShell/nsis7z |
 | Program główny | `ResInvest ERP.exe` — `PE32+ executable (GUI) x86-64`, Electron 42.11.4 / Chromium 148 |
@@ -299,12 +327,14 @@ Ostateczne `npm run dist` kończy się kodem wyjścia **0**.
 | Wersja w `app.asar/package.json` | 1.1.0 |
 | Wersja w manifeście serwera w pakiecie | 1.1.0 |
 | Wersja w bundlu klienta | 1.1.0 |
+| Zależności serwera | 9 zależności rozwiązuje się z `app.asar.unpacked/node_modules`; 8 modułów w czystym JS ładuje się poprawnie |
 | Skrypt weryfikacji modułu natywnego | test negatywny: zła suma → kod wyjścia 1, plik nie jest podstawiany |
+| Skrypt kontroli pakietu | test negatywny: pakiet rozwiązany spoza `app.asar.unpacked` → kod wyjścia 1 |
 
 **SHA-256 instalatora zbudowanego z tego wydania źródeł (Linux + Wine):**
 
 ```
-87fd3d1db3c512850817c7e7f4813cad571109ae755b521711b0a3212f06da08  ResInvest-ERP-Setup-1.1.0.exe
+fdfb1d07b236f5e4165a5e86d85e1b88eb62dffaba7ceef0299abb612b94dbc1  ResInvest-ERP-Setup-1.1.0.exe
 ```
 
 Każde budowanie ma własną sumę (znaczniki czasu w plikach PE); wiążąca jest
