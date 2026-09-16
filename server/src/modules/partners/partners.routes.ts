@@ -12,7 +12,7 @@ import { diffFields, writeAudit } from '../../core/audit.js';
 export const partnersRouter = Router();
 
 const partnerSchema = z.object({
-  code: z.string().min(2).max(32).regex(/^[A-Za-z0-9_-]+$/, 'Kod moze zawierac litery, cyfry, myslnik i podkreslenie.'),
+  code: z.string().min(2).max(32).regex(/^[A-Za-z0-9_-]+$/, 'Kod może zawierać litery, cyfry, myslnik i podkreslenie.'),
   name: z.string().min(2).max(200),
   taxId: z.string().max(40).default(''),
   address: z.string().max(200).default(''),
@@ -24,7 +24,7 @@ const partnerSchema = z.object({
   isSupplier: z.boolean().default(false),
   isCustomer: z.boolean().default(false),
   isCarrier: z.boolean().default(false),
-  /** Nadlesnictwo - wlacza w formularzu PZ pola kwitu wywozowego. */
+  /** Nadleśnictwo - włącza w formularzu PZ pola kwitu wywozowego. */
   isForestry: z.boolean().default(false),
   isActive: z.boolean().default(true),
   notes: z.string().max(1000).default(''),
@@ -120,7 +120,7 @@ partnersRouter.post(
 
     const id = db.transaction(() => {
       if (db.prepare('SELECT id FROM partners WHERE code = ?').get(input.code)) {
-        throw conflict(`Kontrahent o kodzie "${input.code}" juz istnieje.`, 'DUPLICATE');
+        throw conflict(`Kontrahent o kodzie "${input.code}" już istnieje.`, 'DUPLICATE');
       }
       const stamp = nowIso();
       const result = db
@@ -179,7 +179,7 @@ partnersRouter.put(
       const before = db.prepare('SELECT * FROM partners WHERE id = ?').get(id) as PartnerRow | undefined;
       if (!before) throw notFound('Nie znaleziono kontrahenta.');
       if (db.prepare('SELECT id FROM partners WHERE code = ? AND id <> ?').get(input.code, id)) {
-        throw conflict(`Kontrahent o kodzie "${input.code}" juz istnieje.`, 'DUPLICATE');
+        throw conflict(`Kontrahent o kodzie "${input.code}" już istnieje.`, 'DUPLICATE');
       }
 
       db.prepare(

@@ -4,8 +4,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 /**
- * Konfiguracja srodowiska testowego. Plik jest ladowany przez vitest PRZED
- * modulami testowanymi, dzieki czemu config/env.ts widzi juz wlasciwe wartosci.
+ * Konfiguracja środowiska testowego. Plik jest ladowany przez vitest PRZED
+ * modulami testowanymi, dzięki czemu config/env.ts widzi już właściwe wartości.
  */
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'resinvest-test-'));
 

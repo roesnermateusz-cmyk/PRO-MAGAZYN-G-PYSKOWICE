@@ -5,7 +5,7 @@ import { roundQty, type BaseUnit } from '../../core/units.js';
 import type { DocumentLineRow, DocumentRow } from './documents.types.js';
 import { STOCK_AFFECTING } from './documents.types.js';
 
-/** Tolerancja porownan ilosci - eliminuje falszywe alarmy zaokraglen IEEE-754. */
+/** Tolerancja porownan ilości - eliminuje falszywe alarmy zaokraglen IEEE-754. */
 const EPS = 1e-6;
 
 export interface PlannedMovement {
@@ -18,13 +18,13 @@ export interface PlannedMovement {
 }
 
 /**
- * Wyznacza ruchy magazynowe wynikajace z dokumentu.
+ * Wyznacza ruchy magazynowe wynikające z dokumentu.
  *
  *   PZ   -> IN  do magazynu dokumentu
  *   WZ   -> OUT z magazynu dokumentu
- *   MM   -> OUT z magazynu zrodlowego + IN do docelowego (para nierozlaczna)
+ *   MM   -> OUT z magazynu źródłowego + IN do docelowego (para nierozłączna)
  *   PROD -> OUT surowca (INPUT) + IN wyrobu (OUTPUT) w magazynie dokumentu
- *   TR, SD -> brak wplywu na stan
+ *   TR, SD -> brak wpływu na stan
  */
 export function planMovements(doc: DocumentRow, lines: DocumentLineRow[]): PlannedMovement[] {
   if (!STOCK_AFFECTING.has(doc.doc_type)) return [];
@@ -47,7 +47,7 @@ export function planMovements(doc: DocumentRow, lines: DocumentLineRow[]): Plann
         movements.push({ ...common, warehouseId: requireWh(doc.warehouse_id, 'magazyn dokumentu'), direction: 'OUT' });
         break;
       case 'MM':
-        movements.push({ ...common, warehouseId: requireWh(doc.warehouse_from_id, 'magazyn zrodlowy'), direction: 'OUT' });
+        movements.push({ ...common, warehouseId: requireWh(doc.warehouse_from_id, 'magazyn źródłowy'), direction: 'OUT' });
         movements.push({ ...common, warehouseId: requireWh(doc.warehouse_to_id, 'magazyn docelowy'), direction: 'IN' });
         break;
       case 'PROD':
@@ -85,8 +85,8 @@ interface ApplyOptions {
 
 /**
  * Zapisuje ruchy magazynowe i aktualizuje salda.
- * MUSI byc wywolane wewnatrz transakcji zapisu - w przeciwnym razie mozliwy
- * jest stan czesciowy (np. minus w magazynie A bez plusa w magazynie B).
+ * MUSI być wywolane wewnątrz transakcji zapisu - w przeciwnym razie mozliwy
+ * jest stan częściowy (np. minus w magazynie A bez plusa w magazynie B).
  */
 export function applyMovements(
   db: Db,
@@ -107,7 +107,7 @@ export function applyMovements(
     else net.set(key, { warehouseId: m.warehouseId, productId: m.productId, delta: roundQty(delta) });
   }
 
-  // 2. Kontrola dostepnosci PRZED jakimkolwiek zapisem.
+  // 2. Kontrola dostępności PRZED jakimkolwiek zapisem.
   if (!options.allowNegative) {
     const shortages: Array<{ warehouseId: number; productId: number; available: number; required: number }> = [];
     for (const entry of net.values()) {
@@ -124,7 +124,7 @@ export function applyMovements(
     }
     if (shortages.length > 0) {
       throw insufficientStock(
-        'Niewystarczajacy stan magazynowy do wykonania operacji.',
+        'Niewystarczający stan magazynowy do wykonania operacji.',
         shortages.map((s) => ({
           ...s,
           warehouseName: warehouseName(db, s.warehouseId),
@@ -134,7 +134,7 @@ export function applyMovements(
     }
   }
 
-  // 3. Zapis ruchow (ksiega niemodyfikowalna).
+  // 3. Zapis ruchow (księga niemodyfikowalna).
   const insertMovement = db.prepare(
     `INSERT INTO stock_movements
        (document_id, document_line_id, warehouse_id, product_id, direction,
@@ -171,7 +171,7 @@ export function applyMovements(
   }
 }
 
-/** Buduje ruchy odwrotne do juz zaksiegowanych (storno przy anulowaniu). */
+/** Buduje ruchy odwrotne do już zaksiegowanych (storno przy anulowaniu). */
 export function planReversal(db: Db, documentId: number): PlannedMovement[] {
   const rows = db
     .prepare(
@@ -190,7 +190,7 @@ export function planReversal(db: Db, documentId: number): PlannedMovement[] {
     reason: string;
   }>;
 
-  // Storno dotyczy wylacznie ruchow ksiegowania; ruchy typu REVERSAL pomijamy,
+  // Storno dotyczy wyłącznie ruchow ksiegowania; ruchy typu REVERSAL pomijamy,
   // zeby wielokrotne anulowanie nie mnozylo korekt.
   return rows
     .filter((r) => r.reason === 'POSTING')

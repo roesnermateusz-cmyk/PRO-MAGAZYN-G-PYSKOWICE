@@ -19,7 +19,7 @@ function bootstrap(): void {
 
   const app = createApp();
   const server = app.listen(env.port, env.host, () => {
-    logger.info(`ResInvest ERP API nasluchuje na http://${env.host}:${env.port} (${env.nodeEnv})`);
+    logger.info(`ResInvest ERP API nasłuchuje na http://${env.host}:${env.port} (${env.nodeEnv})`);
     logger.info(`Baza danych: ${env.databaseFile}`);
   });
 
@@ -28,9 +28,9 @@ function bootstrap(): void {
   const purgeTimer = setInterval(() => {
     try {
       const removed = purgeExpiredTokens(db);
-      if (removed > 0) logger.debug(`Usunieto ${removed} wygaslych tokenow sesji.`);
+      if (removed > 0) logger.debug(`Usunięto ${removed} wygasłych tokenów sesji.`);
     } catch (err) {
-      logger.error('Czyszczenie tokenow nie powiodlo sie', err);
+      logger.error('Czyszczenie tokenów nie powiodło się', err);
     }
   }, 3_600_000);
   purgeTimer.unref?.();
@@ -47,7 +47,7 @@ function bootstrap(): void {
       logger.info('Serwer zatrzymany.');
       process.exit(0);
     });
-    // Awaryjne zamkniecie, jesli otwarte polaczenia nie zwolnia sie w czasie.
+    // Awaryjne zamknięcie, jeśli otwarte połączenia nie zwolnia się w czasie.
     setTimeout(() => {
       closeDb();
       process.exit(1);
@@ -56,9 +56,9 @@ function bootstrap(): void {
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('unhandledRejection', (reason) => logger.error('Nieobsluzone odrzucenie obietnicy', reason));
+  process.on('unhandledRejection', (reason) => logger.error('Nieobsłużone odrzucenie obietnicy', reason));
   process.on('uncaughtException', (err) => {
-    logger.error('Nieprzechwycony wyjatek', err);
+    logger.error('Nieprzechwycony wyjątek', err);
     shutdown('uncaughtException');
   });
 }

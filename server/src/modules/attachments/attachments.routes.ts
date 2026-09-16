@@ -17,7 +17,7 @@ import { getDocument, loadDocumentRow } from '../documents/documents.service.js'
 
 export const attachmentsRouter = Router();
 
-/** Skany dokumentow: obrazy i PDF. Lista jest zamknieta swiadomie. */
+/** Skany dokumentów: obrazy i PDF. Lista jest zamknieta swiadomie. */
 const ALLOWED_MIME = new Set([
   'image/jpeg',
   'image/png',
@@ -39,7 +39,7 @@ const upload = multer({
   limits: { fileSize: env.maxUploadMb * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME.has(file.mimetype)) {
-      cb(badRequest(`Nieobslugiwany typ pliku: ${file.mimetype}. Dozwolone: JPG, PNG, WEBP, HEIC, PDF.`));
+      cb(badRequest(`Nieobsługiwany typ pliku: ${file.mimetype}. Dozwolone: JPG, PNG, WEBP, HEIC, PDF.`));
       return;
     }
     cb(null, true);
@@ -59,9 +59,9 @@ attachmentsRouter.post(
     const db = getDb();
     const doc = loadDocumentRow(db, documentId);
     if (doc.status === 'CANCELLED') {
-      throw invalidState('Nie mozna dodawac zalacznikow do dokumentu anulowanego.');
+      throw invalidState('Nie można dodawać załączników do dokumentu anulowanego.');
     }
-    // Weryfikacja dostepu do dokumentu (rzuca przy braku uprawnien).
+    // Weryfikacja dostępu do dokumentu (rzuca przy braku uprawnień).
     getDocument(db, user, documentId);
 
     const id = crypto.randomUUID();
@@ -102,7 +102,7 @@ attachmentsRouter.post(
         });
       }).immediate();
     } catch (err) {
-      // Zapis metadanych nie powiodl sie - usuwamy osierocony plik.
+      // Zapis metadanych nie powiodl się - usuwamy osierocony plik.
       fs.rmSync(absolutePath, { force: true });
       throw err;
     }
@@ -121,17 +121,17 @@ attachmentsRouter.get(
     const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(attachmentId) as
       | { id: string; document_id: number; file_name: string; original_name: string; mime_type: string }
       | undefined;
-    if (!row) throw notFound('Nie znaleziono zalacznika.');
+    if (!row) throw notFound('Nie znaleziono załącznika.');
 
-    // Kontrola dostepu przez dokument nadrzedny.
+    // Kontrola dostępu przez dokument nadrzedny.
     getDocument(db, user, row.document_id);
 
     const absolutePath = path.resolve(env.attachmentsDir, row.file_name);
-    // Ochrona przed wyjsciem poza katalog zalacznikow.
+    // Ochrona przed wyjsciem poza katalog załączników.
     if (!absolutePath.startsWith(path.resolve(env.attachmentsDir) + path.sep)) {
-      throw notFound('Nie znaleziono zalacznika.');
+      throw notFound('Nie znaleziono załącznika.');
     }
-    if (!fs.existsSync(absolutePath)) throw notFound('Plik zalacznika nie istnieje na dysku.');
+    if (!fs.existsSync(absolutePath)) throw notFound('Plik załącznika nie istnieje na dysku.');
 
     res.setHeader('Content-Type', row.mime_type);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(row.original_name)}"`);
@@ -151,12 +151,12 @@ attachmentsRouter.delete(
     const row = db.prepare('SELECT * FROM attachments WHERE id = ?').get(attachmentId) as
       | { id: string; document_id: number; file_name: string; original_name: string }
       | undefined;
-    if (!row) throw notFound('Nie znaleziono zalacznika.');
+    if (!row) throw notFound('Nie znaleziono załącznika.');
 
     const doc = loadDocumentRow(db, row.document_id);
     getDocument(db, user, row.document_id);
     if (doc.status === 'POSTED' && !user.permissions.has('admin.settings')) {
-      throw invalidState('Zalacznik dokumentu zatwierdzonego moze usunac wylacznie administrator.');
+      throw invalidState('Załącznik dokumentu zatwierdzonego może usunąć wyłącznie administrator.');
     }
 
     db.transaction(() => {

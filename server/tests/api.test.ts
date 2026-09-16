@@ -38,11 +38,11 @@ describe('uwierzytelnianie', () => {
     expect(res.body.accessToken).toBeTruthy();
     expect(res.body.refreshToken).toBeTruthy();
     expect(res.body.warehouses.length).toBe(3);
-    // Hasz hasla nie moze wyciec w odpowiedzi API.
+    // Hasz hasła nie może wyciec w odpowiedzi API.
     expect(JSON.stringify(res.body)).not.toContain('scrypt$');
   });
 
-  it('odrzuca bledne haslo tym samym komunikatem co nieistniejacy login', async () => {
+  it('odrzuca błędne hasło tym samym komunikatem co nieistniejący login', async () => {
     const wrongPassword = await login('admin', 'Zle#Haslo123');
     const missingUser = await login('nie-ma-takiego', 'Zle#Haslo123');
     expect(wrongPassword.status).toBe(401);
@@ -50,18 +50,18 @@ describe('uwierzytelnianie', () => {
     expect(wrongPassword.body.error.message).toBe(missingUser.body.error.message);
   });
 
-  it('blokuje dostep bez tokenu', async () => {
+  it('blokuje dostęp bez tokenu', async () => {
     const res = await request(app).get('/api/documents');
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHENTICATED');
   });
 
   it('odrzuca sfalszowany token', async () => {
-    const res = await request(app).get('/api/documents').set('Authorization', 'Bearer nieprawidlowy.token.abc');
+    const res = await request(app).get('/api/documents').set('Authorization', 'Bearer niepoprawny.token.abc');
     expect(res.status).toBe(401);
   });
 
-  it('odswieza sesje i uniewaznia zuzyty token odswiezania', async () => {
+  it('odświeża sesje i unieważnia zużyty token odświeżania', async () => {
     const first = await login('manager', DEMO_PASSWORD);
     const refreshToken = first.body.refreshToken as string;
 
@@ -69,12 +69,12 @@ describe('uwierzytelnianie', () => {
     expect(refreshed.status).toBe(200);
     expect(refreshed.body.accessToken).toBeTruthy();
 
-    // Rotacja tokenow: poprzedni token nie dziala ponownie.
+    // Rotacja tokenów: poprzedni token nie działa ponownie.
     const reuse = await request(app).post('/api/auth/refresh').send({ refreshToken });
     expect(reuse.status).toBe(401);
   });
 
-  it('zmienia wlasne haslo i uniewaznia dotychczasowe sesje', async () => {
+  it('zmienia własne hasło i unieważnia dotychczasowe sesje', async () => {
     const session = await login('manager', DEMO_PASSWORD);
     const token = session.body.accessToken as string;
 
@@ -92,7 +92,7 @@ describe('uwierzytelnianie', () => {
     expect((await login('manager', DEMO_PASSWORD)).status).toBe(401);
   });
 
-  it('odrzuca zbyt slabe nowe haslo', async () => {
+  it('odrzuca zbyt slabe nowe hasło', async () => {
     const token = await tokenFor('manager', DEMO_PASSWORD);
     const res = await request(app)
       .post('/api/auth/me/password')
@@ -103,8 +103,8 @@ describe('uwierzytelnianie', () => {
 });
 
 describe('autoryzacja i role', () => {
-  it('konto podgladu nie moze tworzyc dokumentow', async () => {
-    const token = await tokenFor('podglad', DEMO_PASSWORD);
+  it('konto podglądu nie może tworzyc dokumentów', async () => {
+    const token = await tokenFor('podgląd', DEMO_PASSWORD);
     const res = await request(app)
       .post('/api/documents')
       .set('Authorization', `Bearer ${token}`)
@@ -119,13 +119,13 @@ describe('autoryzacja i role', () => {
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
 
-  it('magazynier nie ma dostepu do administracji uzytkownikami', async () => {
+  it('magazynier nie ma dostępu do administracji uzytkownikami', async () => {
     const token = await tokenFor('zabrze', DEMO_PASSWORD);
     expect((await request(app).get('/api/users').set('Authorization', `Bearer ${token}`)).status).toBe(403);
     expect((await request(app).get('/api/audit').set('Authorization', `Bearer ${token}`)).status).toBe(403);
   });
 
-  it('magazynier nie moze wystawic dokumentu dla obcego magazynu', async () => {
+  it('magazynier nie może wystawic dokumentu dla obcego magazynu', async () => {
     const token = await tokenFor('zabrze', DEMO_PASSWORD);
     const res = await request(app)
       .post('/api/documents')
@@ -141,7 +141,7 @@ describe('autoryzacja i role', () => {
     expect(res.body.error.code).toBe('WAREHOUSE_FORBIDDEN');
   });
 
-  it('naglowek X-Warehouse-Id spoza uprawnien jest odrzucany', async () => {
+  it('naglowek X-Warehouse-Id spoza uprawnień jest odrzucany', async () => {
     const token = await tokenFor('zabrze', DEMO_PASSWORD);
     const res = await request(app)
       .get('/api/stock')
@@ -151,7 +151,7 @@ describe('autoryzacja i role', () => {
     expect(res.body.error.code).toBe('WAREHOUSE_FORBIDDEN');
   });
 
-  it('magazynier nie widzi dokumentow spoza swoich magazynow', async () => {
+  it('magazynier nie widzi dokumentów spoza swoich magazynów', async () => {
     const adminToken = await tokenFor('admin', ADMIN_PASSWORD);
     const created = await request(app)
       .post('/api/documents')
@@ -176,7 +176,7 @@ describe('autoryzacja i role', () => {
     expect(direct.status).toBe(403);
   });
 
-  it('dezaktywacja konta natychmiast blokuje istniejacy token', async () => {
+  it('dezaktywacja konta natychmiast blokuje istniejący token', async () => {
     const managerToken = await tokenFor('manager', DEMO_PASSWORD);
     expect((await request(app).get('/api/stock').set('Authorization', `Bearer ${managerToken}`)).status).toBe(200);
 
@@ -205,7 +205,7 @@ describe('walidacja danych wejsciowych', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
-  it('odrzuca ilosc zerowa i ujemna', async () => {
+  it('odrzuca ilość zerowa i ujemna', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     for (const qtyBase of [0, -5]) {
       const res = await request(app)
@@ -258,14 +258,14 @@ describe('walidacja danych wejsciowych', () => {
     expect(fx.db.prepare("SELECT name FROM sqlite_master WHERE name = 'documents'").get()).toBeTruthy();
   });
 
-  it('odrzuca nieprawidlowy identyfikator w sciezce', async () => {
+  it('odrzuca nieprawidłowy identyfikator w sciezce', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     expect((await request(app).get('/api/documents/abc').set('Authorization', `Bearer ${token}`)).status).toBe(400);
     expect((await request(app).get('/api/documents/999999').set('Authorization', `Bearer ${token}`)).status).toBe(404);
   });
 });
 
-describe('pelny przeplyw przez API', () => {
+describe('pełny przeplyw przez API', () => {
   it('PZ -> stan -> produkcja -> WZ -> raport -> audyt', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const auth = { Authorization: `Bearer ${token}` };
@@ -276,8 +276,8 @@ describe('pelny przeplyw przez API', () => {
       warehouseId: fx.warehouses.ZAB,
       supplierId: fx.partners['NADL-RUDY'],
       forestTicketNo: 'KW/2026/00500',
-      forestDistrict: 'Nadlesnictwo Rudy Raciborskie',
-      forestSubdistrict: 'Lesnictwo Sobieszowice',
+      forestDistrict: 'Nadleśnictwo Rudy Raciborskie',
+      forestSubdistrict: 'Leśnictwo Sobieszowice',
       lines: [{ productId: fx.products['DREWNO-OPAL'], qtyBase: 240, unitPrice: 165 }],
     });
     expect(pz.status).toBe(201);
@@ -301,7 +301,7 @@ describe('pelny przeplyw przez API', () => {
       docDate: today,
       warehouseId: fx.warehouses.ZAB,
       chippingMode: 'EXTERNAL',
-      chippingCompany: 'Uslugi Lesne Debowiec',
+      chippingCompany: 'Uslugi Leśne Dębowiec',
       chippingRate: 12,
       lines: [
         { productId: fx.products['DREWNO-OPAL'], role: 'INPUT', qtyBase: 100 },
@@ -321,8 +321,8 @@ describe('pelny przeplyw przez API', () => {
     await request(app).post(`/api/documents/${wz.body.id}/post`).set(auth).send({ version: wz.body.version });
 
     const finalStock = await request(app).get('/api/stock').query({ warehouseId: fx.warehouses.ZAB }).set(auth);
-    const zrebka = finalStock.body.items.find((i: any) => i.productCode === 'ZREBKA');
-    expect(zrebka.qtyBase).toBe(220);
+    const zrębka = finalStock.body.items.find((i: any) => i.productCode === 'ZREBKA');
+    expect(zrębka.qtyBase).toBe(220);
 
     const report = await request(app).get('/api/reports/summary').query({ mode: 'year' }).set(auth);
     expect(report.status).toBe(200);
@@ -330,7 +330,7 @@ describe('pelny przeplyw przez API', () => {
     expect(wzRow.value).toBe(14760);
 
     const production = await request(app).get('/api/reports/production').query({ mode: 'year' }).set(auth);
-    expect(production.body.items[0].chippingCompany).toBe('Uslugi Lesne Debowiec');
+    expect(production.body.items[0].chippingCompany).toBe('Uslugi Leśne Dębowiec');
     expect(production.body.items[0].chippingCost).toBe(4800);
     expect(production.body.items[0].yield).toBe(4);
 
@@ -352,7 +352,7 @@ describe('pelny przeplyw przez API', () => {
   });
 });
 
-describe('zalaczniki - skany dokumentow', () => {
+describe('załączniki - skany dokumentów', () => {
   it('dodaje, pobiera i usuwa skan dokumentu PZ', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const auth = { Authorization: `Bearer ${token}` };
@@ -405,8 +405,8 @@ describe('zalaczniki - skany dokumentow', () => {
   });
 });
 
-describe('ustawienia i slowniki', () => {
-  it('administrator zmienia przeliczniki, co wplywa na nowe dokumenty', async () => {
+describe('ustawienia i słowniki', () => {
+  it('administrator zmienia przeliczniki, co wpływa na nowe dokumenty', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const auth = { Authorization: `Bearer ${token}` };
 
@@ -428,7 +428,7 @@ describe('ustawienia i slowniki', () => {
     expect(pz.body.lines[0].qtyT).toBe(150);
   });
 
-  it('odrzuca nieprawidlowe wartosci przelicznikow', async () => {
+  it('odrzuca nieprawidłowe wartości przelicznikow', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const res = await request(app)
       .put('/api/settings')
@@ -437,7 +437,7 @@ describe('ustawienia i slowniki', () => {
     expect(res.status).toBe(400);
   });
 
-  it('manager nie moze zmieniac ustawien systemu', async () => {
+  it('manager nie może zmieniac ustawien systemu', async () => {
     const token = await tokenFor('manager', DEMO_PASSWORD);
     const res = await request(app)
       .put('/api/settings')
@@ -461,12 +461,12 @@ describe('ustawienia i slowniki', () => {
     const res = await request(app)
       .put(`/api/products/${fx.products['DREWNO-OPAL']}`)
       .set(auth)
-      .send({ code: 'DREWNO-OPAL', name: 'Drewno opalowe', kind: 'RAW', baseUnit: 'MP', isActive: true });
+      .send({ code: 'DREWNO-OPAL', name: 'Drewno opałowe', kind: 'RAW', baseUnit: 'MP', isActive: true });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('IN_USE');
   });
 
-  it('nie pozwala utworzyc magazynu o istniejacym kodzie', async () => {
+  it('nie pozwala utworzyć magazynu o istniejacym kodzie', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const res = await request(app)
       .post('/api/warehouses')
@@ -478,7 +478,7 @@ describe('ustawienia i slowniki', () => {
 });
 
 describe('historia zmian', () => {
-  it('audytu nie mozna zmodyfikowac ani usunac', () => {
+  it('audytu nie można zmodyfikowac ani usunąć', () => {
     fx.db
       .prepare(
         `INSERT INTO audit_logs (occurred_at, user_id, user_login, user_name, action, module,
@@ -490,7 +490,7 @@ describe('historia zmian', () => {
     expect(() => fx.db.prepare('DELETE FROM audit_logs').run()).toThrowError(/append-only/);
   });
 
-  it('ruchow magazynowych nie mozna zmodyfikowac ani usunac', async () => {
+  it('ruchow magazynowych nie można zmodyfikowac ani usunąć', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const auth = { Authorization: `Bearer ${token}` };
     const pz = await request(app).post('/api/documents').set(auth).send({
@@ -515,17 +515,17 @@ describe('diagnostyka', () => {
   });
 
   it('nie ujawnia mapy API przed uwierzytelnieniem', async () => {
-    // Nieznana sciezka bez tokenu konczy sie na warstwie autoryzacji (401),
-    // dzieki czemu anonimowy klient nie rozpozna, ktore endpointy istnieja.
-    const anonymous = await request(app).get('/api/nie-ma-takiej-sciezki');
+    // Nieznana ścieżka bez tokenu kończy się na warstwie autoryzacji (401),
+    // dzięki czemu anonimowy klient nie rozpozna, które endpointy istnieja.
+    const anonymous = await request(app).get('/api/nie-ma-takiej-ścieżki');
     expect(anonymous.status).toBe(401);
     expect(anonymous.body.error.code).toBe('UNAUTHENTICATED');
   });
 
-  it('nieznana sciezka dla zalogowanego zwraca 404 w formacie bledu', async () => {
+  it('nieznana ścieżka dla zalogowanego zwraca 404 w formacie błędu', async () => {
     const token = await tokenFor('admin', ADMIN_PASSWORD);
     const res = await request(app)
-      .get('/api/nie-ma-takiej-sciezki')
+      .get('/api/nie-ma-takiej-ścieżki')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');

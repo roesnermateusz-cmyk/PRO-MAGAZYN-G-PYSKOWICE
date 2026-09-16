@@ -2,7 +2,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
 /**
  * Opakowuje asynchroniczny handler tak, aby odrzucone obietnice trafialy
- * do centralnego middleware bledow zamiast konczyc proces.
+ * do centralnego middleware błędów zamiast kończyć proces.
  */
 export function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown> | unknown,

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 /**
- * Haszowanie hasel: scrypt z modulu wbudowanego node:crypto.
+ * Haszowanie haseł: scrypt z modulu wbudowanego node:crypto.
  * Format przechowywania: scrypt$N$r$p$saltBase64$hashBase64
  * Zaleta wobec bibliotek natywnych: brak kompilacji przy instalacji na Windows.
  */
@@ -48,11 +48,11 @@ export function sha256Hex(input: crypto.BinaryLike): string {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
 
-/** Minimalna polityka hasel egzekwowana przy tworzeniu i zmianie hasla. */
+/** Minimalna polityka haseł egzekwowana przy tworzeniu i zmianie hasła. */
 export function validatePasswordStrength(plain: string): string | null {
-  if (plain.length < 10) return 'Haslo musi miec co najmniej 10 znakow.';
-  if (!/[a-z]/.test(plain)) return 'Haslo musi zawierac mala litere.';
-  if (!/[A-Z]/.test(plain)) return 'Haslo musi zawierac wielka litere.';
-  if (!/[0-9]/.test(plain)) return 'Haslo musi zawierac cyfre.';
+  if (plain.length < 10) return 'Hasło musi miec co najmniej 10 znaków.';
+  if (!/[a-z]/.test(plain)) return 'Hasło musi zawierać mala litere.';
+  if (!/[A-Z]/.test(plain)) return 'Hasło musi zawierać wielka litere.';
+  if (!/[0-9]/.test(plain)) return 'Hasło musi zawierać cyfre.';
   return null;
 }

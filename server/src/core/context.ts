@@ -18,7 +18,7 @@ export interface AuthUser {
 
 export interface RequestContext {
   user: AuthUser;
-  /** Magazyn roboczy wybrany przez uzytkownika (naglowek X-Warehouse-Id). */
+  /** Magazyn roboczy wybrany przez użytkownika (naglowek X-Warehouse-Id). */
   warehouseId: number | null;
   actor: AuditActor;
 }
@@ -31,7 +31,7 @@ declare module 'express-serve-static-core' {
 
 export function requireCtx(req: Request): RequestContext {
   if (!req.ctx) {
-    throw new Error('Kontekst zadania nie zostal zainicjowany (brak middleware autoryzacji).');
+    throw new Error('Kontekst żądania nie został zainicjowany (brak middleware autoryzacji).');
   }
   return req.ctx;
 }

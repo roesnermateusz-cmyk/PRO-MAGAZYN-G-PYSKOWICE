@@ -2,12 +2,12 @@ import type { Db } from '../db/index.js';
 import type { DocType } from './permissions.js';
 
 /**
- * Numeracja dokumentow w formacie:  TYP/ROK/KOD_MAGAZYNU/KOLEJNY
+ * Numeracja dokumentów w formacie:  TYP/ROK/KOD_MAGAZYNU/KOLEJNY
  * np. PZ/2026/ZAB/0001
  *
- * Sekwencja rezerwowana jest atomowo w ramach biezacej transakcji zapisu
+ * Sekwencja rezerwowana jest atomowo w ramach bieżącej transakcji zapisu
  * (UPDATE ... RETURNING), co wyklucza przydzielenie tego samego numeru
- * dwom rownoczesnym uzytkownikom.
+ * dwom rownoczesnym użytkownikom.
  */
 export function nextDocumentNumber(
   db: Db,
@@ -32,7 +32,7 @@ export function nextDocumentNumber(
     )
     .get(docType, year, scope) as { last_seq: number } | undefined;
 
-  if (!row) throw new Error('Nie udalo sie zarezerwowac numeru dokumentu.');
+  if (!row) throw new Error('Nie udało się zarezerwować numeru dokumentu.');
 
   const seq = row.last_seq;
   const parts = [docType, String(year)];

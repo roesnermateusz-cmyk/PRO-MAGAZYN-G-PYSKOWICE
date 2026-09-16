@@ -122,7 +122,7 @@ authRouter.put(
     const db = getDb();
 
     if (input.defaultWarehouseId != null && !user.warehouseIds.includes(input.defaultWarehouseId)) {
-      throw badRequest('Brak dostepu do wskazanego magazynu domyslnego.');
+      throw badRequest('Brak dostępu do wskazanego magazynu domyślnego.');
     }
 
     const fields: string[] = [];
@@ -171,7 +171,7 @@ authRouter.post(
     const { user, actor } = requireCtx(req);
     const { warehouseId } = parseBody(req, z.object({ warehouseId: z.number().int().positive() }));
     if (!user.warehouseIds.includes(warehouseId)) {
-      throw forbidden('Brak dostepu do wskazanego magazynu.', 'WAREHOUSE_FORBIDDEN');
+      throw forbidden('Brak dostępu do wskazanego magazynu.', 'WAREHOUSE_FORBIDDEN');
     }
     const db = getDb();
     const warehouse = db.prepare('SELECT id, code, name FROM warehouses WHERE id = ? AND is_active = 1').get(

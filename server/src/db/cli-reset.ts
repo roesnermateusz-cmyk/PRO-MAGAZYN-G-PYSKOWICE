@@ -6,7 +6,7 @@ import { seedAll } from './seed.js';
 import { logger } from '../core/logger.js';
 
 if (env.isProduction && !process.argv.includes('--force')) {
-  logger.error('Reset bazy w srodowisku produkcyjnym wymaga flagi --force.');
+  logger.error('Reset bazy w środowisku produkcyjnym wymaga flagi --force.');
   process.exit(1);
 }
 
@@ -15,7 +15,7 @@ for (const suffix of ['', '-wal', '-shm']) {
   const file = `${env.databaseFile}${suffix}`;
   if (fs.existsSync(file)) {
     fs.rmSync(file);
-    logger.info(`Usunieto ${file}`);
+    logger.info(`Usunięto ${file}`);
   }
 }
 
@@ -26,5 +26,5 @@ seedAll(db, {
   demoPassword: process.env.SEED_DEMO_PASSWORD ?? 'Demo#2026',
   withDemo: true,
 });
-logger.info('Baza danych zostala odtworzona wraz z danymi przykladowymi.');
+logger.info('Baza danych została odtworzona wraz z danymi przykładowymi.');
 closeDb();

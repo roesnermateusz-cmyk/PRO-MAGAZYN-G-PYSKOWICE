@@ -13,7 +13,7 @@ export interface RateLimitOptions {
   max: number;
   keyPrefix?: string;
   /**
-   * Limity sa domyslnie wylaczone w srodowisku testowym, poniewaz zestaw
+   * Limity są domyślnie wylaczone w środowisku testowym, poniewaz zestaw
    * testow wykonuje wiele logowan z jednego adresu. Testy samego limitera
    * tworza go z flaga enforceInTests.
    */
@@ -21,7 +21,7 @@ export interface RateLimitOptions {
 }
 
 /**
- * Prosty licznik zadan w oknie czasowym, trzymany w pamieci procesu.
+ * Prosty licznik żądań w oknie czasowym, trzymany w pamięci procesu.
  * Chroni endpointy logowania przed atakiem slownikowym.
  */
 export function rateLimit(options: RateLimitOptions): RequestHandler {
@@ -59,7 +59,7 @@ export function rateLimit(options: RateLimitOptions): RequestHandler {
         new AppError(
           429,
           'RATE_LIMITED',
-          `Przekroczono limit zadan. Sprobuj ponownie za ${retryAfter} s.`,
+          `Przekroczono limit żądań. Sprobuj ponownie za ${retryAfter} s.`,
         ),
       );
       return;

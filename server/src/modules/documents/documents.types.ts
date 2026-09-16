@@ -9,7 +9,7 @@ export type DocStatus = z.infer<typeof docStatusSchema>;
 
 const isoDate = z
   .string()
-  .refine(isIsoDate, { message: 'Data musi byc w formacie YYYY-MM-DD i istniec w kalendarzu.' });
+  .refine(isIsoDate, { message: 'Data musi być w formacie YYYY-MM-DD i istniec w kalendarzu.' });
 
 const money = z.number().min(0).max(1_000_000_000);
 const quantity = z.number().positive().max(10_000_000);
@@ -19,13 +19,13 @@ export const lineInputSchema = z.object({
   productId: z.number().int().positive(),
   role: z.enum(['STD', 'INPUT', 'OUTPUT']).default('STD'),
   qtyBase: quantity,
-  /** Wartosci rzeczywiste; null/undefined = wylicz automatycznie z przelicznikow. */
+  /** Wartości rzeczywiste; null/undefined = wylicz automatycznie z przelicznikow. */
   qtyM3: optionalQuantity,
   qtyMp: optionalQuantity,
   qtyT: optionalQuantity,
-  /** Cena jednostkowa w PLN za jednostke bazowa (zakup dla PZ, sprzedaz dla WZ/SD). */
+  /** Cena jednostkowa w PLN za jednostke bazowa (zakup dla PZ, sprzedaż dla WZ/SD). */
   unitPrice: money.default(0),
-  /** Cena kosztowa w PLN za jednostke bazowa (uzywana m.in. w sprzedazy bezposredniej). */
+  /** Cena kosztowa w PLN za jednostke bazowa (używana m.in. w sprzedaży bezpośredniej). */
   costUnitPrice: money.default(0),
   notes: z.string().max(500).default(''),
 });
@@ -49,7 +49,7 @@ export const documentInputSchema = z
 
     chippingMode: z.enum(['OWN', 'EXTERNAL']).nullable().optional(),
     chippingCompany: z.string().max(200).default(''),
-    /** Stawka rabania w PLN za jednostke wyrobu. Brak = stawka z ustawien. */
+    /** Stawka rąbania w PLN za jednostke wyrobu. Brak = stawka z ustawien. */
     chippingRate: money.nullable().optional(),
     productionPlace: z.string().max(200).default(''),
 
@@ -178,14 +178,14 @@ export interface DocumentRow {
   cancelled_by: number | null;
 }
 
-/** Typy dokumentow wplywajace na stan magazynowy. */
+/** Typy dokumentów wpływające na stan magazynowy. */
 export const STOCK_AFFECTING: ReadonlySet<DocType> = new Set<DocType>(['PZ', 'WZ', 'MM', 'PROD']);
 
 export const DOC_TYPE_LABELS: Record<DocType, string> = {
-  PZ: 'Przyjecie zewnetrzne',
-  WZ: 'Wydanie zewnetrzne',
-  MM: 'Przesuniecie miedzymagazynowe',
+  PZ: 'Przyjęcie zewnętrzne',
+  WZ: 'Wydanie zewnętrzne',
+  MM: 'Przesunięcie międzymagazynowe',
   PROD: 'Produkcja',
   TR: 'Transport',
-  SD: 'Sprzedaz bezposrednia',
+  SD: 'Sprzedaż bezpośrednia',
 };

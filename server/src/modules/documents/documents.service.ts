@@ -68,7 +68,7 @@ function assertPartner(db: Db, id: number | null | undefined, role: 'supplier' |
   if (!row.is_active) throw badRequest(`Kontrahent "${row.name}" jest nieaktywny.`);
   const flag = role === 'supplier' ? row.is_supplier : role === 'customer' ? row.is_customer : row.is_carrier;
   if (!flag) {
-    const label = role === 'supplier' ? 'dostawcy' : role === 'customer' ? 'odbiorcy' : 'przewoznika';
+    const label = role === 'supplier' ? 'dostawcy' : role === 'customer' ? 'odbiorcy' : 'przewoźnika';
     throw badRequest(`Kontrahent "${row.name}" nie jest oznaczony jako ${label}.`);
   }
 }
@@ -82,8 +82,8 @@ function assertWarehouseExists(db: Db, id: number, label: string): void {
 }
 
 /**
- * Walidacja zaleznosci wynikajacych z typu dokumentu oraz kontrola dostepu
- * uzytkownika do wszystkich magazynow bioracych udzial w operacji.
+ * Walidacja zależności wynikających z typu dokumentu oraz kontrola dostępu
+ * użytkownika do wszystkich magazynów biorących udzial w operacji.
  */
 function validateByType(db: Db, user: AuthUser, docType: DocType, input: DocumentInput | DocumentUpdate): void {
   const wh = input.warehouseId ?? null;
@@ -99,8 +99,8 @@ function validateByType(db: Db, user: AuthUser, docType: DocType, input: Documen
 
   switch (docType) {
     case 'PZ': {
-      requireMainWarehouse('Przyjecie PZ');
-      if (!input.supplierId) throw badRequest('Przyjecie PZ wymaga wskazania dostawcy.');
+      requireMainWarehouse('Przyjęcie PZ');
+      if (!input.supplierId) throw badRequest('Przyjęcie PZ wymaga wskazania dostawcy.');
       assertPartner(db, input.supplierId, 'supplier');
       assertRoles(input.lines, ['STD'], 'PZ');
       break;
@@ -114,12 +114,12 @@ function validateByType(db: Db, user: AuthUser, docType: DocType, input: Documen
     }
     case 'MM': {
       if (from === null || to === null) {
-        throw badRequest('Przesuniecie MM wymaga magazynu zrodlowego i docelowego.');
+        throw badRequest('Przesunięcie MM wymaga magazynu źródłowego i docelowego.');
       }
-      if (from === to) throw badRequest('Magazyn zrodlowy i docelowy musza byc rozne.');
-      assertWarehouseExists(db, from, 'Magazyn zrodlowy');
+      if (from === to) throw badRequest('Magazyn źródłowy i docelowy muszą być różne.');
+      assertWarehouseExists(db, from, 'Magazyn źródłowy');
       assertWarehouseExists(db, to, 'Magazyn docelowy');
-      assertWarehouseAccess(user.warehouseIds, from, 'magazynu zrodlowego');
+      assertWarehouseAccess(user.warehouseIds, from, 'magazynu źródłowego');
       assertWarehouseAccess(user.warehouseIds, to, 'magazynu docelowego');
       assertRoles(input.lines, ['STD'], 'MM');
       break;
@@ -132,7 +132,7 @@ function validateByType(db: Db, user: AuthUser, docType: DocType, input: Documen
       if (outputs.length === 0) throw badRequest('Produkcja wymaga co najmniej jednej pozycji wyrobu (OUTPUT).');
       assertRoles(input.lines, ['INPUT', 'OUTPUT'], 'PROD');
       if (input.chippingMode === 'EXTERNAL' && !input.chippingCompany.trim()) {
-        throw badRequest('Przy rabaniu zewnetrznym wymagana jest nazwa firmy.');
+        throw badRequest('Przy rąbaniu zewnętrznym wymagana jest nazwa firmy.');
       }
       break;
     }
@@ -142,30 +142,30 @@ function validateByType(db: Db, user: AuthUser, docType: DocType, input: Documen
         assertWarehouseAccess(user.warehouseIds, wh, 'magazynu dokumentu');
       }
       if (from !== null) {
-        assertWarehouseExists(db, from, 'Magazyn zaladunku');
-        assertWarehouseAccess(user.warehouseIds, from, 'magazynu zaladunku');
+        assertWarehouseExists(db, from, 'Magazyn załadunku');
+        assertWarehouseAccess(user.warehouseIds, from, 'magazynu załadunku');
       }
       if (to !== null) {
-        assertWarehouseExists(db, to, 'Magazyn rozladunku');
-        assertWarehouseAccess(user.warehouseIds, to, 'magazynu rozladunku');
+        assertWarehouseExists(db, to, 'Magazyn rozładunku');
+        assertWarehouseAccess(user.warehouseIds, to, 'magazynu rozładunku');
       }
       if (!input.carrierId && !input.vehiclePlate.trim()) {
-        throw badRequest('Transport wymaga wskazania przewoznika lub numeru rejestracyjnego.');
+        throw badRequest('Transport wymaga wskazania przewoźnika lub numeru rejestracyjnego.');
       }
       assertPartner(db, input.carrierId, 'carrier');
       assertRoles(input.lines, ['STD'], 'TR');
       break;
     }
     case 'SD': {
-      if (!input.supplierId) throw badRequest('Sprzedaz bezposrednia wymaga wskazania dostawcy.');
-      if (!input.customerId) throw badRequest('Sprzedaz bezposrednia wymaga wskazania odbiorcy.');
+      if (!input.supplierId) throw badRequest('Sprzedaż bezpośrednia wymaga wskazania dostawcy.');
+      if (!input.customerId) throw badRequest('Sprzedaż bezpośrednia wymaga wskazania odbiorcy.');
       assertPartner(db, input.supplierId, 'supplier');
       assertPartner(db, input.customerId, 'customer');
       assertRoles(input.lines, ['STD'], 'SD');
       break;
     }
     default:
-      throw badRequest(`Nieobslugiwany typ dokumentu: ${docType}`);
+      throw badRequest(`Nieobsługiwany typ dokumentu: ${docType}`);
   }
 
   if (input.carrierId) assertPartner(db, input.carrierId, 'carrier');
@@ -363,7 +363,7 @@ export function createDocument(
     const existing = db
       .prepare('SELECT id FROM documents WHERE client_request_id = ?')
       .get(input.clientRequestId) as { id: number } | undefined;
-    // Powtorzone zadanie (np. podwojne klikniecie) zwraca istniejacy dokument
+    // Powtorzone żądanie (np. podwojne klikniecie) zwraca istniejący dokument
     // zamiast tworzyc duplikat.
     if (existing) return getDocument(db, user, existing.id);
   }
@@ -481,7 +481,7 @@ export function updateDocument(
 
   if (existing.status !== 'DRAFT') {
     throw invalidState(
-      `Dokument ${existing.doc_number} ma status ${existing.status} i nie moze byc edytowany. Uzyj korekty.`,
+      `Dokument ${existing.doc_number} ma status ${existing.status} i nie może być edytowany. Użyj korekty.`,
     );
   }
 
@@ -565,7 +565,7 @@ export function updateDocument(
 
     if (result.changes === 0) {
       throw conflict(
-        'Dokument zostal w miedzyczasie zmieniony przez innego uzytkownika. Odswiez dane i sprobuj ponownie.',
+        'Dokument został w międzyczasie zmieniony przez innego użytkownika. Odśwież dane i sprobuj ponownie.',
         'VERSION_CONFLICT',
       );
     }
@@ -611,31 +611,31 @@ export function postDocument(
   assertDocPermission(user, existing.doc_type, 'post');
 
   if (existing.status === 'POSTED') {
-    throw invalidState(`Dokument ${existing.doc_number} jest juz zatwierdzony.`);
+    throw invalidState(`Dokument ${existing.doc_number} jest już zatwierdzony.`);
   }
   if (existing.status === 'CANCELLED') {
-    throw invalidState(`Dokument ${existing.doc_number} jest anulowany i nie moze zostac zatwierdzony.`);
+    throw invalidState(`Dokument ${existing.doc_number} jest anulowany i nie może zostac zatwierdzony.`);
   }
 
   const policy = getSetting(db, 'stockPolicy');
   const allowNegative = policy.allowNegative && user.permissions.has('stock.allow_negative');
 
   const tx = db.transaction(() => {
-    // Ponowny odczyt wewnatrz transakcji - chroni przed wyscigiem dwoch
-    // rownoczesnych zatwierdzen tego samego dokumentu.
+    // Ponowny odczyt wewnątrz transakcji - chroni przed wyścigiem dwoch
+    // równoczesnych zatwierdzen tego samego dokumentu.
     const fresh = loadDocumentRow(db, id);
     if (fresh.status !== 'DRAFT') {
       throw invalidState(`Dokument ${fresh.doc_number} ma status ${fresh.status}.`);
     }
     if (fresh.version !== version) {
       throw conflict(
-        'Dokument zostal w miedzyczasie zmieniony. Odswiez dane i sprobuj ponownie.',
+        'Dokument został w międzyczasie zmieniony. Odśwież dane i sprobuj ponownie.',
         'VERSION_CONFLICT',
       );
     }
 
     const lines = loadLines(db, id);
-    if (lines.length === 0) throw badRequest('Dokument bez pozycji nie moze zostac zatwierdzony.');
+    if (lines.length === 0) throw badRequest('Dokument bez pozycji nie może zostac zatwierdzony.');
 
     const movements = planMovements(fresh, lines);
     applyMovements(db, fresh, movements, { allowNegative, reason: 'POSTING', userId: user.id });
@@ -650,7 +650,7 @@ export function postDocument(
       .run(stamp, user.id, stamp, user.id, id, version);
 
     if (result.changes === 0) {
-      throw conflict('Nie udalo sie zatwierdzic dokumentu - stan uleg zmianie.', 'VERSION_CONFLICT');
+      throw conflict('Nie udało się zatwierdzić dokumentu - stan uległ zmianie.', 'VERSION_CONFLICT');
     }
 
     writeAudit(db, {
@@ -684,7 +684,7 @@ export function cancelDocument(
   assertDocPermission(user, existing.doc_type, 'cancel');
 
   if (existing.status === 'CANCELLED') {
-    throw invalidState(`Dokument ${existing.doc_number} jest juz anulowany.`);
+    throw invalidState(`Dokument ${existing.doc_number} jest już anulowany.`);
   }
 
   const policy = getSetting(db, 'stockPolicy');
@@ -692,9 +692,9 @@ export function cancelDocument(
 
   const tx = db.transaction(() => {
     const fresh = loadDocumentRow(db, id);
-    if (fresh.status === 'CANCELLED') throw invalidState('Dokument jest juz anulowany.');
+    if (fresh.status === 'CANCELLED') throw invalidState('Dokument jest już anulowany.');
     if (fresh.version !== version) {
-      throw conflict('Dokument zostal w miedzyczasie zmieniony. Odswiez dane.', 'VERSION_CONFLICT');
+      throw conflict('Dokument został w międzyczasie zmieniony. Odśwież dane.', 'VERSION_CONFLICT');
     }
 
     if (fresh.status === 'POSTED' && STOCK_AFFECTING.has(fresh.doc_type)) {
@@ -713,7 +713,7 @@ export function cancelDocument(
       .run(stamp, user.id, reason, stamp, user.id, id, version);
 
     if (result.changes === 0) {
-      throw conflict('Nie udalo sie anulowac dokumentu - stan uleg zmianie.', 'VERSION_CONFLICT');
+      throw conflict('Nie udało się anulować dokumentu - stan uległ zmianie.', 'VERSION_CONFLICT');
     }
 
     writeAudit(db, {
@@ -738,7 +738,7 @@ export function cancelDocument(
 /**
  * Korekta dokumentu zatwierdzonego: anuluje oryginal (ze stornem ruchow)
  * i tworzy nowy dokument roboczy bedacy jego kopia, oznaczony jako korekta.
- * Obie czynnosci wykonywane sa w jednej transakcji.
+ * Obie czynnosci wykonywane są w jednej transakcji.
  */
 export function correctDocument(
   db: Db,
@@ -753,7 +753,7 @@ export function correctDocument(
   assertDocPermission(user, existing.doc_type, 'manage');
 
   if (existing.status !== 'POSTED') {
-    throw invalidState('Korekcie podlegaja wylacznie dokumenty zatwierdzone.');
+    throw invalidState('Korekcie podlegaja wyłącznie dokumenty zatwierdzone.');
   }
 
   const policy = getSetting(db, 'stockPolicy');
@@ -763,7 +763,7 @@ export function correctDocument(
     const fresh = loadDocumentRow(db, id);
     if (fresh.status !== 'POSTED') throw invalidState('Dokument nie jest zatwierdzony.');
     if (fresh.version !== version) {
-      throw conflict('Dokument zostal w miedzyczasie zmieniony. Odswiez dane.', 'VERSION_CONFLICT');
+      throw conflict('Dokument został w międzyczasie zmieniony. Odśwież dane.', 'VERSION_CONFLICT');
     }
 
     if (STOCK_AFFECTING.has(fresh.doc_type)) {
@@ -869,7 +869,7 @@ export function deleteDraft(db: Db, user: AuthUser, actor: AuditActor, id: numbe
   const existing = loadDocumentRow(db, id);
   assertDocPermission(user, existing.doc_type, 'manage');
   if (existing.status !== 'DRAFT') {
-    throw invalidState('Usunac mozna wylacznie dokument roboczy. Dokument zatwierdzony nalezy anulowac.');
+    throw invalidState('Usunąć można wyłącznie dokument roboczy. Dokument zatwierdzony należy anulować.');
   }
 
   const tx = db.transaction(() => {
@@ -1160,9 +1160,9 @@ function round2(value: number): number {
 }
 
 /**
- * Dokument jest widoczny, jesli dotyczy magazynu przypisanego uzytkownikowi.
- * Dokumenty bez kontekstu magazynowego (TR bez magazynow, SD) sa widoczne dla
- * kazdego, kto ma uprawnienie podgladu danego typu.
+ * Dokument jest widoczny, jeśli dotyczy magazynu przypisanego użytkownikowi.
+ * Dokumenty bez kontekstu magazynowego (TR bez magazynów, SD) są widoczne dla
+ * każdego, kto ma uprawnienie podglądu danego typu.
  */
 function assertDocumentVisibility(user: AuthUser, doc: DocumentRow): void {
   if (user.isAdmin) return;
@@ -1171,7 +1171,7 @@ function assertDocumentVisibility(user: AuthUser, doc: DocumentRow): void {
   );
   if (involved.length === 0) return;
   if (involved.some((id) => user.warehouseIds.includes(id))) return;
-  throw forbidden('Brak dostepu do dokumentu spoza przypisanych magazynow.', 'WAREHOUSE_FORBIDDEN');
+  throw forbidden('Brak dostępu do dokumentu spoza przypisanych magazynów.', 'WAREHOUSE_FORBIDDEN');
 }
 
 export interface DocumentListItem {
@@ -1220,7 +1220,7 @@ export function listDocuments(
     params.status = query.status;
   }
 
-  // Ograniczenie do magazynow uzytkownika egzekwowane po stronie SQL.
+  // Ograniczenie do magazynów użytkownika egzekwowane po stronie SQL.
   if (!user.isAdmin) {
     if (user.warehouseIds.length === 0) {
       where.push('d.warehouse_id IS NULL AND d.warehouse_from_id IS NULL AND d.warehouse_to_id IS NULL');

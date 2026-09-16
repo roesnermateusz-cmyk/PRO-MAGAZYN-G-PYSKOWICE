@@ -1,53 +1,53 @@
 /**
- * Katalog uprawnien. Uprawnienia sa egzekwowane wylacznie po stronie serwera;
- * interfejs jedynie ukrywa niedostepne akcje.
+ * Katalog uprawnień. Uprawnienia są egzekwowane wyłącznie po stronie serwera;
+ * interfejs jedynie ukrywa niedostępne akcje.
  */
 export const PERMISSIONS = {
   // Dokumenty operacyjne
-  'pz.view': 'Podglad przyjec PZ',
-  'pz.manage': 'Tworzenie i edycja przyjec PZ',
-  'pz.post': 'Zatwierdzanie przyjec PZ',
-  'pz.cancel': 'Anulowanie przyjec PZ',
+  'pz.view': 'Podgląd przyjęć PZ',
+  'pz.manage': 'Tworzenie i edycja przyjęć PZ',
+  'pz.post': 'Zatwierdzanie przyjęć PZ',
+  'pz.cancel': 'Anulowanie przyjęć PZ',
 
-  'wz.view': 'Podglad wydan WZ',
-  'wz.manage': 'Tworzenie i edycja wydan WZ',
-  'wz.post': 'Zatwierdzanie wydan WZ',
-  'wz.cancel': 'Anulowanie wydan WZ',
+  'wz.view': 'Podgląd wydań WZ',
+  'wz.manage': 'Tworzenie i edycja wydań WZ',
+  'wz.post': 'Zatwierdzanie wydań WZ',
+  'wz.cancel': 'Anulowanie wydań WZ',
 
-  'mm.view': 'Podglad przesuniec MM',
-  'mm.manage': 'Tworzenie i edycja przesuniec MM',
-  'mm.post': 'Zatwierdzanie przesuniec MM',
-  'mm.cancel': 'Anulowanie przesuniec MM',
+  'mm.view': 'Podgląd przesunięć MM',
+  'mm.manage': 'Tworzenie i edycja przesunięć MM',
+  'mm.post': 'Zatwierdzanie przesunięć MM',
+  'mm.cancel': 'Anulowanie przesunięć MM',
 
-  'prod.view': 'Podglad produkcji',
+  'prod.view': 'Podgląd produkcji',
   'prod.manage': 'Tworzenie i edycja produkcji',
   'prod.post': 'Zatwierdzanie produkcji',
   'prod.cancel': 'Anulowanie produkcji',
 
-  'tr.view': 'Podglad transportow',
-  'tr.manage': 'Tworzenie i edycja transportow',
-  'tr.post': 'Zatwierdzanie transportow',
-  'tr.cancel': 'Anulowanie transportow',
+  'tr.view': 'Podgląd transportów',
+  'tr.manage': 'Tworzenie i edycja transportów',
+  'tr.post': 'Zatwierdzanie transportów',
+  'tr.cancel': 'Anulowanie transportów',
 
-  'sd.view': 'Podglad sprzedazy bezposredniej',
-  'sd.manage': 'Tworzenie i edycja sprzedazy bezposredniej',
-  'sd.post': 'Zatwierdzanie sprzedazy bezposredniej',
-  'sd.cancel': 'Anulowanie sprzedazy bezposredniej',
+  'sd.view': 'Podgląd sprzedaży bezpośredniej',
+  'sd.manage': 'Tworzenie i edycja sprzedaży bezpośredniej',
+  'sd.post': 'Zatwierdzanie sprzedaży bezpośredniej',
+  'sd.cancel': 'Anulowanie sprzedaży bezpośredniej',
 
   // Dane i zestawienia
-  'stock.view': 'Podglad stanow magazynowych',
-  'stock.allow_negative': 'Zgoda na stan ujemny (operacja wyjatkowa)',
-  'reports.view': 'Dostep do raportow',
+  'stock.view': 'Podgląd stanow magazynowych',
+  'stock.allow_negative': 'Zgoda na stan ujemny (operacja wyjątkowa)',
+  'reports.view': 'Dostęp do raportow',
   'reports.export': 'Eksport danych',
-  'audit.view': 'Dostep do historii zmian',
-  'attachments.manage': 'Dodawanie i usuwanie zalacznikow',
+  'audit.view': 'Dostęp do historii zmian',
+  'attachments.manage': 'Dodawanie i usuwanie załączników',
 
   // Administracja
-  'admin.users': 'Zarzadzanie uzytkownikami i rolami',
-  'admin.warehouses': 'Zarzadzanie magazynami',
-  'admin.products': 'Zarzadzanie produktami',
-  'admin.partners': 'Zarzadzanie kontrahentami',
-  'admin.settings': 'Zarzadzanie ustawieniami systemu',
+  'admin.users': 'Zarządzanie uzytkownikami i rolami',
+  'admin.warehouses': 'Zarządzanie magazynami',
+  'admin.products': 'Zarządzanie produktami',
+  'admin.partners': 'Zarządzanie kontrahentami',
+  'admin.settings': 'Zarządzanie ustawieniami systemu',
   'admin.backup': 'Kopie zapasowe i konserwacja bazy',
 } as const;
 
@@ -87,13 +87,13 @@ export const ROLE_DEFINITIONS: Array<{
   {
     code: 'ADMIN',
     name: 'Administrator',
-    description: 'Pelny dostep do systemu, konfiguracji i uprawnien.',
+    description: 'Pełny dostęp do systemu, konfiguracji i uprawnień.',
     permissions: [...ALL_PERMISSIONS],
   },
   {
     code: 'MANAGER',
     name: 'Manager',
-    description: 'Pelna obsluga operacyjna, raporty i historia zmian.',
+    description: 'Pełna obsługa operacyjna, raporty i historia zmian.',
     permissions: [
       'pz.view', 'pz.manage', 'pz.post', 'pz.cancel',
       'wz.view', 'wz.manage', 'wz.post', 'wz.cancel',
@@ -121,8 +121,8 @@ export const ROLE_DEFINITIONS: Array<{
   },
   {
     code: 'VIEWER',
-    name: 'Podglad',
-    description: 'Dostep wylacznie do odczytu.',
+    name: 'Podgląd',
+    description: 'Dostęp wyłącznie do odczytu.',
     permissions: [
       'pz.view', 'wz.view', 'mm.view', 'prod.view', 'tr.view', 'sd.view',
       'stock.view', 'reports.view',

@@ -151,13 +151,13 @@ export function verifyAccessToken(token: string): AccessPayload {
       typeof (payload as AccessPayload).sub !== 'number' ||
       typeof (payload as AccessPayload).login !== 'string'
     ) {
-      throw unauthenticated('Nieprawidlowy token dostepu.');
+      throw unauthenticated('Nieprawidłowy token dostępu.');
     }
     return payload as AccessPayload;
   } catch (err) {
     const name = (err as Error).name;
-    if (name === 'TokenExpiredError') throw unauthenticated('Sesja wygasla.', 'TOKEN_EXPIRED');
-    throw unauthenticated('Nieprawidlowy token dostepu.');
+    if (name === 'TokenExpiredError') throw unauthenticated('Sesja wygasła.', 'TOKEN_EXPIRED');
+    throw unauthenticated('Nieprawidłowy token dostępu.');
   }
 }
 
@@ -177,7 +177,7 @@ export function login(
   const user = findUserByLogin(db, login_);
 
   if (!user) {
-    // Rownowazny czas odpowiedzi - utrudnia enumeracje istniejacych loginow.
+    // Rownowazny czas odpowiedzi - utrudnia enumeracje istniejących loginow.
     verifyPassword(password, hashPassword('dummy-password-for-timing'));
     db.transaction(() => {
       writeAudit(db, {
@@ -189,7 +189,7 @@ export function login(
         entityLabel: login_,
       });
     })();
-    throw unauthenticated('Nieprawidlowy login lub haslo.', 'INVALID_CREDENTIALS');
+    throw unauthenticated('Nieprawidłowy login lub hasło.', 'INVALID_CREDENTIALS');
   }
 
   const actor: AuditActor = {
@@ -202,13 +202,13 @@ export function login(
 
   if (user.locked_until && user.locked_until > nowIso()) {
     throw forbidden(
-      `Konto jest tymczasowo zablokowane po nieudanych probach logowania. Sprobuj po ${user.locked_until}.`,
+      `Konto jest tymczasowo zablokowane po nieudanych próbach logowania. Sprobuj po ${user.locked_until}.`,
       'ACCOUNT_LOCKED',
     );
   }
 
   if (!user.is_active) {
-    throw forbidden('Konto jest nieaktywne. Skontaktuj sie z administratorem.', 'ACCOUNT_INACTIVE');
+    throw forbidden('Konto jest nieaktywne. Skontaktuj się z administratorem.', 'ACCOUNT_INACTIVE');
   }
 
   if (!verifyPassword(password, user.password_hash)) {
@@ -234,7 +234,7 @@ export function login(
         changes: [{ field: 'failedLogins', before: user.failed_logins, after: lockedUntil ? 0 : failed }],
       });
     })();
-    throw unauthenticated('Nieprawidlowy login lub haslo.', 'INVALID_CREDENTIALS');
+    throw unauthenticated('Nieprawidłowy login lub hasło.', 'INVALID_CREDENTIALS');
   }
 
   const tokens = db.transaction(() => {
@@ -262,7 +262,7 @@ export function refresh(
   meta: { ip: string; userAgent: string },
 ): { user: UserRow; tokens: TokenPair } {
   const [tokenId, secret] = refreshToken.split('.');
-  if (!tokenId || !secret) throw unauthenticated('Nieprawidlowy token odswiezania.');
+  if (!tokenId || !secret) throw unauthenticated('Nieprawidłowy token odświeżania.');
 
   const row = db.prepare('SELECT * FROM refresh_tokens WHERE id = ?').get(tokenId) as
     | {
@@ -275,16 +275,16 @@ export function refresh(
     | undefined;
 
   if (!row || row.revoked_at || row.expires_at <= nowIso()) {
-    throw unauthenticated('Token odswiezania jest niewazny.', 'TOKEN_EXPIRED');
+    throw unauthenticated('Token odświeżania jest nieważny.', 'TOKEN_EXPIRED');
   }
 
   const providedHash = Buffer.from(sha256Hex(secret));
   const storedHash = Buffer.from(row.token_hash);
   if (providedHash.length !== storedHash.length || !crypto.timingSafeEqual(providedHash, storedHash)) {
-    // Token o poprawnym identyfikatorze, lecz blednym sekrecie - uniewazniamy
-    // caly lancuch sesji jako potencjalna probe przejecia.
+    // Token o poprawnym identyfikatorze, lecz błędnym sekrecie - uniewazniamy
+    // caly lancuch sesji jako potencjalna próbę przejecia.
     db.prepare('UPDATE refresh_tokens SET revoked_at = ? WHERE id = ?').run(nowIso(), tokenId);
-    throw unauthenticated('Token odswiezania jest niewazny.');
+    throw unauthenticated('Token odświeżania jest nieważny.');
   }
 
   const user = findUserById(db, row.user_id);
@@ -334,14 +334,14 @@ export function changeOwnPassword(
   actor: AuditActor,
 ): void {
   const user = findUserById(db, userId);
-  if (!user) throw new AppError(404, 'NOT_FOUND', 'Nie znaleziono uzytkownika.');
+  if (!user) throw new AppError(404, 'NOT_FOUND', 'Nie znaleziono użytkownika.');
   if (!verifyPassword(currentPassword, user.password_hash)) {
-    throw unauthenticated('Biezace haslo jest nieprawidlowe.', 'INVALID_CREDENTIALS');
+    throw unauthenticated('Bieżące hasło jest nieprawidłowe.', 'INVALID_CREDENTIALS');
   }
   const problem = validatePasswordStrength(newPassword);
   if (problem) throw badRequest(problem);
   if (verifyPassword(newPassword, user.password_hash)) {
-    throw badRequest('Nowe haslo musi roznic sie od dotychczasowego.');
+    throw badRequest('Nowe hasło musi różnić się od dotychczasowego.');
   }
 
   db.transaction(() => {
@@ -360,7 +360,7 @@ export function changeOwnPassword(
   })();
 }
 
-/** Usuwa wygasle i uniewaznione tokeny - wywolywane cyklicznie przez serwer. */
+/** Usuwa wygasle i unieważnione tokeny - wywolywane cyklicznie przez serwer. */
 export function purgeExpiredTokens(db: Db): number {
   const result = db
     .prepare("DELETE FROM refresh_tokens WHERE expires_at < ? OR revoked_at IS NOT NULL")

@@ -1,7 +1,7 @@
 /**
- * Proces roboczy uzywany w tescie wielodostepu.
- * Uruchamiany osobno dla kazdego "uzytkownika", laczy sie z ta sama baza
- * danych na dysku i probuje zatwierdzic wskazany dokument.
+ * Proces roboczy używany w tescie wielodostepu.
+ * Uruchamiany osobno dla każdego "użytkownika", laczy się z ta sama baza
+ * danych na dysku i probuje zatwierdzić wskazany dokument.
  *
  * Argumenty: <databaseFile> <documentId> <version> <login>
  */

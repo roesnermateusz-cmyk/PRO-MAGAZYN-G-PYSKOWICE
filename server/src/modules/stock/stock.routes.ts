@@ -196,7 +196,7 @@ stockRouter.get(
   }),
 );
 
-/** Dane pulpitu - wylacznie wartosci wyliczone z bazy. */
+/** Dane pulpitu - wyłącznie wartości wyliczone z bazy. */
 stockRouter.get(
   '/dashboard',
   requirePermission('stock.view'),
@@ -343,7 +343,7 @@ stockRouter.get(
       alerts.push({
         level: 'info',
         code: 'PENDING_DRAFTS',
-        message: 'Dokumenty robocze oczekujace na zatwierdzenie.',
+        message: 'Dokumenty robocze oczekujące na zatwierdzenie.',
         count: drafts.c,
       });
     }
@@ -372,7 +372,7 @@ stockRouter.get(
   }),
 );
 
-/** Kontrola spojnosci sald z ksiega ruchow. */
+/** Kontrola spójności sald z księga ruchow. */
 stockRouter.get(
   '/integrity',
   requirePermission('admin.backup'),

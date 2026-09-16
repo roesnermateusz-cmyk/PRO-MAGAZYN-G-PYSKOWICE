@@ -34,8 +34,8 @@ function makePz(qty: number, warehouseCode = 'ZAB', unitPrice = 165): DocumentIn
     warehouseId: fx.warehouses[warehouseCode] as number,
     supplierId: fx.partners['NADL-RUDY'] as number,
     forestTicketNo: 'KW/2026/00001',
-    forestDistrict: 'Nadlesnictwo Rudy Raciborskie',
-    forestSubdistrict: 'Lesnictwo Sobieszowice',
+    forestDistrict: 'Nadleśnictwo Rudy Raciborskie',
+    forestSubdistrict: 'Leśnictwo Sobieszowice',
     lines: [line(fx.products['DREWNO-OPAL'] as number, qty, { unitPrice })],
   };
 }
@@ -46,7 +46,7 @@ function createAndPost(input: DocumentInput) {
   return postDocument(fx.db, user, actor, draft.id, draft.version);
 }
 
-describe('przyjecie PZ', () => {
+describe('przyjęcie PZ', () => {
   it('zwieksza stan magazynowy dopiero po zatwierdzeniu', () => {
     const { user, actor } = admin();
     const draft = createDocument(fx.db, user, actor, makePz(240));
@@ -59,14 +59,14 @@ describe('przyjecie PZ', () => {
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(240);
   });
 
-  it('zapisuje dane kwitu wywozowego z nadlesnictwa', () => {
+  it('zapisuje dane kwitu wywozowego z nadleśnictwa', () => {
     const doc = createAndPost(makePz(100));
     expect(doc.forestTicketNo).toBe('KW/2026/00001');
-    expect(doc.forestDistrict).toBe('Nadlesnictwo Rudy Raciborskie');
-    expect(doc.forestSubdistrict).toBe('Lesnictwo Sobieszowice');
+    expect(doc.forestDistrict).toBe('Nadleśnictwo Rudy Raciborskie');
+    expect(doc.forestSubdistrict).toBe('Leśnictwo Sobieszowice');
   });
 
-  it('wylicza wartosc dokumentu bez bledu zaokraglenia', () => {
+  it('wylicza wartość dokumentu bez błędu zaokraglenia', () => {
     const doc = createAndPost(makePz(240, 'ZAB', 165.15));
     expect(doc.totalValue).toBe(39636);
   });
@@ -95,7 +95,7 @@ describe('przyjecie PZ', () => {
 });
 
 describe('wydanie WZ i kontrola stanu', () => {
-  it('nie pozwala wydac wiecej niz jest na stanie', () => {
+  it('nie pozwala wydac więcej niż jest na stanie', () => {
     createAndPost(makePz(50));
     const { user, actor } = admin();
 
@@ -117,7 +117,7 @@ describe('wydanie WZ i kontrola stanu', () => {
 
     expect(caught).toBeInstanceOf(AppError);
     expect(caught?.code).toBe('INSUFFICIENT_STOCK');
-    // Stan pozostaje nienaruszony - transakcja zostala wycofana.
+    // Stan pozostaje nienaruszony - transakcja została wycofana.
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(50);
     expect(getDocument(fx.db, user, wz.id).status).toBe('DRAFT');
   });
@@ -142,8 +142,8 @@ describe('wydanie WZ i kontrola stanu', () => {
   });
 });
 
-describe('produkcja i automatyczne zuzycie surowca', () => {
-  it('zuzywa 100 m3 drewna i wytwarza 400 MP zrebki', () => {
+describe('produkcja i automatyczne zużycie surowca', () => {
+  it('zużywa 100 m3 drewna i wytwarza 400 MP zrębki', () => {
     createAndPost(makePz(240));
 
     const prod = createAndPost({
@@ -163,12 +163,12 @@ describe('produkcja i automatyczne zuzycie surowca', () => {
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(140);
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products.ZREBKA as number)).toBe(400);
 
-    // Domyslna stawka rabania wlasnego: 10 PLN za MP wyrobu.
+    // Domyslna stawka rąbania własnego: 10 PLN za MP wyrobu.
     expect(prod.chippingMode).toBe('OWN');
     expect(prod.chippingRate).toBe(10);
     expect(prod.chippingCost).toBe(4000);
 
-    // Powiazanie zuzycia z produkcja - obie pozycje naleza do jednego dokumentu.
+    // Powiazanie zużycia z produkcja - obie pozycje naleza do jednego dokumentu.
     const input = prod.lines.find((l) => l.role === 'INPUT');
     const output = prod.lines.find((l) => l.role === 'OUTPUT');
     expect(input?.qtyM3).toBe(100);
@@ -176,7 +176,7 @@ describe('produkcja i automatyczne zuzycie surowca', () => {
     expect(output?.qtyT).toBe(132);
   });
 
-  it('wymaga nazwy firmy przy rabaniu zewnetrznym', () => {
+  it('wymaga nazwy firmy przy rąbaniu zewnętrznym', () => {
     const { user, actor } = admin();
     expect(() =>
       createDocument(fx.db, user, actor, {
@@ -226,8 +226,8 @@ describe('produkcja i automatyczne zuzycie surowca', () => {
   });
 });
 
-describe('przesuniecie miedzymagazynowe MM', () => {
-  it('przenosi ilosc atomowo miedzy magazynami', () => {
+describe('przesunięcie międzymagazynowe MM', () => {
+  it('przenosi ilość atomowo między magazynami', () => {
     createAndPost(makePz(200));
     createAndPost({
       ...docBase(),
@@ -259,7 +259,7 @@ describe('przesuniecie miedzymagazynowe MM', () => {
     expect(stockOf(fx.db, fx.warehouses.ROK as number, fx.products['DREWNO-OPAL'] as number)).toBe(0);
   });
 
-  it('odrzuca przesuniecie do tego samego magazynu', () => {
+  it('odrzuca przesunięcie do tego samego magazynu', () => {
     const { user, actor } = admin();
     expect(() =>
       createDocument(fx.db, user, actor, {
@@ -270,12 +270,12 @@ describe('przesuniecie miedzymagazynowe MM', () => {
         warehouseToId: fx.warehouses.ZAB as number,
         lines: [line(fx.products['DREWNO-OPAL'] as number, 5)],
       }),
-    ).toThrowError(/rozne/i);
+    ).toThrowError(/różne/i);
   });
 });
 
 describe('transport', () => {
-  it('wylicza koszt z odleglosci i stawki oraz wskazniki pochodne', () => {
+  it('wylicza koszt z odległości i stawki oraz wskazniki pochodne', () => {
     const doc = createAndPost({
       ...docBase(),
       docType: 'TR',
@@ -287,7 +287,7 @@ describe('transport', () => {
       lines: [line(fx.products.ZREBKA as number, 150)],
     });
 
-    // Stawka domyslna z ustawien: 5 PLN/km.
+    // Stawka domyślna z ustawien: 5 PLN/km.
     expect(doc.transportRate).toBe(5);
     expect(doc.transportCost).toBe(560);
     expect(doc.derived.costPerKm).toBe(5);
@@ -297,7 +297,7 @@ describe('transport', () => {
     expect(doc.vehiclePlate).toBe('SPY4021');
   });
 
-  it('pozwala nadpisac koszt calkowity recznie', () => {
+  it('pozwala nadpisać koszt całkowity ręcznie', () => {
     const doc = createAndPost({
       ...docBase(),
       docType: 'TR',
@@ -324,8 +324,8 @@ describe('transport', () => {
   });
 });
 
-describe('sprzedaz bezposrednia', () => {
-  it('rejestruje zakup i sprzedaz bez tworzenia stanu magazynowego', () => {
+describe('sprzedaż bezpośrednia', () => {
+  it('rejestruje zakup i sprzedaż bez tworzenia stanu magazynowego', () => {
     const doc = createAndPost({
       ...docBase(),
       docType: 'SD',
@@ -345,7 +345,7 @@ describe('sprzedaz bezposrednia', () => {
   });
 });
 
-describe('recznie wprowadzone wartosci rzeczywiste', () => {
+describe('ręcznie wprowadzone wartości rzeczywiste', () => {
   it('nie zmieniaja stanu w jednostce bazowej', () => {
     const doc = createAndPost({
       ...docBase(),
@@ -359,7 +359,7 @@ describe('recznie wprowadzone wartosci rzeczywiste', () => {
     const first = doc.lines[0];
     expect(first?.qtyT).toBe(145.5);
     expect(first?.qtyTManual).toBe(true);
-    // Wartosci wyliczane automatycznie pozostaja bez zmian.
+    // Wartości wyliczane automatycznie pozostają bez zmian.
     expect(first?.qtyMp).toBe(400);
     expect(first?.qtyM3Manual).toBe(false);
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(100);
@@ -375,7 +375,7 @@ describe('cykl zycia dokumentu', () => {
         ...makePz(120),
         version: posted.version,
       } as never),
-    ).toThrowError(/nie moze byc edytowany/i);
+    ).toThrowError(/nie może być edytowany/i);
   });
 
   it('wykrywa rownolegla edycje przez kontrole wersji', () => {
@@ -395,11 +395,11 @@ describe('cykl zycia dokumentu', () => {
   it('odrzuca ponowne zatwierdzenie tego samego dokumentu', () => {
     const posted = createAndPost(makePz(100));
     const { user, actor } = admin();
-    expect(() => postDocument(fx.db, user, actor, posted.id, posted.version)).toThrowError(/juz zatwierdzony/i);
+    expect(() => postDocument(fx.db, user, actor, posted.id, posted.version)).toThrowError(/już zatwierdzony/i);
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(100);
   });
 
-  it('traktuje powtorzone zadanie z tym samym kluczem jako duplikat', () => {
+  it('traktuje powtorzone żądanie z tym samym kluczem jako duplikat', () => {
     const { user, actor } = admin();
     const input = { ...makePz(100), clientRequestId: 'formularz-abc-123456' };
     const first = createDocument(fx.db, user, actor, input);
@@ -411,10 +411,10 @@ describe('cykl zycia dokumentu', () => {
   it('anuluje zatwierdzony dokument i cofa ruchy magazynowe', () => {
     const posted = createAndPost(makePz(240));
     const { user, actor } = admin();
-    const cancelled = cancelDocument(fx.db, user, actor, posted.id, 'Bledna ilosc na kwicie', posted.version);
+    const cancelled = cancelDocument(fx.db, user, actor, posted.id, 'Błędna ilość na kwicie', posted.version);
 
     expect(cancelled.status).toBe('CANCELLED');
-    expect(cancelled.cancelReason).toBe('Bledna ilosc na kwicie');
+    expect(cancelled.cancelReason).toBe('Błędna ilość na kwicie');
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(0);
 
     const movements = fx.db
@@ -426,7 +426,7 @@ describe('cykl zycia dokumentu', () => {
     ]);
   });
 
-  it('nie pozwala anulowac przyjecia, gdy towar zostal juz wydany', () => {
+  it('nie pozwala anulować przyjęcia, gdy towar został już wydany', () => {
     const pz = createAndPost(makePz(100));
     createAndPost({
       ...docBase(),
@@ -445,7 +445,7 @@ describe('cykl zycia dokumentu', () => {
   it('tworzy korekte: anuluje oryginal i wystawia nowy dokument roboczy', () => {
     const posted = createAndPost(makePz(240));
     const { user, actor } = admin();
-    const correction = correctDocument(fx.db, user, actor, posted.id, 'Blad ilosci', posted.version);
+    const correction = correctDocument(fx.db, user, actor, posted.id, 'Błąd ilości', posted.version);
 
     expect(correction.status).toBe('DRAFT');
     expect(correction.correctionOfNumber).toBe(posted.docNumber);
@@ -461,7 +461,7 @@ describe('cykl zycia dokumentu', () => {
     expect(stockOf(fx.db, fx.warehouses.ZAB as number, fx.products['DREWNO-OPAL'] as number)).toBe(200);
   });
 
-  it('usuwa wylacznie dokument roboczy', () => {
+  it('usuwa wyłącznie dokument roboczy', () => {
     const { user, actor } = admin();
     const draft = createDocument(fx.db, user, actor, makePz(10));
     deleteDraft(fx.db, user, actor, draft.id);
@@ -472,8 +472,8 @@ describe('cykl zycia dokumentu', () => {
   });
 });
 
-describe('pelny przeplyw biznesowy', () => {
-  it('zakup -> PZ -> produkcja -> MM -> WZ zachowuje spojnosc ksiegi', () => {
+describe('pełny przeplyw biznesowy', () => {
+  it('zakup -> PZ -> produkcja -> MM -> WZ zachowuje spójność księgi', () => {
     createAndPost(makePz(240));
     createAndPost({
       ...docBase(),
@@ -510,7 +510,7 @@ describe('pelny przeplyw biznesowy', () => {
   });
 });
 
-describe('lista dokumentow', () => {
+describe('lista dokumentów', () => {
   it('filtruje po typie, dacie i tekscie oraz stronicuje', () => {
     createAndPost(makePz(10));
     createAndPost(makePz(20, 'BRA'));

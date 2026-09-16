@@ -2,12 +2,12 @@
  * Przeliczniki jednostek biomasy.
  *
  * Relacje bazowe (konfigurowalne w ustawieniach):
- *   1 m3 drewna = 4 MP zrebki      -> m3PerMp = 0.25
- *   1 MP zrebki = 0.33 t           -> tPerMp  = 0.33
+ *   1 m3 drewna = 4 MP zrębki      -> m3PerMp = 0.25
+ *   1 MP zrębki = 0.33 t           -> tPerMp  = 0.33
  *
- * Ilosc stanu magazynowego zawsze prowadzona jest w jednostce bazowej produktu.
- * Wartosci m3/MP/t sluza do prezentacji i moga zostac nadpisane recznie
- * (wartosc rzeczywista) bez wplywu na stan magazynowy.
+ * Ilość stanu magazynowego zawsze prowadzona jest w jednostce bazowej produktu.
+ * Wartości m3/MP/t służą do prezentacji i mogą zostac nadpisane ręcznie
+ * (wartość rzeczywista) bez wpływu na stan magazynowy.
  */
 
 export type BaseUnit = 'M3' | 'MP' | 'T' | 'SZT';
@@ -15,22 +15,22 @@ export type BaseUnit = 'M3' | 'MP' | 'T' | 'SZT';
 export const BASE_UNITS: readonly BaseUnit[] = ['M3', 'MP', 'T', 'SZT'] as const;
 
 export interface ConversionRates {
-  /** Ile metrow szesciennych (m3) przypada na 1 MP. Domyslnie 0.25. */
+  /** Ile metrow sześciennych (m3) przypada na 1 MP. Domyślnie 0.25. */
   m3PerMp: number;
-  /** Ile ton (t) przypada na 1 MP. Domyslnie 0.33. */
+  /** Ile ton (t) przypada na 1 MP. Domyślnie 0.33. */
   tPerMp: number;
 }
 
 export const DEFAULT_RATES: ConversionRates = { m3PerMp: 0.25, tPerMp: 0.33 };
 
-/** Zaokraglenie ilosci do 4 miejsc po przecinku - wspolne dla calego systemu. */
+/** Zaokraglenie ilości do 4 miejsc po przecinku - wspolne dla calego systemu. */
 export function roundQty(value: number): number {
   return Math.round((value + Number.EPSILON) * 10_000) / 10_000;
 }
 
-export function assertPositiveQty(value: number, label = 'Ilosc'): number {
+export function assertPositiveQty(value: number, label = 'Ilość'): number {
   if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`${label} musi byc liczba dodatnia.`);
+    throw new Error(`${label} musi być liczba dodatnia.`);
   }
   return roundQty(value);
 }
@@ -42,8 +42,8 @@ export interface QuantitySet {
 }
 
 /**
- * Wylicza komplet ilosci (m3 / MP / t) na podstawie ilosci w jednostce bazowej.
- * Dla jednostki SZT przeliczniki objetosciowe nie maja sensu i zwracane sa zera.
+ * Wylicza komplet ilości (m3 / MP / t) na podstawie ilości w jednostce bazowej.
+ * Dla jednostki SZT przeliczniki objętościowe nie maja sensu i zwracane są zera.
  */
 export function deriveQuantities(
   qtyBase: number,
@@ -71,7 +71,7 @@ export function deriveQuantities(
   }
 }
 
-/** Konwersja ilosci pomiedzy dowolnymi jednostkami objetosciowymi/masowymi. */
+/** Konwersja ilości pomiedzy dowolnymi jednostkami objetosciowymi/masowymi. */
 export function convert(
   qty: number,
   from: BaseUnit,
@@ -80,7 +80,7 @@ export function convert(
 ): number {
   if (from === to) return roundQty(qty);
   if (from === 'SZT' || to === 'SZT') {
-    throw new Error('Jednostka SZT nie podlega przeliczeniom objetosciowym.');
+    throw new Error('Jednostka SZT nie podlega przeliczeniom objętościowym.');
   }
   const derived = deriveQuantities(qty, from, rates);
   switch (to) {

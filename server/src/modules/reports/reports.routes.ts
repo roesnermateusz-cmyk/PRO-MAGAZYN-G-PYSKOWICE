@@ -48,7 +48,7 @@ interface Scope {
 function resolveScope(req: Parameters<typeof requireCtx>[0]): Scope {
   const { user } = requireCtx(req);
   const parsed = parseQuery(req, periodSchema);
-  if (parsed.from > parsed.to) throw badRequest('Data poczatkowa nie moze byc pozniejsza niz koncowa.');
+  if (parsed.from > parsed.to) throw badRequest('Data początkowa nie może być późniejsza niż końcowa.');
   const warehouseIds = parsed.warehouseId
     ? [assertWarehouseAccess(user.warehouseIds, parsed.warehouseId)]
     : user.warehouseIds;
@@ -142,7 +142,7 @@ reportsRouter.get(
   }),
 );
 
-/** Raport produkcji: zuzycie surowca, wyroby, koszt rabania, wydajnosc. */
+/** Raport produkcji: zużycie surowca, wyroby, koszt rąbania, wydajnosc. */
 reportsRouter.get(
   '/production',
   requirePermission('reports.view'),
@@ -261,7 +261,7 @@ reportsRouter.get(
   }),
 );
 
-/** Zakupy i sprzedaz wg kontrahenta. */
+/** Zakupy i sprzedaż wg kontrahenta. */
 reportsRouter.get(
   '/partners',
   requirePermission('reports.view'),
@@ -312,7 +312,7 @@ reportsRouter.get(
     let rows: string[][] = [];
 
     if (kind === 'documents') {
-      header = ['Numer', 'Typ', 'Data', 'Status', 'Magazyn', 'Kontrahent', 'Ilosc bazowa', 'MP', 'm3', 't', 'Wartosc PLN'];
+      header = ['Numer', 'Typ', 'Data', 'Status', 'Magazyn', 'Kontrahent', 'Ilość bazowa', 'MP', 'm3', 't', 'Wartość PLN'];
       const data = db
         .prepare(
           `SELECT d.doc_number, d.doc_type, d.doc_date, d.status,
@@ -362,7 +362,7 @@ reportsRouter.get(
         .all() as Array<Record<string, any>>;
       rows = data.map((r) => [r.warehouse, r.code, r.name, r.base_unit, num(r.qty_base), r.updated_at]);
     } else {
-      header = ['Data', 'Dokument', 'Typ', 'Magazyn', 'Produkt', 'Kierunek', 'Ilosc', 'Jednostka', 'Uzytkownik'];
+      header = ['Data', 'Dokument', 'Typ', 'Magazyn', 'Produkt', 'Kierunek', 'Ilość', 'Jednostka', 'Użytkownik'];
       const list = scope.warehouseIds.length > 0 ? scope.warehouseIds.join(',') : '0';
       const data = db
         .prepare(

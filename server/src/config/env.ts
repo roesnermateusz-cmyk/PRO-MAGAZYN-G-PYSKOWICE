@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-/** Katalog glowny pakietu serwera (dziala tak samo dla src/ i dist/). */
+/** Katalog glowny pakietu serwera (działa tak samo dla src/ i dist/). */
 export const SERVER_ROOT = path.resolve(here, '..', '..');
 export const REPO_ROOT = path.resolve(SERVER_ROOT, '..');
 
@@ -26,7 +26,7 @@ function int(name: string, fallback: number): number {
   if (raw === undefined || raw === '') return fallback;
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed)) {
-    throw new Error(`Zmienna srodowiskowa ${name} musi byc liczba calkowita (otrzymano "${raw}")`);
+    throw new Error(`Zmienna środowiskowa ${name} musi być liczba całkowita (otrzymano "${raw}")`);
   }
   return parsed;
 }
@@ -53,7 +53,7 @@ function resolveSecret(name: string, fallbackFile: string): string {
   const fromEnv = str(name, '');
   if (fromEnv) {
     if (isProduction && fromEnv.length < 32) {
-      throw new Error(`${name} musi miec co najmniej 32 znaki w srodowisku produkcyjnym.`);
+      throw new Error(`${name} musi miec co najmniej 32 znaki w środowisku produkcyjnym.`);
     }
     return fromEnv;
   }

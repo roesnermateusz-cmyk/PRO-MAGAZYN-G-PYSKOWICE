@@ -6,14 +6,14 @@ import type { Permission } from '../core/permissions.js';
 import { findUserById, toAuthUser, verifyAccessToken } from '../modules/auth/auth.service.js';
 
 /**
- * Uwierzytelnienie. Dane uzytkownika (rola, uprawnienia, magazyny) sa czytane
- * z bazy przy kazdym zadaniu, dzieki czemu odebranie uprawnien lub dezaktywacja
- * konta dziala natychmiast, bez czekania na wygasniecie tokenu.
+ * Uwierzytelnienie. Dane użytkownika (rola, uprawnienia, magazyny) są czytane
+ * z bazy przy każdym zadaniu, dzięki czemu odebranie uprawnień lub dezaktywacja
+ * konta działa natychmiast, bez czekania na wygasniecie tokenu.
  */
 export const authenticate: RequestHandler = (req, _res, next) => {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
-    next(unauthenticated('Brak tokenu dostepu.'));
+    next(unauthenticated('Brak tokenu dostępu.'));
     return;
   }
 
@@ -35,11 +35,11 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   if (typeof requested === 'string' && requested.trim() !== '') {
     const parsed = Number.parseInt(requested, 10);
     if (Number.isNaN(parsed)) {
-      next(forbidden('Nieprawidlowy identyfikator magazynu.'));
+      next(forbidden('Nieprawidłowy identyfikator magazynu.'));
       return;
     }
     if (!user.warehouseIds.includes(parsed)) {
-      next(forbidden('Brak dostepu do wskazanego magazynu.', 'WAREHOUSE_FORBIDDEN'));
+      next(forbidden('Brak dostępu do wskazanego magazynu.', 'WAREHOUSE_FORBIDDEN'));
       return;
     }
     warehouseId = parsed;
@@ -59,20 +59,20 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   next();
 };
 
-/** Wymaga wszystkich wskazanych uprawnien. */
+/** Wymaga wszystkich wskazanych uprawnień. */
 export function requirePermission(...permissions: Permission[]): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {
     const { user } = requireCtx(req);
     const missing = permissions.filter((p) => !user.permissions.has(p));
     if (missing.length > 0) {
-      next(forbidden(`Brak uprawnien: ${missing.join(', ')}.`));
+      next(forbidden(`Brak uprawnień: ${missing.join(', ')}.`));
       return;
     }
     next();
   };
 }
 
-/** Wymaga co najmniej jednego ze wskazanych uprawnien. */
+/** Wymaga co najmniej jednego ze wskazanych uprawnień. */
 export function requireAnyPermission(...permissions: Permission[]): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {
     const { user } = requireCtx(req);
@@ -80,13 +80,13 @@ export function requireAnyPermission(...permissions: Permission[]): RequestHandl
       next();
       return;
     }
-    next(forbidden(`Brak uprawnien: wymagane jedno z ${permissions.join(', ')}.`));
+    next(forbidden(`Brak uprawnień: wymagane jedno z ${permissions.join(', ')}.`));
   };
 }
 
 /**
- * Weryfikuje dostep uzytkownika do konkretnego magazynu.
- * Wywolywana w warstwie serwisowej przed kazda operacja magazynowa.
+ * Weryfikuje dostęp użytkownika do konkretnego magazynu.
+ * Wywolywana w warstwie serwisowej przed każda operacja magazynowa.
  */
 export function assertWarehouseAccess(
   warehouseIds: number[],
@@ -97,7 +97,7 @@ export function assertWarehouseAccess(
     throw forbidden(`Nie wskazano ${label}.`, 'WAREHOUSE_FORBIDDEN');
   }
   if (!warehouseIds.includes(warehouseId)) {
-    throw forbidden(`Brak dostepu do ${label} (id=${warehouseId}).`, 'WAREHOUSE_FORBIDDEN');
+    throw forbidden(`Brak dostępu do ${label} (id=${warehouseId}).`, 'WAREHOUSE_FORBIDDEN');
   }
   return warehouseId;
 }

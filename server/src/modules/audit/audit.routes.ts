@@ -104,7 +104,7 @@ auditRouter.get(
   }),
 );
 
-/** Slowniki do filtrow historii zmian. */
+/** Słowniki do filtrow historii zmian. */
 auditRouter.get(
   '/facets',
   requirePermission('audit.view'),

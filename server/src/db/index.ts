@@ -8,12 +8,12 @@ export type Db = Database.Database;
 let instance: Db | null = null;
 
 function configure(db: Db): void {
-  // WAL pozwala na rownoczesny odczyt przez wielu uzytkownikow podczas zapisu.
+  // WAL pozwala na równoczesny odczyt przez wielu użytkowników podczas zapisu.
   db.pragma('journal_mode = WAL');
-  // FULL gwarantuje trwalosc commitu takze przy zaniku zasilania.
+  // FULL gwarantuje trwałość commitu takze przy zaniku zasilania.
   db.pragma('synchronous = FULL');
   db.pragma('foreign_keys = ON');
-  // Kolejkowanie zamiast bledu SQLITE_BUSY przy rownoczesnych zapisach.
+  // Kolejkowanie zamiast błędu SQLITE_BUSY przy równoczesnych zapisach.
   db.pragma('busy_timeout = 10000');
   db.pragma('temp_store = MEMORY');
 }
@@ -36,7 +36,7 @@ export function closeDb(): void {
   try {
     instance.pragma('wal_checkpoint(TRUNCATE)');
   } catch {
-    // Checkpoint jest optymalizacja - brak powodzenia nie blokuje zamkniecia.
+    // Checkpoint jest optymalizacja - brak powodzenia nie blokuje zamknięcia.
   }
   instance.close();
   instance = null;

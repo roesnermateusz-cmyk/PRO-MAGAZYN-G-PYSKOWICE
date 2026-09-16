@@ -37,35 +37,35 @@ describe('przeliczniki jednostek', () => {
     expect(result.t).toBe(140);
   });
 
-  it('zastepuje nieprawidlowe przeliczniki wartosciami domyslnymi', () => {
+  it('zastepuje nieprawidłowe przeliczniki wartosciami domyslnymi', () => {
     expect(normalizeRates({ m3PerMp: 0, tPerMp: -1 })).toEqual({ m3PerMp: 0.25, tPerMp: 0.33 });
     expect(normalizeRates(null)).toEqual({ m3PerMp: 0.25, tPerMp: 0.33 });
   });
 
-  it('zaokragla ilosci do czterech miejsc', () => {
+  it('zaokragla ilości do czterech miejsc', () => {
     expect(roundQty(1.000049)).toBe(1);
     expect(roundQty(1.00005)).toBe(1.0001);
   });
 
-  it('konwersja w obie strony zachowuje wartosc', () => {
+  it('konwersja w obie strony zachowuje wartość', () => {
     const mp = convert(37.5, 'M3', 'MP');
     expect(convert(mp, 'MP', 'M3')).toBe(37.5);
   });
 });
 
 describe('arytmetyka kwot', () => {
-  it('konwertuje zlote na grosze bez bledu zaokraglenia', () => {
+  it('konwertuje zlote na grosze bez błędu zaokraglenia', () => {
     expect(toGrosze(165.15)).toBe(16515);
     expect(toGrosze(0.1 + 0.2)).toBe(30);
     expect(toPln(16515)).toBe(165.15);
   });
 
-  it('wylicza wartosc pozycji w groszach', () => {
+  it('wylicza wartość pozycji w groszach', () => {
     expect(lineValueGr(toGrosze(82), 180)).toBe(1476000);
     expect(toPln(lineValueGr(toGrosze(82), 180))).toBe(14760);
   });
 
-  it('sumowanie w groszach nie kumuluje bledu zmiennoprzecinkowego', () => {
+  it('sumowanie w groszach nie kumuluje błędu zmiennoprzecinkowego', () => {
     let sum = 0;
     for (let i = 0; i < 1000; i += 1) sum += toGrosze(0.1);
     expect(toPln(sum)).toBe(100);
@@ -87,22 +87,22 @@ describe('daty', () => {
   });
 });
 
-describe('hasla', () => {
-  it('weryfikuje poprawne haslo i odrzuca bledne', () => {
+describe('hasła', () => {
+  it('weryfikuje poprawne hasło i odrzuca błędne', () => {
     const hash = hashPassword('Tajne#Haslo1');
     expect(verifyPassword('Tajne#Haslo1', hash)).toBe(true);
     expect(verifyPassword('Tajne#Haslo2', hash)).toBe(false);
   });
 
-  it('kazde haszowanie uzywa innej soli', () => {
+  it('każde haszowanie używa innej soli', () => {
     expect(hashPassword('Tajne#Haslo1')).not.toBe(hashPassword('Tajne#Haslo1'));
   });
 
   it('odrzuca uszkodzony format hasza', () => {
-    expect(verifyPassword('x', 'nieprawidlowy-format')).toBe(false);
+    expect(verifyPassword('x', 'nieprawidłowy-format')).toBe(false);
   });
 
-  it('egzekwuje polityke zlozonosci hasla', () => {
+  it('egzekwuje polityke zlozonosci hasła', () => {
     expect(validatePasswordStrength('krotkie')).not.toBeNull();
     expect(validatePasswordStrength('bezwielkich123')).not.toBeNull();
     expect(validatePasswordStrength('BezCyfrLiter')).not.toBeNull();

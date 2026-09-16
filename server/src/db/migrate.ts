@@ -7,7 +7,7 @@ import { logger } from '../core/logger.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * Katalog z migracjami. Po kompilacji pliki .sql sa kopiowane obok dist/,
+ * Katalog z migracjami. Po kompilacji pliki .sql są kopiowane obok dist/,
  * dlatego sprawdzamy oba mozliwe polozenia.
  */
 function migrationsDir(): string {

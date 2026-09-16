@@ -85,12 +85,12 @@ function draftIssue(qty: number, warehouseCode = 'ZAB'): { id: number; version: 
   return { id: doc.id, version: doc.version };
 }
 
-describe('praca wielu uzytkownikow jednoczesnie', () => {
+describe('praca wielu użytkowników jednocześnie', () => {
   it('dwa procesy nie zatwierdza tego samego dokumentu dwukrotnie', async () => {
     seedStock(100);
     const wz = draftIssue(40);
 
-    // Zamykamy polaczenie procesu testowego, aby konkurowaly wylacznie procesy robocze.
+    // Zamykamy połączenie procesu testowego, aby konkurowaly wyłącznie procesy robocze.
     closeDb();
 
     const results = await Promise.all([
@@ -109,9 +109,9 @@ describe('praca wielu uzytkownikow jednoczesnie', () => {
     expect(verifyStockIntegrity(fresh)).toEqual([]);
   });
 
-  it('rownolegle wydania nie doprowadzaja do stanu ujemnego', async () => {
+  it('równolegle wydania nie doprowadzaja do stanu ujemnego', async () => {
     seedStock(100);
-    // Cztery wydania po 40 - lacznie 160 przy dostepnych 100 sztukach.
+    // Cztery wydania po 40 - łącznie 160 przy dostępnych 100 sztukach.
     const drafts = [draftIssue(40), draftIssue(40), draftIssue(40), draftIssue(40)];
     closeDb();
 
@@ -122,7 +122,7 @@ describe('praca wielu uzytkownikow jednoczesnie', () => {
     const succeeded = results.filter((r) => r.ok);
     const rejected = results.filter((r) => !r.ok);
 
-    // Zmiescic moga sie dokladnie dwa wydania (2 x 40 = 80 <= 100).
+    // Zmiescic mogą się dokladnie dwa wydania (2 x 40 = 80 <= 100).
     expect(succeeded).toHaveLength(2);
     expect(rejected).toHaveLength(2);
     for (const r of rejected) expect(r.code).toBe('INSUFFICIENT_STOCK');
@@ -134,7 +134,7 @@ describe('praca wielu uzytkownikow jednoczesnie', () => {
     expect(verifyStockIntegrity(fresh)).toEqual([]);
   });
 
-  it('operacje na roznych magazynach wykonuja sie rownolegle bez konfliktu', async () => {
+  it('operacje na roznych magazynach wykonuja się równolegle bez konfliktu', async () => {
     const { user, actor } = actingUser(fx.db, 'admin');
     for (const code of ['ZAB', 'BRA', 'ROK']) {
       const pz = createDocument(fx.db, user, actor, {
@@ -162,8 +162,8 @@ describe('praca wielu uzytkownikow jednoczesnie', () => {
 });
 
 /**
- * Ponowne otwarcie bazy po zamknieciu polaczenia - getDb() tworzy nowe
- * polaczenie, gdy poprzednie zostalo zwolnione przez closeDb().
+ * Ponowne otwarcie bazy po zamknięciu połączenia - getDb() tworzy nowe
+ * połączenie, gdy poprzednie zostało zwolnione przez closeDb().
  */
 function setupFixtureReadback() {
   return getDb();

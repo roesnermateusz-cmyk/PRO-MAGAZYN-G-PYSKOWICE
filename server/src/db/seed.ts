@@ -10,7 +10,7 @@ import type { DocumentInput } from '../modules/documents/documents.types.js';
 import { logger } from '../core/logger.js';
 
 /**
- * Dane referencyjne wymagane do dzialania systemu (role, uprawnienia,
+ * Dane referencyjne wymagane do działania systemu (role, uprawnienia,
  * ustawienia, konto administratora). Operacja jest idempotentna.
  */
 export function seedCore(db: Db, adminPassword: string): void {
@@ -32,8 +32,8 @@ export function seedCore(db: Db, adminPassword: string): void {
 
     const roleId = (db.prepare('SELECT id FROM roles WHERE code = ?').get(role.code) as { id: number }).id;
 
-    // Rola ADMIN zawsze otrzymuje pelny zestaw uprawnien, takze po dodaniu
-    // nowych uprawnien w kolejnych wersjach systemu.
+    // Rola ADMIN zawsze otrzymuje pełny zestaw uprawnień, takze po dodaniu
+    // nowych uprawnień w kolejnych wersjach systemu.
     if (role.code === 'ADMIN') {
       db.prepare('DELETE FROM role_permissions WHERE role_id = ?').run(roleId);
     }
@@ -63,13 +63,13 @@ interface DemoIds {
   partners: Record<string, number>;
 }
 
-/** Slowniki i konta demonstracyjne. */
+/** Słowniki i konta demonstracyjne. */
 export function seedDictionaries(db: Db): DemoIds {
   const stamp = nowIso();
 
   const warehouses: Array<[string, string, string]> = [
     ['ZAB', 'RiC Zabrze', 'Zabrze'],
-    ['BRA', 'RiC Braszewice', 'Braszewice'],
+    ['BRA', 'RiC Brąszewice', 'Brąszewice'],
     ['ROK', 'RiC Rokitki', 'Rokitki'],
   ];
   const warehouseIds: Record<string, number> = {};
@@ -83,9 +83,9 @@ export function seedDictionaries(db: Db): DemoIds {
   }
 
   const products: Array<[string, string, string, string, number | null, number | null]> = [
-    ['DREWNO-OPAL', 'Drewno opalowe', 'RAW', 'M3', null, null],
-    ['ZREBKA', 'Zrebka drzewna', 'FINISHED', 'MP', null, null],
-    ['ZREBKA-SUCHA', 'Zrebka suszona', 'FINISHED', 'MP', 0.25, 0.28],
+    ['DREWNO-OPAL', 'Drewno opałowe', 'RAW', 'M3', null, null],
+    ['ZREBKA', 'Zrębka drzewna', 'FINISHED', 'MP', null, null],
+    ['ZREBKA-SUCHA', 'Zrębka suszona', 'FINISHED', 'MP', 0.25, 0.28],
     ['PELLET', 'Pellet drzewny A1', 'GOODS', 'T', null, null],
     ['TROCINY', 'Trociny', 'GOODS', 'MP', null, null],
   ];
@@ -109,10 +109,10 @@ export function seedDictionaries(db: Db): DemoIds {
     carrier: number;
     forestry: number;
   }> = [
-    { code: 'NADL-RUDY', name: 'Nadlesnictwo Rudy Raciborskie', taxId: '6391000000', city: 'Kuznia Raciborska', supplier: 1, customer: 0, carrier: 0, forestry: 1 },
-    { code: 'NADL-BRYNEK', name: 'Nadlesnictwo Brynek', taxId: '6451000000', city: 'Tworog', supplier: 1, customer: 0, carrier: 0, forestry: 1 },
+    { code: 'NADL-RUDY', name: 'Nadleśnictwo Rudy Raciborskie', taxId: '6391000000', city: 'Kuźnia Raciborska', supplier: 1, customer: 0, carrier: 0, forestry: 1 },
+    { code: 'NADL-BRYNEK', name: 'Nadleśnictwo Brynek', taxId: '6451000000', city: 'Tworóg', supplier: 1, customer: 0, carrier: 0, forestry: 1 },
     { code: 'LASPOL', name: 'Laspol Sp. z o.o.', taxId: '6312000000', city: 'Gliwice', supplier: 1, customer: 1, carrier: 0, forestry: 0 },
-    { code: 'EC-ZABRZE', name: 'Elektrocieplownia Zabrze S.A.', taxId: '6480000000', city: 'Zabrze', supplier: 0, customer: 1, carrier: 0, forestry: 0 },
+    { code: 'EC-ZABRZE', name: 'Elektrociepłownia Zabrze S.A.', taxId: '6480000000', city: 'Zabrze', supplier: 0, customer: 1, carrier: 0, forestry: 0 },
     { code: 'EC-JAWORZNO', name: 'Elektrownia Jaworzno Sp. z o.o.', taxId: '6320000000', city: 'Jaworzno', supplier: 0, customer: 1, carrier: 0, forestry: 0 },
     { code: 'TRANS-KOWAL', name: 'Transport Kowalski', taxId: '6270000000', city: 'Pyskowice', supplier: 0, customer: 0, carrier: 1, forestry: 0 },
     { code: 'TRANS-LOG', name: 'LogTrans Silesia', taxId: '6310000000', city: 'Gliwice', supplier: 0, customer: 0, carrier: 1, forestry: 0 },
@@ -140,9 +140,9 @@ export function seedDemoUsers(db: Db, ids: DemoIds, password: string): void {
   const users: Array<{ login: string; name: string; role: string; warehouses: string[] }> = [
     { login: 'manager', name: 'Anna Nowak (Manager)', role: 'MANAGER', warehouses: ['ZAB', 'BRA', 'ROK'] },
     { login: 'zabrze', name: 'Jan Kowalski (Zabrze)', role: 'WAREHOUSE', warehouses: ['ZAB'] },
-    { login: 'braszewice', name: 'Piotr Wisniewski (Braszewice)', role: 'WAREHOUSE', warehouses: ['BRA'] },
-    { login: 'rokitki', name: 'Marek Zielinski (Rokitki)', role: 'WAREHOUSE', warehouses: ['ROK'] },
-    { login: 'podglad', name: 'Konto podgladu', role: 'VIEWER', warehouses: ['ZAB', 'BRA', 'ROK'] },
+    { login: 'braszewice', name: 'Piotr Wiśniewski (Brąszewice)', role: 'WAREHOUSE', warehouses: ['BRA'] },
+    { login: 'rokitki', name: 'Marek Zieliński (Rokitki)', role: 'WAREHOUSE', warehouses: ['ROK'] },
+    { login: 'podgląd', name: 'Konto podglądu', role: 'VIEWER', warehouses: ['ZAB', 'BRA', 'ROK'] },
   ];
 
   for (const u of users) {
@@ -183,14 +183,14 @@ function daysAgo(n: number): string {
 }
 
 /**
- * Przykladowe operacje odwzorowujace pelny przeplyw biznesowy.
- * Dokumenty tworzone sa przez warstwe serwisowa, dzieki czemu stany, ruchy
- * magazynowe i audyt sa identyczne jak przy pracy rzeczywistej.
+ * Przykładowe operacje odwzorowujace pełny przeplyw biznesowy.
+ * Dokumenty tworzone są przez warstwe serwisowa, dzięki czemu stany, ruchy
+ * magazynowe i audyt są identyczne jak przy pracy rzeczywistej.
  */
 export function seedDemoOperations(db: Db, ids: DemoIds): void {
   const already = db.prepare('SELECT COUNT(*) AS c FROM documents').get() as { c: number };
   if (already.c > 0) {
-    logger.info('Pominieto dane operacyjne - dokumenty juz istnieja.');
+    logger.info('Pominięto dane operacyjne - dokumenty już istnieja.');
     return;
   }
 
@@ -219,7 +219,7 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     notes: '',
   };
 
-  // 1. Zakup drewna od nadlesnictwa -> przyjecie do magazynu Zabrze
+  // 1. Zakup drewna od nadleśnictwa -> przyjęcie do magazynu Zabrze
   create({
     ...base,
     docType: 'PZ',
@@ -227,10 +227,10 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     warehouseId: ids.warehouses.ZAB as number,
     supplierId: ids.partners['NADL-RUDY'] as number,
     forestTicketNo: 'KW/2026/00841',
-    forestDistrict: 'Nadlesnictwo Rudy Raciborskie',
-    forestSubdistrict: 'Lesnictwo Sobieszowice',
+    forestDistrict: 'Nadleśnictwo Rudy Raciborskie',
+    forestSubdistrict: 'Leśnictwo Sobieszowice',
     vehiclePlate: 'SK7H433',
-    notes: 'Dostawa drewna opalowego S4.',
+    notes: 'Dostawa drewna opałowego S4.',
     lines: [
       { productId: ids.products['DREWNO-OPAL'] as number, role: 'STD', qtyBase: 240, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 165, costUnitPrice: 0, notes: '' },
     ],
@@ -243,15 +243,15 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     warehouseId: ids.warehouses.BRA as number,
     supplierId: ids.partners['NADL-BRYNEK'] as number,
     forestTicketNo: 'KW/2026/00912',
-    forestDistrict: 'Nadlesnictwo Brynek',
-    forestSubdistrict: 'Lesnictwo Tworog',
+    forestDistrict: 'Nadleśnictwo Brynek',
+    forestSubdistrict: 'Leśnictwo Tworóg',
     vehiclePlate: 'SG54821',
     lines: [
       { productId: ids.products['DREWNO-OPAL'] as number, role: 'STD', qtyBase: 180, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 158, costUnitPrice: 0, notes: '' },
     ],
   } as DocumentInput);
 
-  // 2. Produkcja zrebki - automatyczne zuzycie 100 m3 -> 400 MP
+  // 2. Produkcja zrębki - automatyczne zużycie 100 m3 -> 400 MP
   create({
     ...base,
     docType: 'PROD',
@@ -259,8 +259,8 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     warehouseId: ids.warehouses.ZAB as number,
     chippingMode: 'OWN',
     chippingRate: 10,
-    productionPlace: 'Plac skladowy Zabrze',
-    notes: 'Rabanie wlasne - rebak mobilny.',
+    productionPlace: 'Plac składowy Zabrze',
+    notes: 'Rąbanie własne - rębak mobilny.',
     lines: [
       { productId: ids.products['DREWNO-OPAL'] as number, role: 'INPUT', qtyBase: 100, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 0, costUnitPrice: 165, notes: 'Surowiec' },
       { productId: ids.products.ZREBKA as number, role: 'OUTPUT', qtyBase: 400, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 0, costUnitPrice: 0, notes: 'Wyrob' },
@@ -273,16 +273,16 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     docDate: daysAgo(9),
     warehouseId: ids.warehouses.BRA as number,
     chippingMode: 'EXTERNAL',
-    chippingCompany: 'Uslugi Lesne Debowiec',
+    chippingCompany: 'Usługi Leśne Dębowiec',
     chippingRate: 14.5,
-    productionPlace: 'Plac skladowy Braszewice',
+    productionPlace: 'Plac składowy Brąszewice',
     lines: [
       { productId: ids.products['DREWNO-OPAL'] as number, role: 'INPUT', qtyBase: 60, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 0, costUnitPrice: 158, notes: '' },
       { productId: ids.products.ZREBKA as number, role: 'OUTPUT', qtyBase: 240, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 0, costUnitPrice: 0, notes: '' },
     ],
   } as DocumentInput);
 
-  // 3. Przesuniecie miedzymagazynowe Zabrze -> Rokitki
+  // 3. Przesunięcie międzymagazynowe Zabrze -> Rokitki
   create({
     ...base,
     docType: 'MM',
@@ -290,13 +290,13 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     warehouseFromId: ids.warehouses.ZAB as number,
     warehouseToId: ids.warehouses.ROK as number,
     vehiclePlate: 'SK7H433',
-    notes: 'Przesuniecie zrebki do magazynu docelowego.',
+    notes: 'Przesunięcie zrębki do magazynu docelowego.',
     lines: [
       { productId: ids.products.ZREBKA as number, role: 'STD', qtyBase: 150, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 0, costUnitPrice: 0, notes: '' },
     ],
   } as DocumentInput);
 
-  // 4. Transport zewnetrzny (operacja kosztowa)
+  // 4. Transport zewnętrzny (operacja kosztowa)
   create({
     ...base,
     docType: 'TR',
@@ -306,7 +306,7 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     carrierId: ids.partners['TRANS-KOWAL'] as number,
     vehiclePlate: 'SPY4021',
     driverName: 'Tomasz Lis',
-    loadPlace: 'Zabrze, plac skladowy',
+    loadPlace: 'Zabrze, plac składowy',
     unloadPlace: 'Rokitki, magazyn',
     distanceKm: 112,
     transportRate: 5,
@@ -315,7 +315,7 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     ],
   } as DocumentInput);
 
-  // 5. Sprzedaz z magazynu (WZ)
+  // 5. Sprzedaż z magazynu (WZ)
   create({
     ...base,
     docType: 'WZ',
@@ -323,7 +323,7 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     warehouseId: ids.warehouses.ZAB as number,
     customerId: ids.partners['EC-ZABRZE'] as number,
     vehiclePlate: 'SPY4021',
-    notes: 'Dostawa zrebki do elektrocieplowni.',
+    notes: 'Dostawa zrębki do elektrociepłowni.',
     lines: [
       { productId: ids.products.ZREBKA as number, role: 'STD', qtyBase: 180, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 82, costUnitPrice: 0, notes: '' },
     ],
@@ -340,7 +340,7 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     ],
   } as DocumentInput);
 
-  // 6. Sprzedaz bezposrednia: zakup -> sprzedaz bez przyjecia do magazynu
+  // 6. Sprzedaż bezpośrednia: zakup -> sprzedaż bez przyjęcia do magazynu
   create({
     ...base,
     docType: 'SD',
@@ -348,13 +348,13 @@ export function seedDemoOperations(db: Db, ids: DemoIds): void {
     supplierId: ids.partners.LASPOL as number,
     customerId: ids.partners['EC-JAWORZNO'] as number,
     vehiclePlate: 'SG11290',
-    notes: 'Towar przewieziony bezposrednio od dostawcy do odbiorcy.',
+    notes: 'Towar przewieziony bezpośrednio od dostawcy do odbiorcy.',
     lines: [
       { productId: ids.products.PELLET as number, role: 'STD', qtyBase: 24, qtyM3: null, qtyMp: null, qtyT: null, unitPrice: 1180, costUnitPrice: 990, notes: '' },
     ],
   } as DocumentInput);
 
-  logger.info('Utworzono przykladowe dokumenty operacyjne.');
+  logger.info('Utworzono przykładowe dokumenty operacyjne.');
 }
 
 export function seedAll(db: Db, options: { adminPassword: string; demoPassword: string; withDemo: boolean }): void {

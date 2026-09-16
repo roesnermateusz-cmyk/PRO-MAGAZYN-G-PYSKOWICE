@@ -15,7 +15,7 @@ import { revokeAllSessions } from '../auth/auth.service.js';
 export const usersRouter = Router();
 
 const baseUserSchema = z.object({
-  login: z.string().min(3).max(40).regex(/^[A-Za-z0-9._-]+$/, 'Login moze zawierac litery, cyfry, kropke, myslnik i podkreslenie.'),
+  login: z.string().min(3).max(40).regex(/^[A-Za-z0-9._-]+$/, 'Login może zawierać litery, cyfry, kropke, myslnik i podkreslenie.'),
   fullName: z.string().min(3).max(120),
   email: z.string().email().max(120).or(z.literal('')).default(''),
   roleId: z.number().int().positive(),
@@ -129,7 +129,7 @@ function assertWarehousesExist(db: ReturnType<typeof getDb>, ids: number[]): voi
     .prepare(`SELECT id FROM warehouses WHERE id IN (${ids.map(() => '?').join(',')})`)
     .all(...ids) as Array<{ id: number }>;
   if (found.length !== new Set(ids).size) {
-    throw badRequest('Lista magazynow zawiera nieistniejace pozycje.');
+    throw badRequest('Lista magazynów zawiera nieistniejące pozycje.');
   }
 }
 
@@ -146,14 +146,14 @@ usersRouter.post(
 
     const id = db.transaction(() => {
       if (db.prepare('SELECT id FROM users WHERE login = ?').get(input.login)) {
-        throw conflict(`Uzytkownik o loginie "${input.login}" juz istnieje.`, 'DUPLICATE');
+        throw conflict(`Użytkownik o loginie "${input.login}" już istnieje.`, 'DUPLICATE');
       }
       if (!db.prepare('SELECT id FROM roles WHERE id = ?').get(input.roleId)) {
         throw badRequest('Wskazana rola nie istnieje.');
       }
       assertWarehousesExist(db, input.warehouseIds);
       if (input.defaultWarehouseId && !input.warehouseIds.includes(input.defaultWarehouseId)) {
-        throw badRequest('Magazyn domyslny musi znajdowac sie na liscie przypisanych magazynow.');
+        throw badRequest('Magazyn domyślny musi znajdować się na liście przypisanych magazynów.');
       }
 
       const stamp = nowIso();
@@ -215,16 +215,16 @@ usersRouter.put(
 
     db.transaction(() => {
       const before = db.prepare(`${USER_SELECT} WHERE u.id = ?`).get(id) as UserListRow | undefined;
-      if (!before) throw notFound('Nie znaleziono uzytkownika.');
+      if (!before) throw notFound('Nie znaleziono użytkownika.');
       if (db.prepare('SELECT id FROM users WHERE login = ? AND id <> ?').get(input.login, id)) {
-        throw conflict(`Uzytkownik o loginie "${input.login}" juz istnieje.`, 'DUPLICATE');
+        throw conflict(`Użytkownik o loginie "${input.login}" już istnieje.`, 'DUPLICATE');
       }
       assertWarehousesExist(db, input.warehouseIds);
       if (input.defaultWarehouseId && !input.warehouseIds.includes(input.defaultWarehouseId)) {
-        throw badRequest('Magazyn domyslny musi znajdowac sie na liscie przypisanych magazynow.');
+        throw badRequest('Magazyn domyślny musi znajdować się na liście przypisanych magazynów.');
       }
 
-      // Zabezpieczenie przed odcieciem dostepu administracyjnego do systemu.
+      // Zabezpieczenie przed odcieciem dostępu administracyjnego do systemu.
       if (before.role_code === 'ADMIN' && (!input.isActive || input.roleId !== before.role_id)) {
         const activeAdmins = db
           .prepare(
@@ -233,11 +233,11 @@ usersRouter.put(
           )
           .get(id) as { c: number };
         if (activeAdmins.c === 0) {
-          throw conflict('W systemie musi pozostac co najmniej jeden aktywny administrator.');
+          throw conflict('W systemie musi pozostać co najmniej jeden aktywny administrator.');
         }
       }
       if (id === user.id && !input.isActive) {
-        throw badRequest('Nie mozna dezaktywowac wlasnego konta.');
+        throw badRequest('Nie można dezaktywować własnego konta.');
       }
 
       const beforeWarehouses = warehousesOf(db, id);
@@ -266,7 +266,7 @@ usersRouter.put(
       );
       for (const whId of new Set(input.warehouseIds)) grant.run(id, whId, stamp, actor.id);
 
-      // Zmiana roli, statusu lub magazynow uniewaznia aktywne sesje.
+      // Zmiana roli, statusu lub magazynów unieważnia aktywne sesje.
       const securityRelevant =
         before.role_id !== input.roleId ||
         (before.is_active === 1) !== input.isActive ||
@@ -318,7 +318,7 @@ usersRouter.post(
       const target = db.prepare('SELECT id, login FROM users WHERE id = ?').get(id) as
         | { id: number; login: string }
         | undefined;
-      if (!target) throw notFound('Nie znaleziono uzytkownika.');
+      if (!target) throw notFound('Nie znaleziono użytkownika.');
 
       db.prepare('UPDATE users SET password_hash = ?, must_change_password = ?, failed_logins = 0, locked_until = NULL, updated_at = ? WHERE id = ?').run(
         hashPassword(password),
@@ -362,7 +362,7 @@ usersRouter.put(
         | undefined;
       if (!role) throw notFound('Nie znaleziono roli.');
       if (role.code === 'ADMIN') {
-        throw conflict('Rola Administrator ma staly zestaw uprawnien i nie podlega edycji.');
+        throw conflict('Rola Administrator ma stały zestaw uprawnień i nie podlega edycji.');
       }
 
       const before = (

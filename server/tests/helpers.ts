@@ -16,7 +16,7 @@ export interface TestFixture {
   partners: Record<string, number>;
 }
 
-/** Czysta baza ze slownikami i kontami, bez dokumentow operacyjnych. */
+/** Czysta baza ze slownikami i kontami, bez dokumentów operacyjnych. */
 export function setupFixture(): TestFixture {
   const db = getDb();
   wipe(db);
@@ -32,7 +32,7 @@ function wipe(db: Db): void {
   const tables = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
     .all() as Array<{ name: string }>;
-  // Wyzwalacze chroniace audyt i ruchy trzeba zdjac, aby wyczyscic baze.
+  // Wyzwalacze chroniące audyt i ruchy trzeba zdjac, aby wyczyscic baze.
   const triggers = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'")
     .all() as Array<{ name: string }>;
@@ -43,7 +43,7 @@ function wipe(db: Db): void {
 
 export function actingUser(db: Db, login: string): { user: AuthUser; actor: AuditActor } {
   const row = findUserByLogin(db, login);
-  if (!row) throw new Error(`Brak uzytkownika testowego: ${login}`);
+  if (!row) throw new Error(`Brak użytkownika testowego: ${login}`);
   const user = toAuthUser(db, row);
   return {
     user,

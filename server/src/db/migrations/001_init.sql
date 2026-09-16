@@ -1,8 +1,8 @@
 -- ============================================================================
---  ResInvest ERP - schemat poczatkowy
+--  ResInvest ERP - schemat początkowy
 --  Konwencje:
 --    * kwoty pieniezne: INTEGER w groszach (kolumny z sufiksem _gr)
---    * ilosci: REAL w jednostce bazowej produktu (zaokraglane do 4 miejsc)
+--    * ilości: REAL w jednostce bazowej produktu (zaokraglane do 4 miejsc)
 --    * daty biznesowe: TEXT 'YYYY-MM-DD'
 --    * znaczniki czasu: TEXT ISO-8601 UTC 'YYYY-MM-DDTHH:MM:SS.sssZ'
 --    * flagi logiczne: INTEGER 0/1
@@ -73,7 +73,7 @@ CREATE INDEX idx_refresh_user ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_expires ON refresh_tokens(expires_at);
 
 -- ---------------------------------------------------------------------------
--- Magazyny i przypisania uzytkownikow
+-- Magazyny i przypisania użytkowników
 -- ---------------------------------------------------------------------------
 CREATE TABLE warehouses (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,7 +107,7 @@ CREATE TABLE products (
   name            TEXT    NOT NULL,
   kind            TEXT    NOT NULL CHECK (kind IN ('RAW', 'FINISHED', 'GOODS', 'SERVICE')),
   base_unit       TEXT    NOT NULL CHECK (base_unit IN ('M3', 'MP', 'T', 'SZT')),
-  -- Przeliczniki produktu; NULL = uzyj globalnych z tabeli settings
+  -- Przeliczniki produktu; NULL = użyj globalnych z tabeli settings
   m3_per_mp       REAL    NULL CHECK (m3_per_mp IS NULL OR m3_per_mp > 0),
   t_per_mp        REAL    NULL CHECK (t_per_mp IS NULL OR t_per_mp > 0),
   is_active       INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
@@ -121,7 +121,7 @@ CREATE INDEX idx_products_kind ON products(kind);
 
 -- ---------------------------------------------------------------------------
 -- Kontrahenci (dostawcy i odbiorcy w jednej encji - ten sam podmiot
--- czesto wystepuje w obu rolach, co eliminuje duplikaty danych)
+-- czesto występuje w obu rolach, co eliminuje duplikaty danych)
 -- ---------------------------------------------------------------------------
 CREATE TABLE partners (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,12 +149,12 @@ CREATE INDEX idx_partners_name ON partners(name);
 
 -- ---------------------------------------------------------------------------
 -- Dokumenty (naglowek wspolny dla wszystkich typow operacji)
---   PZ   - przyjecie zewnetrzne (zakup / dostawa do magazynu)
---   WZ   - wydanie zewnetrzne (sprzedaz z magazynu)
---   MM   - przesuniecie miedzymagazynowe
---   PROD - produkcja (zuzycie surowca + powstanie wyrobu)
---   TR   - transport (operacja kosztowa, bez wplywu na stan)
---   SD   - sprzedaz bezposrednia (zakup -> sprzedaz z pominieciem magazynu)
+--   PZ   - przyjęcie zewnętrzne (zakup / dostawa do magazynu)
+--   WZ   - wydanie zewnętrzne (sprzedaż z magazynu)
+--   MM   - przesunięcie międzymagazynowe
+--   PROD - produkcja (zużycie surowca + powstanie wyrobu)
+--   TR   - transport (operacja kosztowa, bez wpływu na stan)
+--   SD   - sprzedaż bezpośrednia (zakup -> sprzedaż z pominieciem magazynu)
 -- ---------------------------------------------------------------------------
 CREATE TABLE documents (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -175,12 +175,12 @@ CREATE TABLE documents (
   customer_id        INTEGER NULL REFERENCES partners(id),
   carrier_id         INTEGER NULL REFERENCES partners(id),
 
-  -- Zakup od nadlesnictwa
+  -- Zakup od nadleśnictwa
   forest_ticket_no   TEXT    NOT NULL DEFAULT '',
   forest_district    TEXT    NOT NULL DEFAULT '',
   forest_subdistrict TEXT    NOT NULL DEFAULT '',
 
-  -- Produkcja (rabanie)
+  -- Produkcja (rąbanie)
   chipping_mode      TEXT    NULL CHECK (chipping_mode IS NULL OR chipping_mode IN ('OWN', 'EXTERNAL')),
   chipping_company   TEXT    NOT NULL DEFAULT '',
   chipping_rate_gr   INTEGER NOT NULL DEFAULT 0,
@@ -196,11 +196,11 @@ CREATE TABLE documents (
   transport_rate_gr  INTEGER NOT NULL DEFAULT 0,
   transport_cost_gr  INTEGER NOT NULL DEFAULT 0,
 
-  -- Wartosci
+  -- Wartości
   total_value_gr     INTEGER NOT NULL DEFAULT 0,
   total_cost_gr      INTEGER NOT NULL DEFAULT 0,
 
-  -- Klucz idempotencji chroniacy przed podwojnym zapisem tego samego formularza
+  -- Klucz idempotencji chroniący przed podwojnym zapisem tego samego formularza
   client_request_id  TEXT    NULL UNIQUE,
 
   -- Powiazania i korekty
@@ -235,10 +235,10 @@ CREATE INDEX idx_documents_parent ON documents(parent_document_id);
 -- ---------------------------------------------------------------------------
 -- Pozycje dokumentu
 --   line_role: STD    - pozycja standardowa (PZ/WZ/MM/TR/SD)
---              INPUT  - surowiec zuzyty w produkcji
+--              INPUT  - surowiec zużyty w produkcji
 --              OUTPUT - wyrob powstaly w produkcji
---   Powiazanie "zuzycie -> produkcja" wynika ze wspolnego document_id:
---   kazda produkcja jest jednym dokumentem zawierajacym pozycje INPUT i OUTPUT.
+--   Powiazanie "zużycie -> produkcja" wynika ze wspolnego document_id:
+--   każda produkcja jest jednym dokumentem zawierajacym pozycje INPUT i OUTPUT.
 -- ---------------------------------------------------------------------------
 CREATE TABLE document_lines (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,7 +249,7 @@ CREATE TABLE document_lines (
   base_unit       TEXT    NOT NULL CHECK (base_unit IN ('M3', 'MP', 'T', 'SZT')),
   qty_base        REAL    NOT NULL CHECK (qty_base > 0),
 
-  -- Prezentacja w jednostkach pochodnych; *_manual = wartosc rzeczywista podana recznie
+  -- Prezentacja w jednostkach pochodnych; *_manual = wartość rzeczywista podana ręcznie
   qty_m3          REAL    NOT NULL DEFAULT 0,
   qty_mp          REAL    NOT NULL DEFAULT 0,
   qty_t           REAL    NOT NULL DEFAULT 0,
@@ -257,7 +257,7 @@ CREATE TABLE document_lines (
   qty_mp_manual   INTEGER NOT NULL DEFAULT 0 CHECK (qty_mp_manual IN (0, 1)),
   qty_t_manual    INTEGER NOT NULL DEFAULT 0 CHECK (qty_t_manual IN (0, 1)),
 
-  -- Cena podstawowa dokumentu: zakupu dla PZ, sprzedazy dla WZ/SD
+  -- Cena podstawowa dokumentu: zakupu dla PZ, sprzedaży dla WZ/SD
   unit_price_gr   INTEGER NOT NULL DEFAULT 0 CHECK (unit_price_gr >= 0),
   value_gr        INTEGER NOT NULL DEFAULT 0 CHECK (value_gr >= 0),
   -- Cena kosztowa: dla SD cena zakupu, dla produkcji koszt surowca
@@ -271,7 +271,7 @@ CREATE INDEX idx_lines_document ON document_lines(document_id);
 CREATE INDEX idx_lines_product ON document_lines(product_id);
 
 -- ---------------------------------------------------------------------------
--- Rejestr ruchow magazynowych (ksiega niemodyfikowalna)
+-- Rejestr ruchow magazynowych (księga niemodyfikowalna)
 -- ---------------------------------------------------------------------------
 CREATE TABLE stock_movements (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -307,7 +307,7 @@ CREATE TABLE stock (
 CREATE INDEX idx_stock_product ON stock(product_id);
 
 -- ---------------------------------------------------------------------------
--- Numeracja dokumentow
+-- Numeracja dokumentów
 -- ---------------------------------------------------------------------------
 CREATE TABLE doc_sequences (
   doc_type     TEXT    NOT NULL,
@@ -318,7 +318,7 @@ CREATE TABLE doc_sequences (
 );
 
 -- ---------------------------------------------------------------------------
--- Zalaczniki (skany dokumentow PZ/WZ/MM i pozostalych)
+-- Zalaczniki (skany dokumentów PZ/WZ/MM i pozostalych)
 -- ---------------------------------------------------------------------------
 CREATE TABLE attachments (
   id            TEXT    PRIMARY KEY,
@@ -372,7 +372,7 @@ BEGIN
   SELECT RAISE(ABORT, 'audit_logs is append-only');
 END;
 
--- Ruchy magazynowe sa niemodyfikowalne - storno realizowane jest wpisem odwrotnym
+-- Ruchy magazynowe są niemodyfikowalne - storno realizowane jest wpisem odwrotnym
 CREATE TRIGGER trg_movements_no_update
 BEFORE UPDATE ON stock_movements
 BEGIN

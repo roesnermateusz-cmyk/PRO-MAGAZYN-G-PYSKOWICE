@@ -12,10 +12,10 @@ runMigrations(db);
 seedAll(db, { adminPassword, demoPassword, withDemo });
 
 logger.info('--------------------------------------------------------------');
-logger.info(' Konta poczatkowe:');
+logger.info(' Konta początkowe:');
 logger.info(`   admin / ${adminPassword}   (wymagana zmiana przy pierwszym logowaniu)`);
 if (withDemo) {
-  logger.info(`   manager, zabrze, braszewice, rokitki, podglad / ${demoPassword}`);
+  logger.info(`   manager, zabrze, braszewice, rokitki, podgląd / ${demoPassword}`);
 }
 logger.info('--------------------------------------------------------------');
 

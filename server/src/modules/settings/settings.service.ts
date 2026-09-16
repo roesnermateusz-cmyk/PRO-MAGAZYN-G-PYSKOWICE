@@ -17,18 +17,18 @@ export const companySchema = z.object({
 });
 
 export const conversionSchema = z.object({
-  /** Ile m3 przypada na 1 MP (domyslnie 0.25, tj. 1 m3 = 4 MP). */
+  /** Ile m3 przypada na 1 MP (domyślnie 0.25, tj. 1 m3 = 4 MP). */
   m3PerMp: z.number().positive().max(1000),
-  /** Ile ton przypada na 1 MP (domyslnie 0.33). */
+  /** Ile ton przypada na 1 MP (domyślnie 0.33). */
   tPerMp: z.number().positive().max(1000),
 });
 
 export const ratesSchema = z.object({
   /** Domyslna stawka transportu w PLN za kilometr. */
   transportPlnPerKm: z.number().min(0).max(100000),
-  /** Domyslny tryb rabania. */
+  /** Domyślny tryb rąbania. */
   chippingDefaultMode: z.enum(['OWN', 'EXTERNAL']),
-  /** Domyslny koszt rabania w PLN za jednostke wyrobu (MP). */
+  /** Domyślny koszt rąbania w PLN za jednostke wyrobu (MP). */
   chippingPlnPerUnit: z.number().min(0).max(100000),
 });
 
@@ -107,7 +107,7 @@ export function setSetting<K extends SettingsKey>(
   const schema = SCHEMAS[key];
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
-    throw badRequest(`Nieprawidlowe ustawienia dla klucza "${key}".`, parsed.error.flatten());
+    throw badRequest(`Nieprawidłowe ustawienia dla klucza "${key}".`, parsed.error.flatten());
   }
   const before = getSetting(db, key) as Record<string, unknown>;
   db.prepare(
@@ -131,7 +131,7 @@ export function setSetting<K extends SettingsKey>(
   return parsed.data as AppSettings[K];
 }
 
-/** Zapis wszystkich ustawien poczatkowych (uzywane przez seed). */
+/** Zapis wszystkich ustawien początkowych (używane przez seed). */
 export function ensureDefaultSettings(db: Db): void {
   const stmt = db.prepare(
     `INSERT INTO settings (key, value_json, updated_at, updated_by)

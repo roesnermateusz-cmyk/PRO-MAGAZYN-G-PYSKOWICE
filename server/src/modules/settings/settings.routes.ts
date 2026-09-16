@@ -12,7 +12,7 @@ import { writeAudit } from '../../core/audit.js';
 export const settingsRouter = Router();
 
 /**
- * Ustawienia sa czytane przez wszystkich zalogowanych (klient potrzebuje
+ * Ustawienia są czytane przez wszystkich zalogowanych (klient potrzebuje
  * przelicznikow i stawek do podpowiedzi), a zapisywane tylko przez administracje.
  */
 settingsRouter.get(

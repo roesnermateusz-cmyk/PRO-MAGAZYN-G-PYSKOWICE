@@ -42,9 +42,9 @@ export interface AuditEntry {
 }
 
 /**
- * Zapisuje wpis audytu. Wywolanie MUSI nastapic wewnatrz tej samej transakcji
- * co operacja biznesowa - dzieki temu rollback usuwa rowniez slad audytowy
- * operacji, ktora nie doszla do skutku.
+ * Zapisuje wpis audytu. Wywolanie MUSI nastapic wewnątrz tej samej transakcji
+ * co operacja biznesowa - dzięki temu rollback usuwa również ślad audytowy
+ * operacji, która nie doszla do skutku.
  */
 export function writeAudit(db: Db, entry: AuditEntry): void {
   db.prepare(

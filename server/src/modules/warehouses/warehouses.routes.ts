@@ -12,7 +12,7 @@ import { diffFields, writeAudit } from '../../core/audit.js';
 export const warehousesRouter = Router();
 
 const warehouseSchema = z.object({
-  code: z.string().min(2).max(16).regex(/^[A-Za-z0-9_-]+$/, 'Kod moze zawierac litery, cyfry, myslnik i podkreslenie.'),
+  code: z.string().min(2).max(16).regex(/^[A-Za-z0-9_-]+$/, 'Kod może zawierać litery, cyfry, myslnik i podkreslenie.'),
   name: z.string().min(2).max(120),
   address: z.string().max(200).default(''),
   postalCode: z.string().max(20).default(''),
@@ -49,7 +49,7 @@ function toDto(row: WarehouseRow) {
   };
 }
 
-/** Lista magazynow dostepnych dla zalogowanego uzytkownika. */
+/** Lista magazynów dostępnych dla zalogowanego użytkownika. */
 warehousesRouter.get(
   '/',
   asyncHandler((req, res) => {
@@ -82,7 +82,7 @@ warehousesRouter.post(
 
     const created = db.transaction(() => {
       const exists = db.prepare('SELECT id FROM warehouses WHERE code = ?').get(input.code);
-      if (exists) throw conflict(`Magazyn o kodzie "${input.code}" juz istnieje.`, 'DUPLICATE');
+      if (exists) throw conflict(`Magazyn o kodzie "${input.code}" już istnieje.`, 'DUPLICATE');
 
       const stamp = nowIso();
       const result = db
@@ -134,10 +134,10 @@ warehousesRouter.put(
       if (!before) throw notFound('Nie znaleziono magazynu.');
 
       const duplicate = db.prepare('SELECT id FROM warehouses WHERE code = ? AND id <> ?').get(input.code, id);
-      if (duplicate) throw conflict(`Magazyn o kodzie "${input.code}" juz istnieje.`, 'DUPLICATE');
+      if (duplicate) throw conflict(`Magazyn o kodzie "${input.code}" już istnieje.`, 'DUPLICATE');
 
-      // Magazyn z powiazanymi dokumentami nie jest usuwany fizycznie -
-      // dezaktywacja zachowuje pelna historie operacji.
+      // Magazyn z powiązanymi dokumentami nie jest usuwany fizycznie -
+      // dezaktywacja zachowuje pełna historie operacji.
       db.prepare(
         `UPDATE warehouses SET code = ?, name = ?, address = ?, postal_code = ?, city = ?,
                                notes = ?, is_active = ?, updated_at = ?
@@ -182,7 +182,7 @@ warehousesRouter.put(
   }),
 );
 
-/** Podsumowanie powiazan - informuje, dlaczego magazynu nie mozna usunac. */
+/** Podsumowanie powiazan - informuje, dlaczego magazynu nie można usunąć. */
 warehousesRouter.get(
   '/:id/usage',
   requirePermission('admin.warehouses'),

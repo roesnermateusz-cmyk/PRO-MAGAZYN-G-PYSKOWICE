@@ -12,8 +12,8 @@ function appWithLimit(max: number) {
   return app;
 }
 
-describe('ograniczanie liczby zadan', () => {
-  it('przepuszcza zadania do limitu i blokuje nadmiarowe', async () => {
+describe('ograniczanie liczby żądań', () => {
+  it('przepuszcza żądania do limitu i blokuje nadmiarowe', async () => {
     const app = appWithLimit(3);
 
     for (let i = 0; i < 3; i += 1) {
@@ -26,7 +26,7 @@ describe('ograniczanie liczby zadan', () => {
     expect(blocked.headers['retry-after']).toBeTruthy();
   });
 
-  it('kazdy limiter ma niezalezny licznik', async () => {
+  it('każdy limiter ma niezależny licznik', async () => {
     const first = appWithLimit(1);
     const second = appWithLimit(1);
     expect((await request(first).get('/probe')).status).toBe(200);

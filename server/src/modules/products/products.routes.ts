@@ -13,11 +13,11 @@ import { BASE_UNITS, type BaseUnit } from '../../core/units.js';
 export const productsRouter = Router();
 
 const productSchema = z.object({
-  code: z.string().min(2).max(32).regex(/^[A-Za-z0-9_-]+$/, 'Kod moze zawierac litery, cyfry, myslnik i podkreslenie.'),
+  code: z.string().min(2).max(32).regex(/^[A-Za-z0-9_-]+$/, 'Kod może zawierać litery, cyfry, myslnik i podkreslenie.'),
   name: z.string().min(2).max(160),
   kind: z.enum(['RAW', 'FINISHED', 'GOODS', 'SERVICE']),
   baseUnit: z.enum(BASE_UNITS as unknown as [BaseUnit, ...BaseUnit[]]),
-  /** Przeliczniki indywidualne; null = uzyj globalnych z ustawien. */
+  /** Przeliczniki indywidualne; null = użyj globalnych z ustawien. */
   m3PerMp: z.number().positive().max(1000).nullable().default(null),
   tPerMp: z.number().positive().max(1000).nullable().default(null),
   isActive: z.boolean().default(true),
@@ -92,7 +92,7 @@ productsRouter.post(
 
     const id = db.transaction(() => {
       if (db.prepare('SELECT id FROM products WHERE code = ?').get(input.code)) {
-        throw conflict(`Produkt o kodzie "${input.code}" juz istnieje.`, 'DUPLICATE');
+        throw conflict(`Produkt o kodzie "${input.code}" już istnieje.`, 'DUPLICATE');
       }
       const stamp = nowIso();
       const result = db
@@ -145,17 +145,17 @@ productsRouter.put(
       const before = db.prepare('SELECT * FROM products WHERE id = ?').get(id) as ProductRow | undefined;
       if (!before) throw notFound('Nie znaleziono produktu.');
       if (db.prepare('SELECT id FROM products WHERE code = ? AND id <> ?').get(input.code, id)) {
-        throw conflict(`Produkt o kodzie "${input.code}" juz istnieje.`, 'DUPLICATE');
+        throw conflict(`Produkt o kodzie "${input.code}" już istnieje.`, 'DUPLICATE');
       }
 
-      // Zmiana jednostki bazowej po wystapieniu ruchow zafalszowalaby stan.
+      // Zmiana jednostki bazowej po wystąpieniu ruchow zafałszowałaby stan.
       if (before.base_unit !== input.baseUnit) {
         const used = db.prepare('SELECT COUNT(*) AS c FROM stock_movements WHERE product_id = ?').get(id) as {
           c: number;
         };
         if (used.c > 0) {
           throw conflict(
-            'Nie mozna zmienic jednostki bazowej produktu, dla ktorego istnieja ruchy magazynowe. Utworz nowy produkt.',
+            'Nie można zmienić jednostki bazowej produktu, dla którego istnieja ruchy magazynowe. Utworz nowy produkt.',
             'IN_USE',
           );
         }

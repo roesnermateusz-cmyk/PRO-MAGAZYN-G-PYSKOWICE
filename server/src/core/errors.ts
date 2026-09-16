@@ -1,6 +1,6 @@
 /**
- * Kody bledow sa stabilnym kontraktem API - klient tlumaczy je na komunikaty
- * w jezyku uzytkownika, dlatego nie zmieniamy ich bez wersjonowania API.
+ * Kody błędów są stabilnym kontraktem API - klient tlumaczy je na komunikaty
+ * w jezyku użytkownika, dlatego nie zmieniamy ich bez wersjonowania API.
  */
 export type ErrorCode =
   | 'VALIDATION_ERROR'
@@ -42,7 +42,7 @@ export const badRequest = (message: string, details?: unknown) =>
 export const unauthenticated = (message = 'Wymagane uwierzytelnienie.', code: ErrorCode = 'UNAUTHENTICATED') =>
   new AppError(401, code, message);
 
-export const forbidden = (message = 'Brak uprawnien do wykonania operacji.', code: ErrorCode = 'FORBIDDEN') =>
+export const forbidden = (message = 'Brak uprawnień do wykonania operacji.', code: ErrorCode = 'FORBIDDEN') =>
   new AppError(403, code, message);
 
 export const notFound = (message = 'Nie znaleziono zasobu.') =>

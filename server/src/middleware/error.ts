@@ -22,7 +22,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({
       error: {
         code: 'VALIDATION_ERROR',
-        message: 'Dane wejsciowe nie przeszly walidacji.',
+        message: 'Dane wejściowe nie przeszly walidacji.',
         details: err.flatten(),
       },
     });
@@ -42,18 +42,18 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(409).json({
       error: {
         code: 'CONFLICT',
-        message: 'Operacja narusza ograniczenia spojnosci danych.',
+        message: 'Operacja narusza ograniczenia spójności danych.',
         details: env.isProduction ? null : anyErr.message,
       },
     });
     return;
   }
 
-  logger.error('Nieobsluzony blad zadania', err);
+  logger.error('Nieobsłużony błąd żądania', err);
   res.status(500).json({
     error: {
       code: 'INTERNAL_ERROR',
-      message: 'Wystapil nieoczekiwany blad serwera.',
+      message: 'Wystapil nieoczekiwany błąd serwera.',
       details: env.isProduction ? null : String(anyErr?.message ?? err),
     },
   });

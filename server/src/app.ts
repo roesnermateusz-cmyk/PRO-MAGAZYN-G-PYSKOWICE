@@ -28,8 +28,8 @@ export function createApp(): Express {
 
   app.use(
     helmet({
-      // Aplikacja kliencka serwowana jest jako statyczny build z tego samego
-      // origin; polityka CSP dopuszcza wylacznie zasoby wlasne.
+      // Aplikacja kliencką serwowana jest jako statyczny build z tego samego
+      // origin; polityka CSP dopuszcza wyłącznie zasoby własne.
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -50,7 +50,7 @@ export function createApp(): Express {
     cors({
       origin(origin, callback) {
         // Zapytania bez naglowka Origin (np. narzedzia serwerowe, aplikacja
-        // desktopowa) sa dopuszczane; przegladarkowe tylko z listy dozwolonych.
+        // desktopowa) są dopuszczane; przeglądarkowe tylko z listy dozwolonych.
         if (!origin || env.corsOrigins.includes(origin)) callback(null, true);
         else callback(new Error(`Origin ${origin} nie jest dozwolony przez polityke CORS.`));
       },
@@ -90,7 +90,7 @@ export function createApp(): Express {
 
   if (env.serveClient && fs.existsSync(env.clientDist)) {
     app.use(express.static(env.clientDist, { index: false, maxAge: '1h' }));
-    // Aplikacja jednostronicowa - wszystkie sciezki poza /api zwracaja index.html.
+    // Aplikacja jednostronicowa - wszystkie ścieżki poza /api zwracaja index.html.
     app.get(/^(?!\/api\/).*/, (_req, res) => {
       res.sendFile(path.join(env.clientDist, 'index.html'));
     });
