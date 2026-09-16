@@ -50,5 +50,7 @@
   Pop $0
 
   ; Dane firmy pozostaja na dysku - informujemy o tym uzytkownika.
-  MessageBox MB_ICONINFORMATION|MB_OK "Program zostal usuniety.$\r$\n$\r$\nBaza danych, zalaczniki i kopie zapasowe pozostaly w katalogu:$\r$\n$ResInvestDataUn$\r$\n$\r$\nUsun ten katalog recznie, jesli dane nie sa juz potrzebne."
+  ; /SD IDOK: w trybie cichym (/S) okno nie jest pokazywane - bez tego deinstalacja
+  ; skryptowa (administrator, CI) czekalaby w nieskonczonosc na klikniecie.
+  MessageBox MB_ICONINFORMATION|MB_OK "Program zostal usuniety.$\r$\n$\r$\nBaza danych, zalaczniki i kopie zapasowe pozostaly w katalogu:$\r$\n$ResInvestDataUn$\r$\n$\r$\nUsun ten katalog recznie, jesli dane nie sa juz potrzebne." /SD IDOK
 !macroend

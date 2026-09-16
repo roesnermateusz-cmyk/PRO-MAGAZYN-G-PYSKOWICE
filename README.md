@@ -130,7 +130,9 @@ pozostali pracownicy łączą się przeglądarką pod adresem podanym w menu
 ### Budowanie instalatora
 
 Instalator buduje się na Windows **albo** na Linuksie (wymagany `wine`,
-`wine32:i386` i `xvfb` — szczegóły w dokumentacji wdrożenia):
+`wine32:i386` i `xvfb` — szczegóły w dokumentacji wdrożenia). Przy każdym
+wypchnięciu buduje go też GitHub Actions (`.github/workflows/installer.yml`)
+na prawdziwym Windows, z testem dymnym instalacji, i udostępnia jako artefakt.
 
 ```bash
 npm install

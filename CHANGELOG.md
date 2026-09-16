@@ -45,7 +45,7 @@ i API pozostają zgodne z 1.0.0 — aktualizacja nie wymaga migracji danych.
 - Zawartość pakietu: program PE32+ x64, moduł bazy danych PE32+ DLL o sumie
   zgodnej z przypiętą, migracje, aplikacja kliencka, wersja 1.1.0 we
   wszystkich miejscach.
-- SHA-256: `fed04dbb058956c19bb7d248c52efcec245826f52ff8489d9b8388309e49a185`.
+- SHA-256: `87fd3d1db3c512850817c7e7f4813cad571109ae755b521711b0a3212f06da08`.
 
 ### Znane ograniczenia
 

@@ -115,6 +115,24 @@ pomocniczy; użytkownikowi przekazuje się wyłącznie plik `.exe`.
 > `npm run verify` musi zakończyć się powodzeniem. Nie buduj instalatora
 > z kodu, w którym testy lub build nie przechodzą.
 
+### Budowanie automatyczne (GitHub Actions)
+
+Repozytorium zawiera przepływ `.github/workflows/installer.yml`, który przy
+każdym wypchnięciu na `main` lub gałąź `claude/**` (oraz ręcznie — *Actions →
+Instalator Windows → Run workflow*) wykonuje **na prawdziwym Windows**:
+
+1. `npm run verify` i `npm run dist`,
+2. kontrolę, że powstał dokładnie jeden plik `.exe`, oraz wyliczenie SHA-256,
+3. **test dymny**: cicha instalacja, kontrola plików i katalogu danych,
+   reguły zapory, uruchomienie zainstalowanego serwera (`/api/health`,
+   wersja, aplikacja kliencka, `401` bez tokenu, utworzenie bazy),
+   cicha deinstalacja z kontrolą zachowania danych,
+4. publikację pliku `.exe` i `.sha256` jako artefaktu (zakładka *Actions* →
+   uruchomienie → *Artifacts*, przechowywany 90 dni).
+
+Przepływ kończy się błędem przy każdej niezgodności — zielony wynik oznacza,
+że instalator zbudowano i przetestowano na Windows.
+
 ### Suma kontrolna
 
 ```powershell
@@ -330,7 +348,7 @@ Pozycje oznaczone `[x]` zostały zweryfikowane podczas budowania wydania 1.1.0
 - [x] `npm run verify` kończy się powodzeniem (typecheck, lint, 84 testy, build)
 - [x] `npm run dist` tworzy jeden plik `.exe`
 - [x] Zapisano sumę SHA-256 pliku instalatora
-      (`fed04dbb058956c19bb7d248c52efcec245826f52ff8489d9b8388309e49a185`)
+      (`87fd3d1db3c512850817c7e7f4813cad571109ae755b521711b0a3212f06da08`)
 - [x] Zasób wersji pliku `.exe`, manifest aplikacji, serwer i klient
       raportują tę samą wersję (1.1.0)
 - [x] Moduł bazy danych w pakiecie jest biblioteką Windows x64 o sumie

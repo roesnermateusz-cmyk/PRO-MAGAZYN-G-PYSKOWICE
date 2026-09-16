@@ -301,11 +301,15 @@ Ostateczne `npm run dist` kończy się kodem wyjścia **0**.
 | Wersja w bundlu klienta | 1.1.0 |
 | Skrypt weryfikacji modułu natywnego | test negatywny: zła suma → kod wyjścia 1, plik nie jest podstawiany |
 
-**SHA-256 instalatora:**
+**SHA-256 instalatora zbudowanego z tego wydania źródeł (Linux + Wine):**
 
 ```
-fed04dbb058956c19bb7d248c52efcec245826f52ff8489d9b8388309e49a185  ResInvest-ERP-Setup-1.1.0.exe
+87fd3d1db3c512850817c7e7f4813cad571109ae755b521711b0a3212f06da08  ResInvest-ERP-Setup-1.1.0.exe
 ```
+
+Każde budowanie ma własną sumę (znaczniki czasu w plikach PE); wiążąca jest
+suma wypisana przez przepływ GitHub Actions obok artefaktu, który jest
+przekazywany użytkownikom.
 
 ### Czego nie dało się zweryfikować w środowisku budowania
 
