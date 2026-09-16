@@ -401,6 +401,26 @@ ten sam wynik co poprawna konfiguracja.
 | Test dymny nie sprawdzał logowania | CI loguje się kontem `admin` hasłem z pierwszego uruchomienia, sprawdza rolę, uprawnienia, wymuszenie zmiany hasła i odrzucenie błędnego hasła |
 | Znane hasło domyślne byłoby ryzykiem | Hasło losowane na stanowisku, pokazywane w oknie, pliku i dzienniku; plik usuwany po zmianie hasła |
 
+**Potwierdzenie na Windows (przebieg 35158359491, `windows-latest`):**
+
+```
+Health: status=ok version=1.1.1
+Logowanie: admin, rola ADMIN, uprawnień 36, wymuszona zmiana hasła.
+Serwer z instalacji działa: health OK, wersja zgodna, klient serwowany,
+logowanie działa, 401 bez tokenu i przy błędnym haśle, baza utworzona.
+Deinstalacja poprawna: program usunięty, dane zachowane, reguła zapory usunięta.
+```
+
+Plik: `ResInvest-ERP-Setup-1.1.1.exe`, 104 161 813 B. Suma SHA-256 wypisywana
+w logu przebiegu i dołączona do artefaktu jako plik `.sha256`.
+
+Pierwsze podejście do tego przebiegu (35157559823) zakończyło się błędem —
+**mojej asercji w teście, nie programu**: odczytywała token z
+`$zalogowany.tokens.accessToken`, podczas gdy `/auth/login` zwraca
+`res.json({ ...tokens, ...sessionPayload })`, czyli tokeny na najwyższym
+poziomie. Wszystkie wcześniejsze sprawdzenia logowania (konto, rola,
+uprawnienia, wymuszenie zmiany hasła) już wtedy przeszły.
+
 Zasada potwierdzona kosztem wydania: **sprawdzenie, że usługa odpowiada, nie
 jest sprawdzeniem, że da się jej użyć.** Test dymny musi wykonać operację,
 dla której program istnieje — tutaj: zalogować się.
@@ -428,7 +448,7 @@ skany, praca drugiego stanowiska przez przeglądarkę, kopie zapasowe.
 | Testy końcowe | **PASS** (84/84) |
 | Production build | **PASS** |
 | Instalator — budowanie i zawartość | **PASS** (jeden plik, SHA-256 wygenerowana) |
-| Instalator — instalacja, uruchomienie i deinstalacja na Windows | **PASS** (GitHub Actions, `windows-latest`) |
+| Instalator — instalacja, uruchomienie, logowanie i deinstalacja na Windows | **PASS** (GitHub Actions, `windows-latest`, przebieg 35158359491) |
 | Odbiór funkcjonalny na stanowisku docelowym | **DO WYKONANIA** (praca z interfejsem, §10) |
 
 System jest gotowy do testów odbiorczych w środowisku Windows.
