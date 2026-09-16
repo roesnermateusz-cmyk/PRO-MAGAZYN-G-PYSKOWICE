@@ -163,7 +163,7 @@ jobs:
           }
           if (-not (Test-Path (Join-Path $data 'resinvest.sqlite'))) { Write-Error "Nie utworzono pliku bazy danych"; exit 1 }
 
-          # Najważniejszy test: czy po instalacji DA SIĘ SIĘ ZALOGOWAĆ.
+          # Najważniejszy test: czy po instalacji DA SIĘ ZALOGOWAĆ.
           # Sama odpowiedź /api/health nic o tym nie mówi - serwer odpowiada
           # także wtedy, gdy w bazie nie ma żadnego konta.
           $creds = Join-Path $data 'PIERWSZE-URUCHOMIENIE.txt'
@@ -177,11 +177,13 @@ jobs:
           if ($zalogowany.user.roleCode -ne 'ADMIN') { Write-Error "Konto admin nie ma roli ADMIN"; exit 1 }
           if ($zalogowany.user.permissions.Count -lt 1) { Write-Error "Konto admin nie ma zadnych uprawnień"; exit 1 }
           if (-not $zalogowany.user.mustChangePassword) { Write-Error "Nie wymuszono zmiany hasła początkowego"; exit 1 }
-          if (-not $zalogowany.tokens.accessToken) { Write-Error "Logowanie nie zwróciło tokenu"; exit 1 }
+          # Tokeny zwracane sa na najwyzszym poziomie odpowiedzi (res.json({...tokens, ...})).
+          if (-not $zalogowany.accessToken) { Write-Error "Logowanie nie zwróciło tokenu dostępu"; exit 1 }
+          if (-not $zalogowany.refreshToken) { Write-Error "Logowanie nie zwróciło tokenu odświeżania"; exit 1 }
           Write-Host "Logowanie: admin, rola $($zalogowany.user.roleCode), uprawnień $($zalogowany.user.permissions.Count), wymuszona zmiana hasła."
 
           # Token z logowania musi otwierać zasób, ktory bez niego dawal 401.
-          $naglowki = @{ Authorization = "Bearer $($zalogowany.tokens.accessToken)" }
+          $naglowki = @{ Authorization = "Bearer $($zalogowany.accessToken)" }
           $dokumenty = Invoke-RestMethod -Uri 'http://127.0.0.1:4321/api/documents' -Headers $naglowki
           if ($null -eq $dokumenty) { Write-Error "Zalogowany nie odczytał listy dokumentów"; exit 1 }
 
