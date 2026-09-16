@@ -1,0 +1,28 @@
+{
+  "$comment": [
+    "Przypięte sumy kontrolne modułów natywnych pobieranych przy budowaniu instalatora.",
+    "Moduł better-sqlite3 zawiera kod C++, którego nie da się skompilować pod Windows",
+    "na maszynie z systemem Linux. Pobieramy więc oficjalny, gotowy plik binarny",
+    "publikowany przez autorów biblioteki i weryfikujemy go sumą SHA-256.",
+    "",
+    "Po zmianie wersji Electrona lub better-sqlite3 należy zaktualizować wpisy poniżej:",
+    "  1. sprawdź ABI:  node -e \"console.log(require('node-abi').getAbi('<wersja-electrona>','electron'))\"",
+    "  2. pobierz plik i policz sumy:  sha256sum <plik>.tar.gz",
+    "  3. wpisz nowe wartości do tej tabeli",
+    "Budowanie przerywa się, jeżeli suma kontrolna się nie zgadza."
+  ],
+  "prebuilds": [
+    {
+      "package": "better-sqlite3",
+      "version": "12.11.1",
+      "runtime": "electron",
+      "abi": 146,
+      "platform": "win32",
+      "arch": "x64",
+      "url": "https://github.com/WiseLibs/better-sqlite3/releases/download/v12.11.1/better-sqlite3-v12.11.1-electron-v146-win32-x64.tar.gz",
+      "archiveSha256": "3e9938391e2e496858f8ed55f8390180d1e08f0803c5447bbe0293f482a0f489",
+      "binaryPath": "build/Release/better_sqlite3.node",
+      "binarySha256": "24e2e3ca5a829572239718fbca35b873ba4975655d29c56a93f1880e3775d9b8"
+    }
+  ]
+}

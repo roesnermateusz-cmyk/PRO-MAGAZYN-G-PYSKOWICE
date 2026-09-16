@@ -1,0 +1,81 @@
+# Konfiguracja instalatora Windows dla ResInvest ERP.
+# Budowanie:  npm run dist   (w katalogu desktop/)
+# Wynik:      desktop/release/ResInvest-ERP-Setup-<wersja>.exe  - jeden plik
+
+appId: pl.resinvest.erp
+productName: ResInvest ERP
+copyright: Copyright (c) 2026 ResInvest Commodities
+
+# System nie korzysta z automatycznych aktualizacji przez internet - nowe wersje
+# wgrywa administrator, uruchamiając nowy instalator. Wyłączamy więc generowanie
+# metadanych aktualizacji (latest.yml) i plików różnicowych (blockmap).
+# Dzięki temu w katalogu release powstaje dokładnie jeden plik wynikowy.
+publish: null
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - main.js
+  - package.json
+  - server/**/*
+  - client/**/*
+  - '!**/*.map'
+  - '!**/node_modules/*/{test,tests,__tests__,doc,docs,example,examples}/**'
+
+# Co musi leżeć POZA archiwum asar i dlaczego:
+#
+# 1. node_modules (wszystkie) - serwer jest modułem ESM uruchamianym z katalogu
+#    app.asar.unpacked/server. Electron potrafi czytać z archiwum asar tylko
+#    w trybie CommonJS; resolver ESM Node.js archiwum nie widzi. Gdyby zależności
+#    zostały w asar, Node szukałby ich w app.asar.unpacked/node_modules i
+#    kończył błędem ERR_MODULE_NOT_FOUND ("Cannot find package 'express'").
+#    Archiwum asar nie kompresuje danych, więc rozpakowanie nie zwiększa
+#    rozmiaru instalatora w zauważalny sposób.
+# 2. Moduł natywny bazy danych - plik .node musi być zwykłym plikiem na dysku,
+#    żeby system operacyjny mógł go załadować.
+# 3. server i client - pliki migracji oraz aplikacja kliencka są czytane
+#    zwykłymi operacjami na plikach.
+asar: true
+asarUnpack:
+  - '**/node_modules/**'
+  - 'server/**'
+  - 'client/**'
+
+# Moduł natywny dostarcza skrypt scripts/fetch-native.mjs - pobiera oficjalny
+# plik binarny dla win32-x64 i ABI Electrona, weryfikuje sumę SHA-256 oraz
+# nagłówek PE. Automatyczne przebudowanie jest tu wyłączone, bo na maszynie
+# innej niż Windows nadpisałoby poprawny plik wersją dla bieżącego systemu.
+npmRebuild: false
+buildDependenciesFromSource: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: ResInvest-ERP-Setup-${version}.${ext}
+  # Podpis kodu: uzupełnij po zakupie certyfikatu, aby uniknąć ostrzeżeń
+  # SmartScreen przy instalacji.
+  # certificateFile: build/certyfikat.pfx
+  # certificatePassword: ${env.CERT_PASSWORD}
+
+nsis:
+  oneClick: false
+  perMachine: true
+  differentialPackage: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ResInvest ERP
+  installerLanguages:
+    - pl_PL
+  language: '1045'
+  displayLanguageSelector: false
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+  uninstallDisplayName: ResInvest ERP ${version}
