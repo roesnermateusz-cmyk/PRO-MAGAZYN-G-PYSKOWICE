@@ -28,3 +28,10 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+desktop/server/
+desktop/client/
+desktop/release/
+*.tsbuildinfo
+
+# desktop/build to zasoby instalatora (ikona, skrypt NSIS), nie wynik kompilacji
+!desktop/build/

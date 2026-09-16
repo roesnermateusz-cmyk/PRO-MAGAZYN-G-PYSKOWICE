@@ -1,0 +1,60 @@
+# Konfiguracja instalatora Windows dla ResInvest ERP.
+# Budowanie:  npm run dist   (w katalogu desktop/)
+# Wynik:      desktop/release/ResInvest-ERP-Setup-1.0.0.exe  - jeden plik
+
+appId: pl.resinvest.erp
+productName: ResInvest ERP
+copyright: Copyright (c) 2026 ResInvest Commodities
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - main.js
+  - package.json
+  - server/**/*
+  - client/**/*
+  - '!**/*.map'
+  - '!**/node_modules/*/{test,tests,__tests__,doc,docs,example,examples}/**'
+
+# Moduł natywny bazy danych musi leżeć poza archiwum asar, aby Node mógł
+# go załadować; pliki migracji czytane są z dysku, więc również je wypakowujemy.
+asar: true
+asarUnpack:
+  - '**/node_modules/better-sqlite3/**'
+  - 'server/**'
+  - 'client/**'
+
+# electron-builder przebudowuje moduły natywne pod ABI Electrona.
+npmRebuild: true
+buildDependenciesFromSource: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: ResInvest-ERP-Setup-${version}.${ext}
+  # Podpis kodu: uzupełnij po zakupie certyfikatu, aby uniknąć ostrzeżeń
+  # SmartScreen przy instalacji.
+  # certificateFile: build/certyfikat.pfx
+  # certificatePassword: ${env.CERT_PASSWORD}
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ResInvest ERP
+  installerLanguages:
+    - pl_PL
+  language: '1045'
+  displayLanguageSelector: false
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+  uninstallDisplayName: ResInvest ERP ${version}

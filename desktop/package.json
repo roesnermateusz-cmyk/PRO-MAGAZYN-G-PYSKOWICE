@@ -1,0 +1,34 @@
+{
+  "name": "resinvest-erp-desktop",
+  "productName": "ResInvest ERP",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ResInvest ERP - stanowisko serwerowe z wbudowaną bazą danych",
+  "author": {
+    "name": "ResInvest Commodities"
+  },
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "prepare:payload": "node scripts/prepare-payload.mjs",
+    "start": "npm run prepare:payload && electron .",
+    "dist": "npm run prepare:payload && electron-builder --win --x64 --publish never",
+    "dist:dir": "npm run prepare:payload && electron-builder --win --dir --publish never",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "compression": "^1.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8"
+  }
+}
