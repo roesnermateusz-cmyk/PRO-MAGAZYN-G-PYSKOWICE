@@ -90,7 +90,7 @@ Ponowne użycie zużytego tokenu odświeżania unieważnia cały łańcuch sesji
 Bez uwierzytelnienia.
 
 ```json
-{ "status": "ok", "version": "1.1.0", "time": "2026-09-16T06:00:00.000Z" }
+{ "status": "ok", "version": "1.1.1", "time": "2026-09-16T06:00:00.000Z" }
 ```
 
 ---

@@ -5,6 +5,53 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ---
 
+## [1.1.1] — 2026-09-17
+
+Wydanie naprawcze. **Wersja 1.1.0 była nieużywalna po instalacji** — nie dało
+się zalogować na żadne konto. Kto zainstalował 1.1.0, powinien wgrać 1.1.1 na
+wierzch; dane nie są naruszane, a konto administratora powstanie przy starcie.
+
+### Naprawione
+
+- **Po instalacji nie istniało żadne konto użytkownika.** Start serwera
+  wykonywał wyłącznie migracje schematu, natomiast role, uprawnienia i konto
+  administratora tworzył tylko skrypt `npm run db:seed`, niedostępny
+  w zainstalowanym programie. Tabele `users`, `roles` i `permissions` były
+  puste, więc logowanie kończyło się komunikatem „Nieprawidłowy login lub
+  hasło" niezależnie od podanych danych.
+  Naprawa: start programu wywołuje `prepareFirstRun()`, które uzupełnia dane
+  referencyjne i zakłada konto `admin`. Operacja jest idempotentna — przy
+  każdym uruchomieniu dodaje też uprawnienia wprowadzone w nowszych wersjach.
+
+### Dodane
+
+- **Losowe hasło początkowe.** Konto `admin` dostaje hasło generowane na
+  danym stanowisku (14 znaków, bez znaków mylących, zgodne z polityką haseł).
+  System nigdy nie startuje ze znanym hasłem domyślnym. Hasło jest pokazywane
+  w oknie programu (z przyciskiem *Kopiuj hasło*), zapisywane do pliku
+  `PIERWSZE-URUCHOMIENIE.txt` w katalogu danych oraz do dziennika.
+  Po zmianie hasła plik jest usuwany automatycznie przy kolejnym starcie.
+- Zmienna `ADMIN_INITIAL_PASSWORD` — hasło początkowe dla instalacji masowej;
+  wtedy plik z hasłem nie powstaje i nic nie trafia do dziennika.
+- 9 testów regresyjnych (`server/tests/firstRun.test.ts`) idących **ścieżką
+  startu programu**, a nie przygotowaniem testowym: pusta baza po migracjach,
+  założenie konta, losowość i siła hasła, logowanie, odrzucenie błędnego
+  hasła, zapis i usunięcie pliku, idempotentność, hasło z konfiguracji.
+  Łącznie **93 testy**.
+- Test dymny na Windows loguje się teraz kontem `admin` hasłem z pierwszego
+  uruchomienia i sprawdza rolę, uprawnienia, wymuszenie zmiany hasła oraz
+  odrzucenie błędnego hasła. Poprzednia wersja sprawdzała tylko `401` bez
+  tokenu — dlatego nie wykryła braku kont.
+
+### Dlaczego to przeszło do 1.1.0
+
+Wszystkie testy korzystały z przygotowania (`setupFixture`), które wywołuje
+`seedCore` bezpośrednio, więc żaden nie przechodził ścieżką startu programu.
+Test dymny sprawdzał, że serwer odpowiada i odrzuca żądania bez tokenu —
+a serwer odpowiada poprawnie także wtedy, gdy w bazie nie ma ani jednego konta.
+
+---
+
 ## [1.1.0] — 2026-09-16
 
 Pierwsze wydanie z **zbudowanym instalatorem Windows**. Zmiany dotyczą

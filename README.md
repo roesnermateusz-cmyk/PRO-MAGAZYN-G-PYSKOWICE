@@ -85,7 +85,7 @@ Pozostałe polecenia:
 ```bash
 npm run db:migrate    # tylko migracje schematu (bez danych przykładowych)
 npm run db:seed       # dane słownikowe, konta i dokumenty przykładowe
-npm run test          # 84 testy serwera
+npm run test          # 93 testy serwera
 npm run typecheck     # kontrola typów serwera i klienta
 npm run lint          # analiza statyczna
 npm run build         # build produkcyjny obu pakietów
@@ -97,7 +97,32 @@ npm start             # uruchomienie zbudowanego serwera
 
 ## Konta początkowe
 
-Tworzone przez `npm run db:seed`. **Hasła należy zmienić przed wdrożeniem produkcyjnym.**
+### Po instalacji z instalatora `.exe`
+
+Program zakłada konto administratora **przy pierwszym uruchomieniu** i nadaje mu
+**losowe hasło** — nie ma żadnego znanego hasła domyślnego. Hasło jest pokazywane
+na trzy sposoby:
+
+1. w oknie programu przy pierwszym starcie (z przyciskiem *Kopiuj hasło*),
+2. w pliku `C:\ProgramData\ResInvestERP\PIERWSZE-URUCHOMIENIE.txt`,
+3. w dzienniku `C:\ProgramData\ResInvestERP\resinvest-erp.log`.
+
+| Login | Hasło | Rola |
+|---|---|---|
+| `admin` | losowe, pokazane przy pierwszym uruchomieniu | Administrator |
+
+Przy pierwszym logowaniu program wymusza ustawienie własnego hasła. Po jego
+zmianie plik `PIERWSZE-URUCHOMIENIE.txt` jest usuwany automatycznie przy
+kolejnym starcie. Pozostałe konta zakłada administrator w
+*Administracja → Użytkownicy*.
+
+Do instalacji masowej można narzucić hasło początkowe zmienną środowiskową
+`ADMIN_INITIAL_PASSWORD` — wtedy nie powstaje ani plik, ani wpis w dzienniku.
+
+### Uruchomienie z kodu źródłowego (dane demonstracyjne)
+
+`npm run db:seed` dokłada słowniki i konta demonstracyjne — **wyłącznie do
+testów, nigdy na produkcji**:
 
 | Login | Hasło | Rola | Magazyny |
 |---|---|---|---|
@@ -106,10 +131,11 @@ Tworzone przez `npm run db:seed`. **Hasła należy zmienić przed wdrożeniem pr
 | `zabrze` | `Demo#2026` | Magazynier | RiC Zabrze |
 | `braszewice` | `Demo#2026` | Magazynier | RiC Brąszewice |
 | `rokitki` | `Demo#2026` | Magazynier | RiC Rokitki |
-| `podglad` | `Demo#2026` | Podgląd | ZAB, BRA, ROK |
+| `podgląd` | `Demo#2026` | Podgląd | ZAB, BRA, ROK |
 
-Konto `admin` wymusza zmianę hasła przy pierwszym logowaniu.
-Hasła początkowe można nadpisać zmiennymi `SEED_ADMIN_PASSWORD` i `SEED_DEMO_PASSWORD`.
+Hasła te działają **tylko** po ręcznym uruchomieniu `npm run db:seed`;
+w zainstalowanym programie nie istnieją. Można je nadpisać zmiennymi
+`SEED_ADMIN_PASSWORD` i `SEED_DEMO_PASSWORD`.
 
 Wdrożenie bez danych demonstracyjnych:
 
@@ -142,7 +168,7 @@ npm install
 npm run dist
 ```
 
-Wynik: `desktop/release/ResInvest-ERP-Setup-1.1.0.exe` — jeden plik.
+Wynik: `desktop/release/ResInvest-ERP-Setup-1.1.1.exe` — jeden plik.
 
 Moduł natywny bazy danych (`better-sqlite3`) jest pobierany jako oficjalny
 plik binarny dla Windows x64 i weryfikowany sumą SHA-256 przypiętą w
@@ -151,7 +177,7 @@ plik binarny dla Windows x64 i weryfikowany sumą SHA-256 przypiętą w
 Suma kontrolna do weryfikacji integralności pliku:
 
 ```powershell
-Get-FileHash .\release\ResInvest-ERP-Setup-1.1.0.exe -Algorithm SHA256
+Get-FileHash .\release\ResInvest-ERP-Setup-1.1.1.exe -Algorithm SHA256
 ```
 
 ### Co robi instalator

@@ -162,7 +162,40 @@ jobs:
             if ($code -ne 401) { Write-Error "Oczekiwano 401, otrzymano $code"; exit 1 }
           }
           if (-not (Test-Path (Join-Path $data 'resinvest.sqlite'))) { Write-Error "Nie utworzono pliku bazy danych"; exit 1 }
-          Write-Host "Serwer z instalacji działa: health OK, wersja zgodna, klient serwowany, 401 bez tokenu, baza utworzona."
+
+          # Najważniejszy test: czy po instalacji DA SIĘ SIĘ ZALOGOWAĆ.
+          # Sama odpowiedź /api/health nic o tym nie mówi - serwer odpowiada
+          # także wtedy, gdy w bazie nie ma żadnego konta.
+          $creds = Join-Path $data 'PIERWSZE-URUCHOMIENIE.txt'
+          if (-not (Test-Path $creds)) { Write-Error "Brak pliku z danymi pierwszego logowania"; exit 1 }
+          $haslo = (Select-String -Path $creds -Pattern '^\s*Hasło:\s*(\S+)').Matches[0].Groups[1].Value
+          if (-not $haslo) { Write-Error "Nie odczytano hasła początkowego"; exit 1 }
+
+          $body = @{ login = 'admin'; password = $haslo } | ConvertTo-Json
+          $zalogowany = Invoke-RestMethod -Uri 'http://127.0.0.1:4321/api/auth/login' -Method Post -Body $body -ContentType 'application/json'
+          if ($zalogowany.user.login -ne 'admin') { Write-Error "Logowanie nie zwróciło konta admin"; exit 1 }
+          if ($zalogowany.user.roleCode -ne 'ADMIN') { Write-Error "Konto admin nie ma roli ADMIN"; exit 1 }
+          if ($zalogowany.user.permissions.Count -lt 1) { Write-Error "Konto admin nie ma zadnych uprawnień"; exit 1 }
+          if (-not $zalogowany.user.mustChangePassword) { Write-Error "Nie wymuszono zmiany hasła początkowego"; exit 1 }
+          if (-not $zalogowany.tokens.accessToken) { Write-Error "Logowanie nie zwróciło tokenu"; exit 1 }
+          Write-Host "Logowanie: admin, rola $($zalogowany.user.roleCode), uprawnień $($zalogowany.user.permissions.Count), wymuszona zmiana hasła."
+
+          # Token z logowania musi otwierać zasób, ktory bez niego dawal 401.
+          $naglowki = @{ Authorization = "Bearer $($zalogowany.tokens.accessToken)" }
+          $dokumenty = Invoke-RestMethod -Uri 'http://127.0.0.1:4321/api/documents' -Headers $naglowki
+          if ($null -eq $dokumenty) { Write-Error "Zalogowany nie odczytał listy dokumentów"; exit 1 }
+
+          # Błędne hasło nadal musi być odrzucane.
+          $zleBody = @{ login = 'admin'; password = 'zupelnie-zle-haslo-123' } | ConvertTo-Json
+          try {
+            Invoke-RestMethod -Uri 'http://127.0.0.1:4321/api/auth/login' -Method Post -Body $zleBody -ContentType 'application/json' | Out-Null
+            Write-Error "Zalogowano błędnym hasłem"; exit 1
+          } catch {
+            $kod = [int]$_.Exception.Response.StatusCode
+            if ($kod -ne 401) { Write-Error "Przy błędnym haśle oczekiwano 401, otrzymano $kod"; exit 1 }
+          }
+
+          Write-Host "Serwer z instalacji działa: health OK, wersja zgodna, klient serwowany, logowanie działa, 401 bez tokenu i przy błędnym haśle, baza utworzona."
 
           Stop-Process -Id $proc.Id -Force
           Start-Sleep -Seconds 2

@@ -1,4 +1,4 @@
-# Raport jakości — ResInvest ERP 1.1.0
+# Raport jakości — ResInvest ERP 1.1.1
 
 Data: 16.09.2026
 Zakres: zastąpienie prototypu jednoplikowego (`legacy/magazyn-v8-prototype.html`)
@@ -368,6 +368,44 @@ SHA-256 `6b9f4e1823371fb1d780d309c9fcbf0bcb05a1c40fc4622c77a7cc0b8f448f9f`.
 > Instalator zbudowany na Linuksie i na Windows mają **różne sumy kontrolne** —
 > narzędzia NSIS zapisują w pliku znaczniki czasu. Wiążący jest artefakt
 > z przepływu CI wraz z sumą wypisaną w jego logu; to on trafia do użytkowników.
+
+### Wydanie 1.1.1 — błąd krytyczny wykryty po instalacji u użytkownika
+
+Instalator 1.1.0 przeszedł wszystkie kontrole: budowanie, zawartość pakietu,
+sumy kontrolne, instalację, start serwera, `/api/health`, serwowanie aplikacji
+klienckiej, `401` bez tokenu i deinstalację. **Mimo to programu nie dało się
+używać** — przy logowaniu zwracał „Nieprawidłowy login lub hasło" dla każdych
+danych.
+
+| | |
+|---|---|
+| **Objaw** | Logowanie niemożliwe po instalacji, dowolny login i hasło |
+| **Przyczyna** | Start serwera wykonywał tylko migracje schematu. Role, uprawnienia i konto `admin` tworzył wyłącznie `npm run db:seed` — skrypt niedostępny w zainstalowanym programie. Tabele `users`, `roles` i `permissions` były puste |
+| **Naprawa** | Start programu wywołuje `prepareFirstRun()`: uzupełnia dane referencyjne i zakłada konto `admin` z losowym hasłem. Idempotentne |
+| **Wykrycie** | Zgłoszenie użytkownika po instalacji — **nie** przez testy ani CI |
+
+**Dlaczego nie wykryły tego testy.** Przygotowanie testowe (`setupFixture`)
+wywołuje `seedCore` bezpośrednio, więc wszystkie 84 testy startowały z bazy
+już wypełnionej. Żaden nie przechodził ścieżką uruchomienia programu.
+
+**Dlaczego nie wykrył tego test dymny.** Sprawdzał, że serwer odpowiada na
+`/api/health` i zwraca `401` bez tokenu. Serwer robi jedno i drugie poprawnie
+także wtedy, gdy w bazie nie ma ani jednego konta — brak kont daje dokładnie
+ten sam wynik co poprawna konfiguracja.
+
+**Wnioski wdrożone w 1.1.1:**
+
+| Luka | Zamknięcie |
+|---|---|
+| Testy omijały ścieżkę startu programu | `server/tests/firstRun.test.ts` — 9 testów idących wyłącznie przez migracje + `prepareFirstRun` (łącznie 93 testy) |
+| Test dymny nie sprawdzał logowania | CI loguje się kontem `admin` hasłem z pierwszego uruchomienia, sprawdza rolę, uprawnienia, wymuszenie zmiany hasła i odrzucenie błędnego hasła |
+| Znane hasło domyślne byłoby ryzykiem | Hasło losowane na stanowisku, pokazywane w oknie, pliku i dzienniku; plik usuwany po zmianie hasła |
+
+Zasada potwierdzona kosztem wydania: **sprawdzenie, że usługa odpowiada, nie
+jest sprawdzeniem, że da się jej użyć.** Test dymny musi wykonać operację,
+dla której program istnieje — tutaj: zalogować się.
+
+---
 
 ### Co pozostaje do odbioru u klienta
 

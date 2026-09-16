@@ -41,6 +41,41 @@ const logFile = path.join(dataDir, 'resinvest-erp.log');
 let serverProcess = null;
 let mainWindow = null;
 let serverPort = DEFAULT_PORT;
+/** Dane pierwszego logowania odebrane z serwera, zanim powstało okno programu. */
+let pendingFirstRun = null;
+
+/**
+ * Pokazuje dane logowania utworzone przy pierwszym uruchomieniu.
+ * Hasło można skopiowac do schowka - jest losowe i nie da się go zgadnąć.
+ */
+function showFirstRunDialog() {
+  if (!pendingFirstRun) return;
+  const { login, password, file } = pendingFirstRun;
+  pendingFirstRun = null;
+
+  dialog
+    .showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Pierwsze uruchomienie - konto administratora',
+      message: 'Utworzono konto administratora systemu',
+      detail:
+        `Login:  ${login}\n` +
+        `Hasło:  ${password}\n\n` +
+        'Przy pierwszym logowaniu program poprosi o ustawienie własnego hasła.\n\n' +
+        `Dane zapisano również w pliku:\n${file}\n` +
+        'Plik zostanie usunięty automatycznie po zmianie hasła.',
+      buttons: ['Kopiuj hasło', 'Zamknij'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    })
+    .then(({ response }) => {
+      if (response === 0) clipboard.writeText(password);
+    })
+    .catch(() => {
+      /* Okno zamknięte przez użytkownika - dane pozostają w pliku i dzienniku. */
+    });
+}
 
 function log(message) {
   const line = `${new Date().toISOString()} ${message}\n`;
@@ -132,6 +167,15 @@ function startServer() {
 
   serverProcess.stdout?.on('data', (chunk) => log(`[serwer] ${String(chunk).trimEnd()}`));
   serverProcess.stderr?.on('data', (chunk) => log(`[serwer:blad] ${String(chunk).trimEnd()}`));
+
+  // Pierwsze uruchomienie: serwer zakłada konto administratora z losowym hasłem.
+  // Pokazujemy je w oknie, żeby administrator nie musiał szukać go w pliku.
+  serverProcess.on('message', (message) => {
+    if (!message || message.type !== 'first-run') return;
+    pendingFirstRun = message;
+    if (mainWindow) showFirstRunDialog();
+  });
+
   serverProcess.on('exit', (code, signal) => {
     log(`Serwer zakończył pracę (kod ${code}, sygnał ${signal ?? 'brak'}).`);
     serverProcess = null;
@@ -275,7 +319,12 @@ function createWindow() {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+    // Serwer startuje przed oknem, więc dane pierwszego logowania mogły
+    // dotrzeć wcześniej - pokazujemy je dopiero, gdy jest w czym.
+    showFirstRunDialog();
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

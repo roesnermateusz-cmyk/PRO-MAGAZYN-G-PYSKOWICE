@@ -5,8 +5,8 @@ import { closeDb, getDb } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
 import { logger } from './core/logger.js';
 import { startBackupSchedule } from './core/backup.js';
+import { prepareFirstRun } from './core/firstRun.js';
 import { purgeExpiredTokens } from './modules/auth/auth.service.js';
-import { ensureDefaultSettings } from './modules/settings/settings.service.js';
 
 function bootstrap(): void {
   fs.mkdirSync(env.dataDir, { recursive: true });
@@ -15,12 +15,21 @@ function bootstrap(): void {
   const db = getDb();
   const applied = runMigrations(db);
   if (applied.length === 0) logger.info('Schemat bazy danych jest aktualny.');
-  ensureDefaultSettings(db);
+
+  // Role, uprawnienia, ustawienia i konto administratora. Bez tego kroku świeża
+  // instalacja nie miałaby żadnego konta i nie dałoby się zalogować.
+  const firstRun = prepareFirstRun(db);
 
   const app = createApp();
   const server = app.listen(env.port, env.host, () => {
     logger.info(`ResInvest ERP API nasłuchuje na http://${env.host}:${env.port} (${env.nodeEnv})`);
     logger.info(`Baza danych: ${env.databaseFile}`);
+
+    // Powłoka desktopowa pokazuje dane pierwszego logowania w oknie programu,
+    // dzięki czemu administrator nie musi szukać ich w pliku ani w dzienniku.
+    if (firstRun && typeof process.send === 'function') {
+      process.send({ type: 'first-run', login: firstRun.login, password: firstRun.password, file: firstRun.file });
+    }
   });
 
   const stopBackups = startBackupSchedule(db);

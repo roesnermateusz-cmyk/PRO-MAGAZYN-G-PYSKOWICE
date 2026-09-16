@@ -1,7 +1,7 @@
 {
   "name": "resinvest-erp-desktop",
   "productName": "ResInvest ERP",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "ResInvest ERP - stanowisko serwerowe z wbudowaną bazą danych",
   "author": {

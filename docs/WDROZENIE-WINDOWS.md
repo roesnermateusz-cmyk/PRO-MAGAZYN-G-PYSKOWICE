@@ -101,14 +101,14 @@ git clone <adres-repozytorium> resinvest-erp
 cd resinvest-erp
 
 npm install
-npm run verify            # typecheck + lint + 84 testy + build
+npm run verify            # typecheck + lint + 93 testy + build
 
 cd desktop
 npm install
 npm run dist
 ```
 
-Wynik: `desktop/release/ResInvest-ERP-Setup-1.1.0.exe` — **jeden plik**,
+Wynik: `desktop/release/ResInvest-ERP-Setup-1.1.1.exe` — **jeden plik**,
 bez dodatkowych zależności. Katalog `release/win-unpacked` to materiał
 pomocniczy; użytkownikowi przekazuje się wyłącznie plik `.exe`.
 
@@ -126,6 +126,8 @@ Instalator Windows → Run workflow*) wykonuje **na prawdziwym Windows**:
 3. **test dymny**: cicha instalacja, kontrola plików i katalogu danych,
    reguły zapory, uruchomienie zainstalowanego serwera (`/api/health`,
    wersja, aplikacja kliencka, `401` bez tokenu, utworzenie bazy),
+   **zalogowanie się kontem `admin` hasłem z pierwszego uruchomienia**
+   (rola, uprawnienia, wymuszenie zmiany hasła, odrzucenie błędnego hasła),
    cicha deinstalacja z kontrolą zachowania danych,
 4. publikację pliku `.exe` i `.sha256` jako artefaktu (zakładka *Actions* →
    uruchomienie → *Artifacts*, przechowywany 90 dni).
@@ -136,11 +138,11 @@ Przepływ kończy się błędem przy każdej niezgodności — zielony wynik ozn
 ### Suma kontrolna
 
 ```powershell
-Get-FileHash .\release\ResInvest-ERP-Setup-1.1.0.exe -Algorithm SHA256
+Get-FileHash .\release\ResInvest-ERP-Setup-1.1.1.exe -Algorithm SHA256
 ```
 
 ```bash
-sha256sum release/ResInvest-ERP-Setup-1.1.0.exe
+sha256sum release/ResInvest-ERP-Setup-1.1.1.exe
 ```
 
 Zapisz wynik razem z plikiem instalatora — pozwala zweryfikować, że plik
@@ -161,7 +163,7 @@ win:
 
 ## 3. Instalacja
 
-1. Uruchom `ResInvest-ERP-Setup-1.1.0.exe` **jako administrator**.
+1. Uruchom `ResInvest-ERP-Setup-1.1.1.exe` **jako administrator**.
 2. Wybierz katalog instalacji (domyślnie `C:\Program Files\ResInvest ERP`).
 3. Instalator:
    - kopiuje program,
@@ -172,16 +174,26 @@ win:
 
 ### Pierwsze uruchomienie
 
-1. Program tworzy pustą bazę danych i wykonuje migracje schematu.
-2. Zaloguj się kontem `admin`.
-3. System wymusi zmianę hasła — ustaw silne hasło administratora.
-4. Przejdź do *Administracja → Ustawienia* i uzupełnij:
+1. Program tworzy pustą bazę danych, wykonuje migracje schematu i zakłada
+   konto administratora z **losowo wygenerowanym hasłem**.
+2. Hasło pojawi się **w oknie programu** (przycisk *Kopiuj hasło*). Jest też
+   zapisane w `C:\ProgramData\ResInvestERP\PIERWSZE-URUCHOMIENIE.txt`
+   oraz w dzienniku `resinvest-erp.log`.
+3. Zaloguj się: login `admin`, hasło z punktu 2.
+4. System wymusi zmianę hasła — ustaw silne hasło administratora. Po zmianie
+   plik `PIERWSZE-URUCHOMIENIE.txt` zostanie usunięty przy kolejnym starcie.
+5. Przejdź do *Administracja → Ustawienia* i uzupełnij:
    - **dane firmy** (trafiają na wydruki dokumentów),
    - **przeliczniki jednostek**, jeśli inne niż domyślne,
    - **stawki**: transport zł/km, rąbanie zł/jednostkę.
-5. *Administracja → Magazyny* — sprawdź lub uzupełnij listę magazynów.
-6. *Administracja → Produkty* i *Kontrahenci* — wprowadź dane firmy.
-7. *Administracja → Użytkownicy* — załóż konta pracownikom i przypisz magazyny.
+6. *Administracja → Magazyny* — sprawdź lub uzupełnij listę magazynów.
+7. *Administracja → Produkty* i *Kontrahenci* — wprowadź dane firmy.
+8. *Administracja → Użytkownicy* — załóż konta pracownikom i przypisz magazyny.
+
+> **Nie ma żadnego znanego hasła domyślnego.** Hasło jest losowane osobno na
+> każdym stanowisku. Przy instalacji masowej można je narzucić zmienną
+> środowiskową `ADMIN_INITIAL_PASSWORD` — wtedy program nie tworzy pliku
+> z hasłem ani nie zapisuje go w dzienniku.
 
 > Jeśli instalowano wersję z danymi przykładowymi, przed rozpoczęciem pracy
 > produkcyjnej usuń konta demonstracyjne i przykładowych kontrahentów.
@@ -347,12 +359,12 @@ przebieg oznacza, że wszystkie zostały potwierdzone na prawdziwym Windows.
 Pozostałe pozycje wymagają pracy z interfejsem programu i należy je sprawdzić
 na stanowisku docelowym — CI ich nie obejmuje.
 
-- [x] `npm run verify` kończy się powodzeniem (typecheck, lint, 84 testy, build)
+- [x] `npm run verify` kończy się powodzeniem (typecheck, lint, 93 testy, build)
 - [x] `npm run dist` tworzy jeden plik `.exe`
 - [x] Zapisano sumę SHA-256 pliku instalatora
       (wypisywana w logu przebiegu, obok artefaktu)
 - [x] Zasób wersji pliku `.exe`, manifest aplikacji, serwer i klient
-      raportują tę samą wersję (1.1.0)
+      raportują tę samą wersję (1.1.1)
 - [x] Moduł bazy danych w pakiecie jest biblioteką Windows x64 o sumie
       zgodnej z `desktop/native-prebuilds.json`
 - [x] Zależności serwera rozwiązują się z pakietu aplikacji
@@ -363,8 +375,12 @@ na stanowisku docelowym — CI ich nie obejmuje.
 - [x] Aplikacja kliencka jest serwowana przez zainstalowany serwer
 - [x] Zapytanie do API bez tokenu zwraca `401`
 - [x] Zainstalowany program tworzy plik bazy danych
+- [x] Program zakłada konto administratora i pozwala się zalogować
+- [x] Błędne hasło jest odrzucane (401)
 - [ ] Program uruchamia się i wyświetla ekran logowania
-- [ ] Logowanie kontem `admin` działa, wymuszenie zmiany hasła działa
+- [ ] Okno z hasłem pierwszego uruchomienia pojawia się po instalacji
+- [ ] Zmiana hasła przy pierwszym logowaniu działa, a plik
+      `PIERWSZE-URUCHOMIENIE.txt` znika po restarcie
 - [ ] Utworzenie i zatwierdzenie dokumentu PZ zmienia stan magazynowy
 - [ ] Produkcja zdejmuje surowiec i dodaje wyrób
 - [ ] Wydruk dokumentu otwiera poprawny arkusz A4
