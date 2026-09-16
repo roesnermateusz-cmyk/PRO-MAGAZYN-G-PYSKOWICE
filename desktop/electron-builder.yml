@@ -1,10 +1,16 @@
 # Konfiguracja instalatora Windows dla ResInvest ERP.
 # Budowanie:  npm run dist   (w katalogu desktop/)
-# Wynik:      desktop/release/ResInvest-ERP-Setup-1.0.0.exe  - jeden plik
+# Wynik:      desktop/release/ResInvest-ERP-Setup-<wersja>.exe  - jeden plik
 
 appId: pl.resinvest.erp
 productName: ResInvest ERP
 copyright: Copyright (c) 2026 ResInvest Commodities
+
+# System nie korzysta z automatycznych aktualizacji przez internet - nowe wersje
+# wgrywa administrator, uruchamiając nowy instalator. Wyłączamy więc generowanie
+# metadanych aktualizacji (latest.yml) i plików różnicowych (blockmap).
+# Dzięki temu w katalogu release powstaje dokładnie jeden plik wynikowy.
+publish: null
 
 directories:
   output: release
@@ -26,8 +32,11 @@ asarUnpack:
   - 'server/**'
   - 'client/**'
 
-# electron-builder przebudowuje moduły natywne pod ABI Electrona.
-npmRebuild: true
+# Moduł natywny dostarcza skrypt scripts/fetch-native.mjs - pobiera oficjalny
+# plik binarny dla win32-x64 i ABI Electrona, weryfikuje sumę SHA-256 oraz
+# nagłówek PE. Automatyczne przebudowanie jest tu wyłączone, bo na maszynie
+# innej niż Windows nadpisałoby poprawny plik wersją dla bieżącego systemu.
+npmRebuild: false
 buildDependenciesFromSource: false
 
 win:
@@ -45,6 +54,7 @@ win:
 nsis:
   oneClick: false
   perMachine: true
+  differentialPackage: false
   allowToChangeInstallationDirectory: true
   allowElevation: true
   createDesktopShortcut: true

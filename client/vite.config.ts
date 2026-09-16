@@ -1,8 +1,16 @@
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const require = createRequire(import.meta.url);
+const { version } = require('./package.json') as { version: string };
+
 export default defineConfig({
   plugins: [react()],
+  // Numer wersji wstrzykiwany przy budowaniu - jedno zrodlo prawdy (package.json).
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   server: {
     port: 5173,
     host: true,

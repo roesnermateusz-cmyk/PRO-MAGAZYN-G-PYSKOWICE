@@ -113,6 +113,9 @@ function startServer() {
     // ELECTRON_RUN_AS_NODE uruchamia proces potomny jako zwykły Node.js.
     ELECTRON_RUN_AS_NODE: '1',
     NODE_ENV: 'production',
+    // Numer wersji pochodzi z manifestu aplikacji - serwer raportuje go
+    // w /api/health, dzięki czemu wersja widoczna w programie i w API są zgodne.
+    APP_VERSION: app.getVersion(),
     HOST: '0.0.0.0',
     PORT: String(serverPort),
     DATA_DIR: dataDir,

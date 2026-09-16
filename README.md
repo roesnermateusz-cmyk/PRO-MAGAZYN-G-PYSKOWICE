@@ -129,8 +129,8 @@ pozostali pracownicy łączą się przeglądarką pod adresem podanym w menu
 
 ### Budowanie instalatora
 
-Instalator buduje się **na maszynie Windows** (electron-builder kompiluje moduł
-natywny bazy danych pod architekturę docelową):
+Instalator buduje się na Windows **albo** na Linuksie (wymagany `wine`,
+`wine32:i386` i `xvfb` — szczegóły w dokumentacji wdrożenia):
 
 ```bash
 npm install
@@ -140,12 +140,16 @@ npm install
 npm run dist
 ```
 
-Wynik: `desktop/release/ResInvest-ERP-Setup-1.0.0.exe`
+Wynik: `desktop/release/ResInvest-ERP-Setup-1.1.0.exe` — jeden plik.
+
+Moduł natywny bazy danych (`better-sqlite3`) jest pobierany jako oficjalny
+plik binarny dla Windows x64 i weryfikowany sumą SHA-256 przypiętą w
+`desktop/native-prebuilds.json`; niezgodność przerywa budowanie.
 
 Suma kontrolna do weryfikacji integralności pliku:
 
 ```powershell
-Get-FileHash .\release\ResInvest-ERP-Setup-1.0.0.exe -Algorithm SHA256
+Get-FileHash .\release\ResInvest-ERP-Setup-1.1.0.exe -Algorithm SHA256
 ```
 
 ### Co robi instalator
@@ -158,10 +162,13 @@ Get-FileHash .\release\ResInvest-ERP-Setup-1.0.0.exe -Algorithm SHA256
 
 Szczegóły: [docs/WDROZENIE-WINDOWS.md](docs/WDROZENIE-WINDOWS.md)
 
-> **Status:** konfiguracja instalatora jest kompletna i zweryfikowana w zakresie
-> możliwym w środowisku Linux (montaż zawartości paczki oraz uruchomienie
-> wbudowanego serwera z tej zawartości). Sam plik `.exe` musi zostać zbudowany
-> i przetestowany na Windows — patrz sekcja „Odbiór instalatora” w
+> **Status:** instalator `ResInvest-ERP-Setup-1.1.0.exe` został zbudowany
+> (`npm run dist` kończy się kodem 0) i zweryfikowany w zakresie zawartości:
+> jeden plik, poprawny stub NSIS-3 z wbudowanym deinstalatorem, program
+> PE32+ x64, moduł bazy danych PE32+ DLL o sumie zgodnej z przypiętą,
+> wersja 1.1.0 w zasobie pliku `.exe`, w manifeście aplikacji, w serwerze
+> i w kliencie. **Instalacja i uruchomienie na fizycznym Windows** pozostają
+> do odbioru — lista kontrolna w sekcji „Odbiór instalatora” w
 > [docs/WDROZENIE-WINDOWS.md](docs/WDROZENIE-WINDOWS.md).
 
 ---

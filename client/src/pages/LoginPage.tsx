@@ -103,7 +103,7 @@ export function LoginPage() {
               {resolved === 'dark' ? '☾' : '☀'}
             </Button>
           </div>
-          ResInvest ERP v1.0.0
+          ResInvest ERP v{__APP_VERSION__}
         </div>
       </div>
     </div>

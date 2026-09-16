@@ -1,4 +1,4 @@
-# Raport jakości — ResInvest ERP 1.0.0
+# Raport jakości — ResInvest ERP 1.1.0
 
 Data: 16.09.2026
 Zakres: zastąpienie prototypu jednoplikowego (`legacy/magazyn-v8-prototype.html`)
@@ -71,11 +71,16 @@ systemem wielodostępowym z centralną bazą danych.
 
 ### Wykonane — instalator
 
-- Powłoka Electron uruchamiająca serwer jako proces potomny.
-- Konfiguracja `electron-builder` → NSIS, jeden plik `.exe`, język polski.
+- Powłoka Electron 42 uruchamiająca serwer jako proces potomny.
+- Konfiguracja `electron-builder` 26 → NSIS, jeden plik `.exe`, język polski.
 - Skrypt montujący zawartość paczki z buildów serwera i klienta.
-- Rozszerzenia NSIS: katalog danych, reguła zapory, zachowanie danych przy
-  deinstalacji.
+- Skrypt dostarczający moduł natywny bazy danych dla Windows x64:
+  pobranie oficjalnego pliku binarnego, weryfikacja ABI Electrona, sumy SHA-256
+  archiwum i pliku `.node` oraz nagłówka PE; suma przypięta w repozytorium.
+- Rozszerzenia NSIS: katalog danych ustalany przez `%ProgramData%` (identycznie
+  jak w `main.js`), reguła zapory, zachowanie danych przy deinstalacji.
+- Numer wersji z jednego źródła: manifest → zasób `.exe`, `/api/health`,
+  ekran logowania.
 - Ikona aplikacji.
 
 **WYNIK: PASS**
@@ -256,37 +261,63 @@ anulowanie po wydaniu towaru, zmiana jednostki produktu z historią ruchów.
 | Czy baza jest spójna? | **TAK** | `verifyStockIntegrity()` — brak rozbieżności |
 | Czy testy przechodzą? | **TAK** | 84/84 |
 | Czy production build przechodzi? | **TAK** | Serwer i klient |
-| **Czy instalator działa?** | **NIEZWERYFIKOWANE** | patrz niżej |
+| Czy instalator się buduje? | **TAK** | `npm run dist` → kod 0, jeden plik, 103 856 460 B |
+| Czy zawartość instalatora jest poprawna? | **TAK** | patrz „Weryfikacja instalatora” |
+| **Czy instalator działa na Windows?** | **DO ODBIORU** | patrz niżej — wymaga fizycznego Windows |
 
 ---
 
-## Ograniczenie: instalator Windows
+## Weryfikacja instalatora
 
-Plik `.exe` **nie został zbudowany ani przetestowany**. Powód: kod powstał
-w środowisku Linux, a `electron-builder` kompiluje natywny moduł bazy danych
-pod architekturę docelową — instalator zbudowany poza Windows nie byłby wiarygodny.
+### Przebieg budowania
 
-Zgodnie z zasadą „nie twórz funkcji, która tylko wygląda na działającą”,
-instalator nie jest raportowany jako gotowy.
+Pierwsze podejście do budowania ujawniło cztery realne problemy — każdy został
+naprawiony przed kolejną próbą, zgodnie z zasadą nieprzechodzenia dalej
+z nierozwiązanym błędem:
 
-**Co zostało wykonane i zweryfikowane:**
+| # | Problem | Naprawa |
+|---|---|---|
+| 1 | Electron 33 po zakończeniu wsparcia; 14 podatności w łańcuchu narzędzi (`npm audit`, w tym 1 krytyczna) | Electron 42.11.4, electron-builder 26.16.1, better-sqlite3 12.11.1 → **0 podatności** |
+| 2 | Modułu natywnego dla Windows nie da się skompilować poza Windows | Pobranie oficjalnego pliku binarnego dla ABI 146 (Electron 42) z weryfikacją SHA-256 i nagłówka PE; `npmRebuild: false` |
+| 3 | `$COMMONAPPDATA` w skrypcie NSIS — stała nie istnieje, kompilacja przerwana | Katalog danych z `%ProgramData%` (`ExpandEnvStrings`), spójnie z `main.js` |
+| 4 | Generowanie metadanych aktualizacji kończyło build błędem (`publish` bez repozytorium) | `publish: null`, `differentialPackage: false` — system nie używa aktualizacji sieciowych |
 
-- pełna konfiguracja `electron-builder` (NSIS, język polski, jeden plik, ikona);
-- powłoka Electron z uruchomieniem serwera, oczekiwaniem na gotowość,
-  menu aplikacji i bezpiecznym zamknięciem bazy — składnia sprawdzona;
-- skrypt montujący zawartość paczki — **uruchomiony, wynik zweryfikowany**;
-- rozszerzenia NSIS: katalog danych, reguła zapory, zachowanie danych
-  przy deinstalacji;
-- **uruchomienie serwera z zawartości przygotowanej dla instalatora** —
-  migracje wykonane, `/api/health` zwraca `ok`, aplikacja kliencka serwowana
-  poprawnie, pliki bazy utworzone w katalogu danych.
+Ostateczne `npm run dist` kończy się kodem wyjścia **0**.
 
-**Co pozostaje do wykonania na maszynie Windows:**
+### Zweryfikowana zawartość
 
-`npm run dist` w katalogu `desktop/`, a następnie lista kontrolna z
-`docs/WDROZENIE-WINDOWS.md` §10 (16 pozycji: instalacja, logowanie, operacje
-magazynowe, wydruk, skany, drugie stanowisko, zapora, kopie zapasowe,
-deinstalacja z zachowaniem danych).
+| Element | Wynik |
+|---|---|
+| Liczba plików wynikowych `.exe` | **1** — `ResInvest-ERP-Setup-1.1.0.exe`, 103 856 460 B |
+| Typ pliku | `PE32 executable (GUI) Intel 80386, Nullsoft Installer self-extracting archive`, NSIS-3 Unicode |
+| Wbudowane komponenty (7-Zip) | `app-64.7z` (ładunek), `Uninstall ResInvest ERP.exe`, wtyczki UAC/nsExec/WinShell/nsis7z |
+| Program główny | `ResInvest ERP.exe` — `PE32+ executable (GUI) x86-64`, Electron 42.11.4 / Chromium 148 |
+| Moduł bazy danych | `better_sqlite3.node` — `PE32+ executable (DLL) x86-64`, SHA-256 `24e2e3ca…75d9b8` zgodna z przypiętą |
+| Migracje | `server/db/migrations/001_init.sql` obecny w pakiecie |
+| Aplikacja kliencka | `client/index.html` + `assets/` obecne |
+| Wersja w zasobie `.exe` | `FileVersion 1.1.0`, `ProductVersion 1.1.0.0`, `ProductName ResInvest ERP`, `CompanyName ResInvest Commodities` |
+| Wersja w `app.asar/package.json` | 1.1.0 |
+| Wersja w manifeście serwera w pakiecie | 1.1.0 |
+| Wersja w bundlu klienta | 1.1.0 |
+| Skrypt weryfikacji modułu natywnego | test negatywny: zła suma → kod wyjścia 1, plik nie jest podstawiany |
+
+**SHA-256 instalatora:**
+
+```
+fed04dbb058956c19bb7d248c52efcec245826f52ff8489d9b8388309e49a185  ResInvest-ERP-Setup-1.1.0.exe
+```
+
+### Czego nie dało się zweryfikować w środowisku budowania
+
+Podjęto próbę cichej instalacji (`/S`) pod Wine 9.0 z wirtualnym ekranem.
+Instalator uruchamia się, ładuje wtyczki i rozpoczyna pracę, ale nie kończy
+instalacji w rozsądnym czasie — najprawdopodobniej przez wtyczkę UAC
+(podniesienie uprawnień) niemającą odpowiednika w Wine. **Nie jest to dowód
+błędu instalatora, ale też nie jest to dowód poprawnego działania.**
+
+Zgodnie z zasadą „jeżeli funkcja nie jest gotowa, nie udawaj, że działa”,
+instalacja i uruchomienie programu na fizycznym Windows są raportowane jako
+**DO ODBIORU** — lista kontrolna w `docs/WDROZENIE-WINDOWS.md` §10.
 
 ---
 
@@ -300,7 +331,8 @@ deinstalacja z zachowaniem danych).
 | Optymalizator | **PASS** |
 | Testy końcowe | **PASS** (84/84) |
 | Production build | **PASS** |
-| Instalator | **DO WERYFIKACJI NA WINDOWS** |
+| Instalator — budowanie i zawartość | **PASS** (jeden plik, SHA-256 wygenerowana) |
+| Instalator — instalacja i uruchomienie na Windows | **DO ODBIORU** |
 
 System jest gotowy do testów odbiorczych w środowisku Windows.
 Przed uruchomieniem produkcyjnym należy zmienić hasła kont początkowych

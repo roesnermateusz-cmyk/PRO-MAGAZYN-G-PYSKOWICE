@@ -5,6 +5,59 @@ wersjonowanie zgodne z [SemVer](https://semver.org/lang/pl/).
 
 ---
 
+## [1.1.0] — 2026-09-16
+
+Pierwsze wydanie z **zbudowanym instalatorem Windows**. Zmiany dotyczą
+platformy uruchomieniowej i procesu budowania; logika biznesowa, schemat bazy
+i API pozostają zgodne z 1.0.0 — aktualizacja nie wymaga migracji danych.
+
+### Dodane
+
+- `desktop/scripts/fetch-native.mjs` — dostarczanie modułu natywnego bazy
+  danych dla Windows x64: pobranie oficjalnego pliku binarnego, weryfikacja
+  ABI Electrona, sum SHA-256 (archiwum i plik `.node`) oraz nagłówka PE.
+  Niezgodność przerywa budowanie.
+- `desktop/native-prebuilds.json` — przypięte sumy kontrolne modułów natywnych.
+- Numer wersji z jednego źródła (`package.json`): zasób pliku `.exe`,
+  `/api/health`, ekran logowania. Powłoka Electrona przekazuje wersję do
+  serwera (`APP_VERSION`).
+- Budowanie instalatora na Linuksie (Wine + Xvfb) — udokumentowane
+  w `docs/WDROZENIE-WINDOWS.md` §2.
+
+### Zmienione
+
+- Electron 33 → **42.11.4** (33 po zakończeniu wsparcia; usunięte znane
+  podatności powłoki, m.in. obejście integralności asar).
+- electron-builder 25 → **26.16.1**.
+- better-sqlite3 11 → **12.11.1** (serwer i powłoka) — 84/84 testy przechodzą
+  na nowej wersji.
+- `npm audit` w katalogu `desktop/`: 14 podatności (1 krytyczna) → **0**.
+- Skrypt NSIS: katalog danych ustalany przez `%ProgramData%` dokładnie tak,
+  jak robi to `main.js` (`$COMMONAPPDATA` nie jest stałą NSIS — poprzedni
+  zapis nie kompilował się).
+- Wyłączone generowanie metadanych aktualizacji sieciowych i plików
+  różnicowych — system ich nie używa; katalog `release` zawiera jeden plik.
+
+### Zweryfikowane
+
+- `npm run dist` → kod wyjścia 0; jeden plik
+  `ResInvest-ERP-Setup-1.1.0.exe` (103 856 460 B).
+- Zawartość pakietu: program PE32+ x64, moduł bazy danych PE32+ DLL o sumie
+  zgodnej z przypiętą, migracje, aplikacja kliencka, wersja 1.1.0 we
+  wszystkich miejscach.
+- SHA-256: `fed04dbb058956c19bb7d248c52efcec245826f52ff8489d9b8388309e49a185`.
+
+### Znane ograniczenia
+
+- Instalacja i uruchomienie na **fizycznym Windows** pozostają do odbioru
+  (lista kontrolna: `docs/WDROZENIE-WINDOWS.md` §10). Próba instalacji pod
+  Wine nie kończy się — nie jest to dowód błędu, ale nie zastępuje testu.
+- Plik nie jest podpisany certyfikatem — SmartScreen wyświetli ostrzeżenie
+  przy pierwszej instalacji.
+- Pozostałe ograniczenia z 1.0.0 (import z prototypu, HTTPS) bez zmian.
+
+---
+
 ## [1.0.0] — 2026-09-16
 
 Pierwsze wydanie systemu ResInvest ERP. Zastąpienie prototypu jednoplikowego

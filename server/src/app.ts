@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import { env } from './config/env.js';
+import { APP_VERSION } from './core/version.js';
 import { authenticate } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { rateLimit } from './middleware/rateLimit.js';
@@ -68,7 +69,7 @@ export function createApp(): Express {
   api.use(rateLimit({ windowMs: 60_000, max: 600, keyPrefix: 'api' }));
 
   api.get('/health', (_req, res) => {
-    res.json({ status: 'ok', version: process.env.APP_VERSION ?? '1.0.0', time: new Date().toISOString() });
+    res.json({ status: 'ok', version: APP_VERSION, time: new Date().toISOString() });
   });
 
   api.use('/auth', authRouter);

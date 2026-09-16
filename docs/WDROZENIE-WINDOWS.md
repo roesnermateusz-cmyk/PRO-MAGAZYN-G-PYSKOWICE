@@ -43,22 +43,60 @@ Komputer serwerowy powinien być włączony w godzinach pracy firmy.
 
 ## 2. Budowanie instalatora
 
-> Instalator buduje się **na maszynie Windows**. `electron-builder` kompiluje
-> moduł natywny bazy danych pod docelową architekturę — budowanie z Linuksa
-> nie da poprawnego pliku `.exe`.
+Instalator można zbudować **na Windows albo na Linuksie**. Obie drogi dają ten
+sam wynik — jeden plik `.exe`. Różnica dotyczy wyłącznie tego, skąd bierze się
+moduł natywny bazy danych `better-sqlite3`.
 
-### Przygotowanie
+### Skąd bierze się moduł natywny
 
-Zainstaluj na maszynie budującej:
+`better-sqlite3` zawiera kod C++. Gotowy plik `better_sqlite3.node` musi pasować
+do trzech rzeczy naraz: systemu (`win32`), architektury (`x64`) oraz ABI
+Electrona. Projekt rozwiązuje to tak:
+
+| Maszyna budująca | Sposób | Skrypt |
+|---|---|---|
+| Windows | kompilacja lokalna z użyciem MSVC | `npm run rebuild:local` |
+| Linux / macOS | pobranie oficjalnego pliku binarnego i weryfikacja SHA-256 | `npm run prepare:native` |
+
+Skrypt `desktop/scripts/fetch-native.mjs` pobiera plik wskazany w
+`desktop/native-prebuilds.json` i sprawdza:
+
+1. czy zainstalowana wersja pakietu zgadza się z przypiętą,
+2. czy ABI Electrona zgadza się z ABI pliku binarnego,
+3. sumę SHA-256 archiwum **oraz** samego pliku `.node`,
+4. nagłówek PE — plik musi być biblioteką DLL dla Windows x86-64.
+
+Każda niezgodność przerywa budowanie kodem wyjścia 1. Skrypt nigdy nie podstawia
+pliku zastępczego — jeżeli nie da się dostarczyć poprawnego modułu, instalator
+nie powstaje.
+
+> **Po podniesieniu wersji Electrona lub `better-sqlite3`** trzeba zaktualizować
+> `desktop/native-prebuilds.json`. Nowe ABI sprawdzisz poleceniem:
+> `node -e "console.log(require('node-abi').getAbi('<wersja>','electron'))"`.
+> Jeżeli dla danego ABI nie opublikowano jeszcze gotowego pliku, buduj instalator
+> na Windows albo pozostań na wersji Electrona, która taki plik posiada.
+
+### Przygotowanie — Windows
 
 - [Node.js 22 LTS](https://nodejs.org/) (zawiera npm),
 - [Git](https://git-scm.com/download/win),
-- **Visual Studio Build Tools** z komponentem *Desktop development with C++*
-  (wymagane do kompilacji `better-sqlite3`).
+- **Visual Studio Build Tools** z komponentem *Desktop development with C++*.
+
+### Przygotowanie — Linux (Ubuntu 24.04)
+
+```bash
+sudo dpkg --add-architecture i386
+sudo apt-get update
+sudo apt-get install -y wine wine32:i386 wine64 xvfb
+```
+
+Wine jest potrzebny, ponieważ `electron-builder` uruchamia narzędzia Windows
+(`rcedit`, generowanie deinstalatora). Instalator NSIS jest programem 32-bitowym,
+dlatego sam pakiet `wine64` nie wystarczy — wymagany jest również `wine32:i386`.
 
 ### Budowanie
 
-```powershell
+```bash
 git clone <adres-repozytorium> resinvest-erp
 cd resinvest-erp
 
@@ -66,12 +104,13 @@ npm install
 npm run verify            # typecheck + lint + 84 testy + build
 
 cd desktop
-npm install               # pobiera Electron i przebudowuje moduł natywny
+npm install
 npm run dist
 ```
 
-Wynik: `desktop\release\ResInvest-ERP-Setup-1.0.0.exe` — jeden plik,
-bez dodatkowych zależności.
+Wynik: `desktop/release/ResInvest-ERP-Setup-1.1.0.exe` — **jeden plik**,
+bez dodatkowych zależności. Katalog `release/win-unpacked` to materiał
+pomocniczy; użytkownikowi przekazuje się wyłącznie plik `.exe`.
 
 > `npm run verify` musi zakończyć się powodzeniem. Nie buduj instalatora
 > z kodu, w którym testy lub build nie przechodzą.
@@ -79,7 +118,11 @@ bez dodatkowych zależności.
 ### Suma kontrolna
 
 ```powershell
-Get-FileHash .\release\ResInvest-ERP-Setup-1.0.0.exe -Algorithm SHA256
+Get-FileHash .\release\ResInvest-ERP-Setup-1.1.0.exe -Algorithm SHA256
+```
+
+```bash
+sha256sum release/ResInvest-ERP-Setup-1.1.0.exe
 ```
 
 Zapisz wynik razem z plikiem instalatora — pozwala zweryfikować, że plik
@@ -100,7 +143,7 @@ win:
 
 ## 3. Instalacja
 
-1. Uruchom `ResInvest-ERP-Setup-1.0.0.exe` **jako administrator**.
+1. Uruchom `ResInvest-ERP-Setup-1.1.0.exe` **jako administrator**.
 2. Wybierz katalog instalacji (domyślnie `C:\Program Files\ResInvest ERP`).
 3. Instalator:
    - kopiuje program,
@@ -278,12 +321,20 @@ w katalogu danych przy pierwszym starcie. Można je też podać jawnie w
 ## 10. Odbiór instalatora
 
 Lista kontrolna przed przekazaniem instalatora użytkownikom.
-**Każdą pozycję należy sprawdzić na maszynie Windows** — poniższe punkty
-nie są zweryfikowane w środowisku, w którym powstał kod.
 
-- [ ] `npm run verify` kończy się powodzeniem (typecheck, lint, 84 testy, build)
-- [ ] `npm run dist` tworzy jeden plik `.exe`
-- [ ] Zapisano sumę SHA-256 pliku instalatora
+Pozycje oznaczone `[x]` zostały zweryfikowane podczas budowania wydania 1.1.0
+(kod wyjścia, liczba plików, zawartość pakietu, wersje, suma kontrolna).
+**Pozostałe pozycje należy sprawdzić na fizycznej maszynie Windows** —
+środowisko budowania nie pozwala uruchomić zainstalowanego programu.
+
+- [x] `npm run verify` kończy się powodzeniem (typecheck, lint, 84 testy, build)
+- [x] `npm run dist` tworzy jeden plik `.exe`
+- [x] Zapisano sumę SHA-256 pliku instalatora
+      (`fed04dbb058956c19bb7d248c52efcec245826f52ff8489d9b8388309e49a185`)
+- [x] Zasób wersji pliku `.exe`, manifest aplikacji, serwer i klient
+      raportują tę samą wersję (1.1.0)
+- [x] Moduł bazy danych w pakiecie jest biblioteką Windows x64 o sumie
+      zgodnej z `desktop/native-prebuilds.json`
 - [ ] Instalacja na czystym systemie Windows kończy się powodzeniem
 - [ ] Program uruchamia się i wyświetla ekran logowania
 - [ ] Logowanie kontem `admin` działa, wymuszenie zmiany hasła działa

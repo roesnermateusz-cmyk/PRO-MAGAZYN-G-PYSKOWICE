@@ -37,9 +37,19 @@ fs.cpSync(clientDist, targetClient, { recursive: true });
 
 // Powłoka Electrona jest modułem CommonJS, a serwer - modułem ESM.
 // Lokalny manifest w podkatalogu rozstrzyga typ bez zmiany głównego package.json.
+// Numer wersji przenosimy z manifestu serwera, aby /api/health raportowało
+// poprawną wersję także wtedy, gdy serwer uruchomiono bez powłoki Electrona.
+const serverVersion = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'server', 'package.json'), 'utf8'),
+).version;
+
 fs.writeFileSync(
   path.join(targetServer, 'package.json'),
-  `${JSON.stringify({ name: 'resinvest-erp-server-payload', private: true, type: 'module' }, null, 2)}\n`,
+  `${JSON.stringify(
+    { name: 'resinvest-erp-server-payload', version: serverVersion, private: true, type: 'module' },
+    null,
+    2,
+  )}\n`,
 );
 
 const migrations = path.join(targetServer, 'db', 'migrations');
@@ -49,6 +59,7 @@ if (!fs.existsSync(migrations) || fs.readdirSync(migrations).length === 0) {
 }
 
 console.log('Przygotowano zawartość instalatora:');
+console.log(`  wersja:  ${serverVersion}`);
 console.log(`  serwer:  ${targetServer}`);
 console.log(`  klient:  ${targetClient}`);
 console.log(`  migracje: ${fs.readdirSync(migrations).length} plik(ów)`);

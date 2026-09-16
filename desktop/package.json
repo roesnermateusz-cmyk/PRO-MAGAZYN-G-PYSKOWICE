@@ -1,7 +1,7 @@
 {
   "name": "resinvest-erp-desktop",
   "productName": "ResInvest ERP",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "ResInvest ERP - stanowisko serwerowe z wbudowaną bazą danych",
   "author": {
@@ -11,13 +11,14 @@
   "main": "main.js",
   "scripts": {
     "prepare:payload": "node scripts/prepare-payload.mjs",
-    "start": "npm run prepare:payload && electron .",
-    "dist": "npm run prepare:payload && electron-builder --win --x64 --publish never",
-    "dist:dir": "npm run prepare:payload && electron-builder --win --dir --publish never",
-    "postinstall": "electron-builder install-app-deps"
+    "prepare:native": "node scripts/fetch-native.mjs",
+    "rebuild:local": "electron-builder install-app-deps",
+    "start": "npm run prepare:payload && npm run rebuild:local && electron .",
+    "dist": "npm run prepare:payload && npm run prepare:native && electron-builder --win --x64 --publish never",
+    "dist:dir": "npm run prepare:payload && npm run prepare:native && electron-builder --win --dir --publish never"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1",
+    "better-sqlite3": "^12.11.1",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -28,7 +29,9 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "electron": "^33.3.1",
-    "electron-builder": "^25.1.8"
+    "electron": "^42.11.4",
+    "electron-builder": "^26.16.1",
+    "node-abi": "^3.96.0",
+    "tar": "^7.5.7"
   }
 }
