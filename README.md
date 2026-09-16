@@ -164,13 +164,18 @@ Get-FileHash .\release\ResInvest-ERP-Setup-1.1.0.exe -Algorithm SHA256
 
 Szczegóły: [docs/WDROZENIE-WINDOWS.md](docs/WDROZENIE-WINDOWS.md)
 
-> **Status:** instalator `ResInvest-ERP-Setup-1.1.0.exe` został zbudowany
-> (`npm run dist` kończy się kodem 0) i zweryfikowany w zakresie zawartości:
-> jeden plik, poprawny stub NSIS-3 z wbudowanym deinstalatorem, program
-> PE32+ x64, moduł bazy danych PE32+ DLL o sumie zgodnej z przypiętą,
-> wersja 1.1.0 w zasobie pliku `.exe`, w manifeście aplikacji, w serwerze
-> i w kliencie. **Instalacja i uruchomienie na fizycznym Windows** pozostają
-> do odbioru — lista kontrolna w sekcji „Odbiór instalatora” w
+> **Status:** instalator jest zbudowany i **przetestowany na prawdziwym
+> Windows** (GitHub Actions, `windows-latest`): cicha instalacja, uruchomienie
+> zainstalowanego serwera (`/api/health` → `ok`, wersja zgodna, aplikacja
+> kliencka serwowana, `401` bez tokenu, baza utworzona) oraz cicha deinstalacja
+> z zachowaniem katalogu danych.
+>
+> **Gotowy plik do pobrania:** zakładka *Actions* → ostatni zielony przebieg
+> *Instalator Windows* → sekcja *Artifacts*. Obok pliku `.exe` znajduje się
+> plik `.sha256` z sumą kontrolną.
+>
+> Do wykonania na stanowisku docelowym pozostaje **odbiór funkcjonalny**
+> (praca z interfejsem) — lista kontrolna w sekcji „Odbiór instalatora” w
 > [docs/WDROZENIE-WINDOWS.md](docs/WDROZENIE-WINDOWS.md).
 
 ---

@@ -21,6 +21,31 @@ function str(name: string, fallback: string): string {
   return raw === undefined || raw === '' ? fallback : raw;
 }
 
+/**
+ * Katalog aplikacji klienckiej, gdy nie podano zmiennej CLIENT_DIST.
+ *
+ * Program uruchamiany jest w dwóch układach katalogów o różnej głębokości:
+ *
+ *   tryb deweloperski   server/src/config/env.ts    -> SERVER_ROOT = server
+ *   build samodzielny   server/dist/config/env.js   -> SERVER_ROOT = server
+ *   ładunek instalatora server/config/env.js        -> SERVER_ROOT = app.asar.unpacked
+ *
+ * W dwóch pierwszych klient leży w <projekt>/client/dist, w trzecim - obok
+ * serwera, w <app.asar.unpacked>/client. Sprawdzamy więc oba położenia.
+ *
+ * Powłoka Electrona zawsze przekazuje CLIENT_DIST, więc funkcja ta obsługuje
+ * uruchomienie serwera bez powłoki - wtedy zła ścieżka objawiłaby się mylącym
+ * błędem 404 zamiast aplikacji.
+ */
+function resolveClientDist(): string {
+  const domyslny = path.join(REPO_ROOT, 'client', 'dist');
+  const kandydaci = [domyslny, path.join(SERVER_ROOT, 'client'), path.join(REPO_ROOT, 'client')];
+  for (const kandydat of kandydaci) {
+    if (fs.existsSync(path.join(kandydat, 'index.html'))) return kandydat;
+  }
+  return domyslny;
+}
+
 function int(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -95,7 +120,7 @@ export const env = {
   backupIntervalHours: int('BACKUP_INTERVAL_HOURS', 12),
   backupKeep: int('BACKUP_KEEP', 30),
   serveClient: bool('SERVE_CLIENT', isProduction),
-  clientDist: str('CLIENT_DIST', '') || path.join(REPO_ROOT, 'client', 'dist'),
+  clientDist: str('CLIENT_DIST', '') || resolveClientDist(),
   trustProxy: bool('TRUST_PROXY', false),
 } as const;
 

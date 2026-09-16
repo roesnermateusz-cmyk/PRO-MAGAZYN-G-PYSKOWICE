@@ -75,13 +75,24 @@ i API pozostają zgodne z 1.0.0 — aktualizacja nie wymaga migracji danych.
   wszystkich miejscach.
 - SHA-256: `fdfb1d07b236f5e4165a5e86d85e1b88eb62dffaba7ceef0299abb612b94dbc1`.
 
+### Przetestowane na Windows
+
+Przepływ GitHub Actions (`windows-latest`, przebieg 35089091971) potwierdził:
+84/84 testy, budowanie instalatora, cichą instalację, uruchomienie
+**zainstalowanego** serwera (`/api/health` → `ok`, wersja 1.1.0, aplikacja
+kliencka serwowana, `401` bez tokenu, baza utworzona) oraz cichą deinstalację
+z zachowaniem katalogu danych i usunięciem reguły zapory.
+
 ### Znane ograniczenia
 
-- Instalacja i uruchomienie na **fizycznym Windows** pozostają do odbioru
-  (lista kontrolna: `docs/WDROZENIE-WINDOWS.md` §10). Próba instalacji pod
-  Wine nie kończy się — nie jest to dowód błędu, ale nie zastępuje testu.
+- Odbiór funkcjonalny (praca z interfejsem: logowanie, wystawianie dokumentów,
+  wydruk, skany, drugie stanowisko, kopie zapasowe) pozostaje do wykonania na
+  stanowisku docelowym — CI sprawdza instalację i start, nie klika w oknach.
+  Lista: `docs/WDROZENIE-WINDOWS.md` §10.
 - Plik nie jest podpisany certyfikatem — SmartScreen wyświetli ostrzeżenie
   przy pierwszej instalacji.
+- Instalator zbudowany na Linuksie i na Windows mają różne sumy kontrolne
+  (znaczniki czasu w plikach NSIS). Wiążący jest artefakt z przepływu CI.
 - Pozostałe ograniczenia z 1.0.0 (import z prototypu, HTTPS) bez zmian.
 
 ---

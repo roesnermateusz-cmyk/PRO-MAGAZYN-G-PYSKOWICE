@@ -263,7 +263,7 @@ anulowanie po wydaniu towaru, zmiana jednostki produktu z historią ruchów.
 | Czy production build przechodzi? | **TAK** | Serwer i klient |
 | Czy instalator się buduje? | **TAK** | `npm run dist` → kod 0, jeden plik, 103 864 955 B |
 | Czy zawartość instalatora jest poprawna? | **TAK** | patrz „Weryfikacja instalatora” |
-| **Czy instalator działa na Windows?** | **DO ODBIORU** | patrz niżej — wymaga fizycznego Windows |
+| **Czy instalator działa na Windows?** | **TAK** | instalacja, uruchomienie serwera i deinstalacja przetestowane na `windows-latest` |
 
 ---
 
@@ -341,17 +341,41 @@ Każde budowanie ma własną sumę (znaczniki czasu w plikach PE); wiążąca je
 suma wypisana przez przepływ GitHub Actions obok artefaktu, który jest
 przekazywany użytkownikom.
 
-### Czego nie dało się zweryfikować w środowisku budowania
+### Test na prawdziwym Windows — wynik
 
-Podjęto próbę cichej instalacji (`/S`) pod Wine 9.0 z wirtualnym ekranem.
-Instalator uruchamia się, ładuje wtyczki i rozpoczyna pracę, ale nie kończy
-instalacji w rozsądnym czasie — najprawdopodobniej przez wtyczkę UAC
-(podniesienie uprawnień) niemającą odpowiednika w Wine. **Nie jest to dowód
-błędu instalatora, ale też nie jest to dowód poprawnego działania.**
+Instalacji nie dało się przetestować w środowisku budowania: pod Wine 9.0
+instalator uruchamia się i ładuje wtyczki, ale nie kończy pracy — najpewniej
+przez wtyczkę UAC niemającą odpowiednika w Wine. Dlatego test wykonuje
+przepływ GitHub Actions na `windows-latest`
+(`.github/workflows/installer.yml`).
 
-Zgodnie z zasadą „jeżeli funkcja nie jest gotowa, nie udawaj, że działa”,
-instalacja i uruchomienie programu na fizycznym Windows są raportowane jako
-**DO ODBIORU** — lista kontrolna w `docs/WDROZENIE-WINDOWS.md` §10.
+Przebieg **35089091971** (commit `e884ccb`) — **wynik: sukces**:
+
+| Krok | Wynik |
+|---|---|
+| `npm run verify` na Windows | 84/84 testy, 0 podatności |
+| `npm run dist` + kontrola pakietu | jeden plik, 9 zależności rozwiązanych z `app.asar.unpacked` |
+| Cicha instalacja `/S` | program, moduł natywny, migracje, klient, katalog danych, reguła zapory — wszystko na miejscu |
+| Uruchomienie **zainstalowanego** serwera | `Health: status=ok version=1.1.0` |
+| Aplikacja kliencka | serwowana, kod 200 |
+| `/api/documents` bez tokenu | **401** — uprawnienia egzekwuje serwer, nie interfejs |
+| Utworzenie bazy danych | `resinvest.sqlite` powstał w katalogu danych |
+| Cicha deinstalacja `/S` | program usunięty, **dane zachowane**, reguła zapory usunięta |
+
+Plik z przebiegu: `ResInvest-ERP-Setup-1.1.0.exe`, 104 158 391 B,
+SHA-256 `6b9f4e1823371fb1d780d309c9fcbf0bcb05a1c40fc4622c77a7cc0b8f448f9f`.
+
+> Instalator zbudowany na Linuksie i na Windows mają **różne sumy kontrolne** —
+> narzędzia NSIS zapisują w pliku znaczniki czasu. Wiążący jest artefakt
+> z przepływu CI wraz z sumą wypisaną w jego logu; to on trafia do użytkowników.
+
+### Co pozostaje do odbioru u klienta
+
+Przepływ CI sprawdza instalację, uruchomienie serwera i deinstalację, ale
+**nie klika w interfejsie**. Do odbioru na stanowisku docelowym pozostają
+pozycje z `docs/WDROZENIE-WINDOWS.md` §10 dotyczące pracy z programem:
+logowanie i wymuszenie zmiany hasła, wystawienie dokumentów, wydruk A4,
+skany, praca drugiego stanowiska przez przeglądarkę, kopie zapasowe.
 
 ---
 
@@ -366,7 +390,8 @@ instalacja i uruchomienie programu na fizycznym Windows są raportowane jako
 | Testy końcowe | **PASS** (84/84) |
 | Production build | **PASS** |
 | Instalator — budowanie i zawartość | **PASS** (jeden plik, SHA-256 wygenerowana) |
-| Instalator — instalacja i uruchomienie na Windows | **DO ODBIORU** |
+| Instalator — instalacja, uruchomienie i deinstalacja na Windows | **PASS** (GitHub Actions, `windows-latest`) |
+| Odbiór funkcjonalny na stanowisku docelowym | **DO WYKONANIA** (praca z interfejsem, §10) |
 
 System jest gotowy do testów odbiorczych w środowisku Windows.
 Przed uruchomieniem produkcyjnym należy zmienić hasła kont początkowych

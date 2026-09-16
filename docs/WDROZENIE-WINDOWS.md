@@ -340,20 +340,29 @@ w katalogu danych przy pierwszym starcie. Można je też podać jawnie w
 
 Lista kontrolna przed przekazaniem instalatora użytkownikom.
 
-Pozycje oznaczone `[x]` zostały zweryfikowane podczas budowania wydania 1.1.0
-(kod wyjścia, liczba plików, zawartość pakietu, wersje, suma kontrolna).
-**Pozostałe pozycje należy sprawdzić na fizycznej maszynie Windows** —
-środowisko budowania nie pozwala uruchomić zainstalowanego programu.
+Pozycje oznaczone `[x]` są **sprawdzane automatycznie przy każdym wypchnięciu**
+przez przepływ `.github/workflows/installer.yml` na `windows-latest`. Zielony
+przebieg oznacza, że wszystkie zostały potwierdzone na prawdziwym Windows.
+
+Pozostałe pozycje wymagają pracy z interfejsem programu i należy je sprawdzić
+na stanowisku docelowym — CI ich nie obejmuje.
 
 - [x] `npm run verify` kończy się powodzeniem (typecheck, lint, 84 testy, build)
 - [x] `npm run dist` tworzy jeden plik `.exe`
 - [x] Zapisano sumę SHA-256 pliku instalatora
-      (`fdfb1d07b236f5e4165a5e86d85e1b88eb62dffaba7ceef0299abb612b94dbc1`)
+      (wypisywana w logu przebiegu, obok artefaktu)
 - [x] Zasób wersji pliku `.exe`, manifest aplikacji, serwer i klient
       raportują tę samą wersję (1.1.0)
 - [x] Moduł bazy danych w pakiecie jest biblioteką Windows x64 o sumie
       zgodnej z `desktop/native-prebuilds.json`
-- [ ] Instalacja na czystym systemie Windows kończy się powodzeniem
+- [x] Zależności serwera rozwiązują się z pakietu aplikacji
+- [x] Instalacja na czystym systemie Windows kończy się powodzeniem
+- [x] Instalacja tworzy katalog danych i regułę zapory
+- [x] Zainstalowany serwer uruchamia się, `/api/health` zwraca `ok`
+      i zgodną wersję
+- [x] Aplikacja kliencka jest serwowana przez zainstalowany serwer
+- [x] Zapytanie do API bez tokenu zwraca `401`
+- [x] Zainstalowany program tworzy plik bazy danych
 - [ ] Program uruchamia się i wyświetla ekran logowania
 - [ ] Logowanie kontem `admin` działa, wymuszenie zmiany hasła działa
 - [ ] Utworzenie i zatwierdzenie dokumentu PZ zmienia stan magazynowy
@@ -365,5 +374,6 @@ Pozycje oznaczone `[x]` zostały zweryfikowane podczas budowania wydania 1.1.0
 - [ ] Kopia zapasowa tworzy się w katalogu `backups`
 - [ ] Zamknięcie programu nie pozostawia procesu w tle (Menedżer zadań)
 - [ ] Ponowne uruchomienie zachowuje wprowadzone dane
-- [ ] Deinstalacja usuwa program i **zachowuje** katalog danych
+- [x] Deinstalacja usuwa program i **zachowuje** katalog danych
+- [x] Deinstalacja usuwa regułę zapory
 - [ ] Wersja w *Pomoc → O programie* zgadza się z numerem wydania
